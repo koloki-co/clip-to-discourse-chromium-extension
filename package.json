@@ -1,0 +1,16 @@
+{
+  "name": "clip-to-discourse-chromium-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "vitest": "^1.6.0"
+  }
+}

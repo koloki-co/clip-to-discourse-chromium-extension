@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Clip To Discourse",
+  "version": "0.1.0",
+  "description": "Clip pages to your Discourse instance.",
+  "action": {
+    "default_title": "Clip to Discourse",
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
+}

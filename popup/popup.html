@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clip to Discourse</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>Clip to Discourse</h1>
+        <a class="settings-link" href="../options/options.html" target="_blank" rel="noreferrer">Settings</a>
+      </header>
+
+      <form id="clip-form">
+        <section class="section">
+          <h2>Clip Style</h2>
+          <label class="radio">
+            <input type="radio" name="clipStyle" value="title_url" checked />
+            Title + URL
+          </label>
+          <label class="radio disabled">
+            <input type="radio" name="clipStyle" value="excerpt" disabled />
+            Title + URL + excerpt (coming soon)
+          </label>
+          <label class="radio disabled">
+            <input type="radio" name="clipStyle" value="full_text" disabled />
+            Full page text (coming soon)
+          </label>
+        </section>
+
+        <section class="section">
+          <h2>Destination</h2>
+          <label class="radio">
+            <input type="radio" name="destination" value="new_topic" checked />
+            Create new topic
+          </label>
+          <label class="radio">
+            <input type="radio" name="destination" value="append_topic" />
+            Append to existing topic
+          </label>
+
+          <div id="category-field" class="field">
+            <label for="categoryId">Category ID</label>
+            <input id="categoryId" name="categoryId" type="number" min="1" placeholder="e.g. 12" />
+          </div>
+          <div id="topic-field" class="field hidden">
+            <label for="topicId">Topic ID</label>
+            <input id="topicId" name="topicId" type="number" min="1" placeholder="e.g. 345" />
+          </div>
+        </section>
+
+        <button class="primary" type="submit">Clip</button>
+        <p id="status" class="status" role="status"></p>
+      </form>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

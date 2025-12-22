@@ -1,0 +1,137 @@
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Bold.ttf") format("truetype");
+}
+
+:root {
+  color-scheme: light;
+  --bg: #d6c9aa;
+  --card: #ffffff;
+  --text: #1f2328;
+  --muted: #5c6773;
+  --accent: #577188;
+  --border: #e1ded9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Lato", "Helvetica Neue", Arial, sans-serif;
+}
+
+.container {
+  width: 320px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.radio {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.radio input {
+  margin-right: 6px;
+}
+
+.radio.disabled {
+  color: var(--muted);
+}
+
+.field {
+  margin-top: 8px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.field input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.primary {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.primary[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 18px;
+}
+
+.hidden {
+  display: none;
+}
+
+.settings-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.settings-link:hover {
+  text-decoration: underline;
+}

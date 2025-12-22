@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clip to Discourse Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Clip to Discourse Settings</h1>
+        <p>Connect your Discourse instance and set defaults.</p>
+      </header>
+
+      <form id="settings-form">
+        <section class="section">
+          <h2>Connection</h2>
+          <label>
+            Discourse Base URL
+            <input id="baseUrl" name="baseUrl" type="url" placeholder="https://forum.example.com" required />
+            <span id="baseUrlError" class="error"></span>
+          </label>
+          <label>
+            API Username
+            <input id="apiUsername" name="apiUsername" type="text" placeholder="clipbot" required />
+            <span id="apiUsernameError" class="error"></span>
+          </label>
+          <label>
+            API Key
+            <input id="apiKey" name="apiKey" type="password" required />
+            <span id="apiKeyError" class="error"></span>
+          </label>
+        </section>
+
+        <section class="section">
+          <h2>Defaults</h2>
+          <label>
+            Default Clip Style
+            <select id="defaultClipStyle" name="defaultClipStyle">
+              <option value="title_url">Title + URL</option>
+              <option value="excerpt" disabled>Title + URL + excerpt (coming soon)</option>
+              <option value="full_text" disabled>Full page text (coming soon)</option>
+            </select>
+          </label>
+          <label>
+            Default Destination
+            <select id="defaultDestination" name="defaultDestination">
+              <option value="new_topic">Create new topic</option>
+              <option value="append_topic">Append to existing topic</option>
+            </select>
+          </label>
+          <div class="grid">
+            <label>
+              Default Category ID
+              <input id="defaultCategoryId" name="defaultCategoryId" type="number" min="1" placeholder="e.g. 12" />
+            </label>
+            <label>
+              Default Topic ID
+              <input id="defaultTopicId" name="defaultTopicId" type="number" min="1" placeholder="e.g. 345" />
+            </label>
+          </div>
+          <label>
+            Title Template
+            <input id="titleTemplate" name="titleTemplate" type="text" placeholder="Clip: {{title}}" />
+            <span class="hint">Use {{title}} and {{date}} placeholders.</span>
+          </label>
+        </section>
+
+        <div class="actions">
+          <button class="secondary" type="button" id="testConnection">Test Connection</button>
+          <button class="primary" type="submit">Save Settings</button>
+        </div>
+        <p id="status" class="status" role="status"></p>
+      </form>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
