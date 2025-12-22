@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run lint
+      - run: npm test
+      - run: npm run package
+      - uses: actions/upload-artifact@v6
+        with:
+          name: clip-to-discourse-extension
+          path: clip-to-discourse-extension.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: clip-to-discourse-extension.zip
