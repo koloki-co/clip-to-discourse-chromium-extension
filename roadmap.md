@@ -6,14 +6,14 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 
 ## Phase 0 – Project Foundations
 
-- [ ] Establish repo structure
-  - [ ] Initialise project, package manager, and basic tooling (build script, dev script, lint script, test script).
-  - [ ] Decide on TypeScript vs JavaScript and bundler (e.g. Vite/Rollup/Webpack) for the Chromium extension.
+- [x] Establish repo structure
+  - [x] Initialise project, package manager, and basic tooling (lint, test, package scripts).
+  - [x] Decide on TypeScript vs JavaScript and bundler (e.g. Vite/Rollup/Webpack) for the Chromium extension.
 - [ ] Coding standards and QA
   - [x] Add linter (ESLint) with a simple, documented config.
   - [x] Add basic unit test framework (e.g. Vitest/Jest/Mocha) and a single smoke test.
-- [ ] Continuous Integration
-  - [ ] Add CI workflow (e.g. GitHub Actions) to run lint, tests, and build on every push/PR.
+- [x] Continuous Integration
+  - [x] Add CI workflow (e.g. GitHub Actions) to run lint and tests on every push/PR.
 - [ ] Developer documentation
   - [ ] Create a concise CONTRIBUTING section or doc describing how to build, test, and package the extension.
 
@@ -158,12 +158,34 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [x] Build and packaging
   - [x] Provide a production zip script suitable for Chrome Web Store upload.
 - [ ] Release management
-  - [ ] Tag releases and attach built extension packages.
+  - [x] Tag releases and attach built extension packages (automate via CI).
   - [ ] Maintain a simple CHANGELOG that references spec sections when major behaviours are added or changed.
 
 ---
 
-## Phase 8 – Documentation and Developer Experience
+## Phase 8 – Chrome Web Store Release & Listing (Deployment)
+
+- [ ] Account & compliance (manual)
+  - [ ] Create/confirm Chrome Web Store developer account (one-time $5 fee).
+  - [ ] Prepare Privacy Policy URL and complete data disclosure form (permissions: storage, activeTab, scripting).
+- [ ] Release readiness
+  - [ ] Bump `manifest.json` version for each release (can be validated in CI).
+  - [ ] Ensure required assets exist: icons (include 128×128 referenced in manifest), screenshots (≥1280×800), optional promo tiles (440×280, 920×680), optional YouTube promo.
+  - [ ] Verify listing descriptions: short and detailed.
+- [ ] Build & package (automated in CI)
+  - [x] Run packaging script.
+  - [x] Zip the built folder contents (manifest at zip root; exclude `node_modules`, tests, configs, and source maps unless desired).
+  - [x] Publish build artifact from CI (attach to release).
+- [ ] Store upload (human step unless API is wired)
+  - [ ] Upload zip to the Web Store item and submit for review; publish when approved.
+- [ ] Optional full automation
+  - [ ] Add CI job to call the Chrome Web Store API to upload/publish using client ID/secret + refresh token (guarded behind manual approval).
+- [ ] Pre-publish QA
+  - [ ] Test via Chrome “Load unpacked” pointing to the built folder and re-verify clip flows.
+
+---
+
+## Phase 9 – Documentation and Developer Experience
 
 - [ ] User-facing docs
   - [ ] README with:
@@ -177,7 +199,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 
 ---
 
-## Phase 9 – Post-MVP Enhancements (Backlog from Spec §5, §10)
+## Phase 10 – Post-MVP Enhancements (Backlog from Spec §5, §10)
 
 These items come directly from the spec and should be treated as a prioritised backlog once the MVP is stable.
 
