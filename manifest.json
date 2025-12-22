@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Clip To Discourse",
-  "version": "0.1.0",
-  "description": "Clip pages to your Discourse instance.",
+  "version": "0.18.0",
+  "description": "Clip web pages to your personal Discourse instance via API",
   "action": {
     "default_title": "Clip to Discourse",
     "default_popup": "popup/popup.html"
