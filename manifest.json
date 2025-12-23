@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Clip To Discourse",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "Clip web pages to your personal Discourse instance via API",
   "icons": {
     "16": "assets/images/clip-to-discourse-logo.png",
