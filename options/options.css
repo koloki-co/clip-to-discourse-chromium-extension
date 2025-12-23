@@ -48,6 +48,29 @@ h1 {
   font-size: 24px;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.brand-copy p {
+  margin: 4px 0 0;
+}
+
 h2 {
   font-size: 14px;
   margin: 0 0 12px;

@@ -3,9 +3,19 @@
   "name": "Clip To Discourse",
   "version": "0.18.0",
   "description": "Clip web pages to your personal Discourse instance via API",
+  "icons": {
+    "16": "assets/images/clip-to-discourse-logo.png",
+    "32": "assets/images/clip-to-discourse-logo.png",
+    "48": "assets/images/clip-to-discourse-logo.png",
+    "128": "assets/images/clip-to-discourse-logo.png"
+  },
   "action": {
     "default_title": "Clip to Discourse",
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/images/clip-to-discourse-logo.png",
+      "32": "assets/images/clip-to-discourse-logo.png"
+    }
   },
   "options_page": "options/options.html",
   "permissions": [
