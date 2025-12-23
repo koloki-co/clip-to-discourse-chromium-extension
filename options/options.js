@@ -35,6 +35,23 @@ function clearErrors() {
   errors.apiKey.textContent = "";
 }
 
+function getOriginPattern(baseUrl) {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  const parsed = new URL(normalized);
+  return `${parsed.origin}/*`;
+}
+
+async function ensureHostPermission(baseUrl) {
+  const originPattern = getOriginPattern(baseUrl);
+  const alreadyGranted = await chrome.permissions.contains({ origins: [originPattern] });
+  if (alreadyGranted) return true;
+  const granted = await chrome.permissions.request({ origins: [originPattern] });
+  if (!granted) {
+    throw new Error("Host permission was not granted. Please allow access to your Discourse site.");
+  }
+  return true;
+}
+
 function validateFields() {
   clearErrors();
   let isValid = true;
@@ -94,6 +111,8 @@ async function handleSubmit(event) {
   setStatus("Saving...");
 
   try {
+    await ensureHostPermission(fields.baseUrl.value);
+
     await saveSettings({
       baseUrl: fields.baseUrl.value,
       apiUsername: fields.apiUsername.value,
@@ -126,6 +145,8 @@ async function handleTestConnection() {
   setStatus("Testing connection...");
 
   try {
+    await ensureHostPermission(fields.baseUrl.value.trim());
+
     await testConnection({
       baseUrl: fields.baseUrl.value.trim().replace(/\/+$/, ""),
       apiUsername: fields.apiUsername.value.trim(),

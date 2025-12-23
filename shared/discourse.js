@@ -26,7 +26,7 @@ export async function createPost({ baseUrl, apiUsername, apiKey, payload }) {
 }
 
 export async function testConnection({ baseUrl, apiUsername, apiKey }) {
-  const response = await fetch(`${baseUrl}/users/by-username/${encodeURIComponent(apiUsername)}.json`, {
+  const response = await fetch(`${baseUrl}/t/1.json`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

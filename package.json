@@ -7,7 +7,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets"
+    "build": "npm run lint && npm run test",
+    "package": "npm run build && rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

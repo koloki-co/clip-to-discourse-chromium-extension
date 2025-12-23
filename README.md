@@ -21,6 +21,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 1. Download the extension from the Chrome Web Store
 2. Click the extension icon and go to Settings
 3. Enter your Discourse Base URL, API Username, and API Key
+	- Create a user-scoped API key from your Discourse admin UI with a **Granular** scope that allows **Topics: read (for connection test only), write, and update**. Avoid admin or global keys.
 4. Set your default clip style and destination mode
 5. Start clipping content to your Discourse forum!
 
