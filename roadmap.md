@@ -151,7 +151,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
   - [x] Markdown builder for each clip style (ensure stable, predictable formats).
   - [x] Discourse payload builder for both new topic and reply.
 - [ ] Integration tests
-  - [ ] Mocked HTTP tests for posting to `POST /posts.json` with different combinations of clip style and destination.
+  - [x] Mocked HTTP tests for posting to `POST /posts.json` with different combinations of clip style and destination.
   - [ ] Tests around configuration loading/saving via `chrome.storage.sync` (using Chrome extension test utilities or mocks).
 - [ ] UI tests (optional but recommended)
   - [ ] Add light-weight UI tests for popup behaviour (state changes, validation, happy path clip).
