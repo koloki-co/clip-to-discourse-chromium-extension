@@ -1,0 +1,43 @@
+name: Publish to Chrome Web Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Publish target"
+        required: true
+        default: "trusted"
+        type: choice
+        options:
+          - trusted
+          - untrusted
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run lint
+      - run: npm test
+      - run: npm run package
+      - name: Upload and publish
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          PUBLISH_TARGET: ${{ inputs.publish_target }}
+        run: >
+          npx -y chrome-webstore-upload-cli@2
+          upload
+          --source clip-to-discourse-extension.zip
+          --extension-id "$EXTENSION_ID"
+          --client-id "$CLIENT_ID"
+          --client-secret "$CLIENT_SECRET"
+          --refresh-token "$REFRESH_TOKEN"
+          --publish "$PUBLISH_TARGET"
