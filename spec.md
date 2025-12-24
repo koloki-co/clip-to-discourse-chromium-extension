@@ -142,13 +142,13 @@ Format as per the below block
 
 The above renders as a H3 header in Discourse, which is visually distinct without being too large. A bare URL on its own line triggers Oneboxing.
 
-#### Short excerpt (not MVP)
+#### Short excerpt
 
 - Extract visible text from page
 - Truncate to configurable limit (e.g. 500–1000 characters)
 - No attempt to summarise (pure truncation, there is no AI)
 
-#### Full page (not MVP)
+#### Full page
 
 - Extract readable article content
 - Exclude:

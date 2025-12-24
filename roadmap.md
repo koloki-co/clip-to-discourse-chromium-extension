@@ -57,13 +57,13 @@ This roadmap turns the specification into a concrete build order. Phases are ord
     - [x] Apply fallback title pattern: `"{{datetime}} Clipped with Clip To Discourse"` when needed.
   - [x] URL extraction:
     - [x] Read from `window.location.href`.
-  - [ ] Short excerpt (not MVP but design for later):
-    - [ ] Extract visible text from page.
-    - [ ] Truncate to configurable character limit (e.g. 500–1000).
-    - [ ] Ensure pure truncation (no summarisation / AI).
-  - [ ] Full page text (not MVP but design hooks):
-    - [ ] Extract readable article content (main text, excluding navigation, scripts, styles).
-    - [ ] Keep plain text only (no HTML retention for MVP).
+  - [x] Short excerpt:
+    - [x] Extract visible text from page.
+    - [x] Truncate to configurable character limit (e.g. 500–1000).
+    - [x] Ensure pure truncation (no summarisation / AI).
+  - [x] Full page text:
+    - [x] Extract readable article content (main text, excluding navigation, scripts, styles).
+    - [x] Keep plain text only (no HTML retention for MVP).
 - [x] Markdown formatting
   - [x] Implement helpers to generate Markdown in the three example shapes (Title + URL only, Excerpt, Full page) per spec §5.3.
   - [x] Ensure the final bare URL is always present to allow Discourse Oneboxing.
@@ -100,8 +100,8 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [x] Clip style selector (spec §4.1.1)
   - [x] Implement radio-buttons (mutually exclusive) for clip styles:
     - [x] Title + URL only.
-    - [x] Title + URL + short excerpt (disabled).
-    - [x] Full page text (disabled).
+    - [x] Title + URL + short excerpt.
+    - [x] Full page text.
     - [ ] (Placeholders for future: screenshot; Archive.org link.)
   - [x] Ensure only one clip style is active per clip.
   - [x] Honour default clip style from settings.
@@ -114,7 +114,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [x] Clip action
   - [x] Implement the primary "Clip" button.
   - [x] On click, gather content (title, URL), build markdown, build payload, and post to Discourse.
-  - [ ] Extend clip action for excerpt/full text once those modes are enabled.
+  - [x] Extend clip action for excerpt/full text.
   - [x] Show success / error notification and optionally a link to the created/updated topic.
 
 ---
@@ -147,7 +147,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 ## Phase 6 – Testing Strategy
 
 - [x] Unit tests
-  - [ ] Content extraction utilities (title, URL, excerpt, full page text parser where feasible).
+  - [x] Content extraction utilities (title, URL, excerpt, full page text parser where feasible).
   - [x] Markdown builder for each clip style (ensure stable, predictable formats).
   - [x] Discourse payload builder for both new topic and reply.
 - [ ] Integration tests
@@ -215,7 +215,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 These items come directly from the spec and should be treated as a prioritised backlog once the MVP is stable.
 
 - [ ] Additional clip styles and behaviours
-  - [ ] Implement Short excerpt and Full page modes if not completed during MVP.
+  - [x] Implement Short excerpt and Full page modes.
   - [ ] Add screenshot-based clip style.
   - [ ] Add Archive.org integration (link to saved version, possibly triggering archive on clip).
 - [ ] UX refinements

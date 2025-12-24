@@ -4,6 +4,7 @@ import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from
 import { buildPayload } from "../shared/payload.js";
 import { createPost } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import { buildExcerpt, normalizeText } from "../shared/extract.js";
 
 const form = document.getElementById("clip-form");
 const statusEl = document.getElementById("status");
@@ -60,10 +61,14 @@ async function getActiveTabInfo() {
   }
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: () => ({
-      title: document.title,
-      url: window.location.href
-    })
+    func: () => {
+      const title = document.title;
+      const url = window.location.href;
+      const article = document.querySelector("article") || document.querySelector("main") || document.body;
+      const fullText = article ? article.innerText : "";
+      const pageText = document.body ? document.body.innerText : fullText;
+      return { title, url, fullText, pageText };
+    }
   });
   return result;
 }
@@ -143,18 +148,19 @@ async function handleSubmit(event) {
     if (destination === DESTINATIONS.APPEND_TOPIC && topicId) {
       ensureValidId(topicId, "Topic ID");
     }
-    if (clipStyle !== CLIP_STYLES.TITLE_URL) {
-      throw new Error("Selected clip style is not available yet.");
-    }
 
     const pageInfo = await getActiveTabInfo();
     const title = normalizeTitle(pageInfo.title) || fallbackTitle();
     const url = pageInfo.url;
+    const excerpt = buildExcerpt(pageInfo.pageText);
+    const fullText = normalizeText(pageInfo.fullText);
 
     const raw = buildMarkdown({
       title,
       url,
-      clipStyle
+      clipStyle,
+      excerpt,
+      fullText
     });
 
     const payload = buildPayload({

@@ -93,9 +93,6 @@ h2 {
   margin-right: 6px;
 }
 
-.radio.disabled {
-  color: var(--muted);
-}
 
 .field {
   margin-top: 8px;

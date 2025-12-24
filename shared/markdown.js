@@ -26,8 +26,8 @@ export function buildMarkdown({ title, url, clipStyle, excerpt, fullText }) {
   if (clipStyle === CLIP_STYLES.EXCERPT) {
     const text = excerpt ? excerpt.trim() : "";
     return (
-      `**Title:** ${safeTitle}\n` +
-      `**URL:** ${safeUrl}\n\n` +
+      `### ${safeTitle}\n` +
+      `${safeUrl}\n\n` +
       (text ? `> ${text.replace(/\n/g, "\n> ")}\n\n` : "") +
       `${safeUrl}`
     );
@@ -36,8 +36,8 @@ export function buildMarkdown({ title, url, clipStyle, excerpt, fullText }) {
   if (clipStyle === CLIP_STYLES.FULL_TEXT) {
     const text = fullText ? fullText.trim() : "";
     return (
-      `**Title:** ${safeTitle}\n` +
-      `**URL:** ${safeUrl}\n\n---\n\n` +
+      `### ${safeTitle}\n` +
+      `${safeUrl}\n\n---\n\n` +
       `${text}\n\n---\n\n` +
       `${safeUrl}`
     );

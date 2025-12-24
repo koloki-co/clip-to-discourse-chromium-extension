@@ -8,7 +8,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 * No third-party servers are involved
 
 ## Features
-* Clip page title and URL (excerpt and full text coming soon)
+* Clip page title and URL, with optional excerpt or full text
 * Create new topics or append to existing topics
 * Configurable clip styles and destination modes
 
