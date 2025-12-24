@@ -9,13 +9,13 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [x] Establish repo structure
   - [x] Initialise project, package manager, and basic tooling (lint, test, package scripts).
   - [x] Decide on TypeScript vs JavaScript and bundler (e.g. Vite/Rollup/Webpack) for the Chromium extension.
-- [ ] Coding standards and QA
+- [x] Coding standards and QA
   - [x] Add linter (ESLint) with a simple, documented config.
   - [x] Add basic unit test framework (e.g. Vitest/Jest/Mocha) and a single smoke test.
 - [x] Continuous Integration
   - [x] Add CI workflow (e.g. GitHub Actions) to run lint and tests on every push/PR.
-- [ ] Developer documentation
-  - [ ] Create a concise CONTRIBUTING section or doc describing how to build, test, and package the extension.
+- [x] Developer documentation
+  - [x] Create a concise CONTRIBUTING section or doc describing how to build, test, and package the extension.
 
 ---
 
@@ -37,8 +37,12 @@ This roadmap turns the specification into a concrete build order. Phases are ord
   - [x] Document recommended practices (dedicated user, avoid admin keys) per spec §8.
 - [x] Privacy and transparency
   - [x] Avoid external network requests for UI assets (bundle fonts locally).
+  - [x] Allow optional favicon-based toolbar icon with per-site requests only.
 - [x] Permissions and manifest
   - [x] Define minimal Chrome permissions (storage, activeTab, scripting) in the extension manifest per spec §7.
+- [x] Multiple profiles
+  - [x] Support storing multiple Discourse configurations in sync storage.
+  - [x] Add migration from legacy single-profile settings.
 
 ---
 
@@ -87,6 +91,8 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [x] Popup shell
   - [x] Implement the popup entry component rendered when the extension icon is clicked (spec §3.1, §4.1).
   - [x] Display loading state while settings and context are loaded.
+- [x] Profile switcher
+  - [x] Allow switching between profiles from the popup.
 - [x] Visual styling
   - [x] Apply Lato font to popup and settings UI.
   - [x] Set popup and settings background to `#D6C9AA`.
@@ -119,6 +125,10 @@ This roadmap turns the specification into a concrete build order. Phases are ord
   - [x] Implement a dedicated Options / Settings page accessible via:
     - [x] Chrome Extensions → Extension Details → Options.
     - [x] A "Settings" link/button from the popup.
+- [x] Profile management
+  - [x] Allow creating, naming, deleting, and switching profiles.
+- [x] Appearance options
+  - [x] Add a global option to use destination site favicon for toolbar icon.
 - [x] Settings editing
   - [x] Allow the user to set and update:
     - [x] Discourse BaseURL (with validation and trimming of trailing slash).
@@ -159,7 +169,8 @@ This roadmap turns the specification into a concrete build order. Phases are ord
   - [x] Provide a production zip script suitable for Chrome Web Store upload.
 - [ ] Release management
   - [x] Tag releases and attach built extension packages (automate via CI).
-  - [ ] Maintain a simple CHANGELOG that references spec sections when major behaviours are added or changed.
+  - [x] Maintain a simple CHANGELOG that references spec sections when major behaviours are added or changed.
+  - [x] Add version bump tooling for tagged releases.
 
 ---
 
@@ -169,7 +180,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
   - [ ] Create/confirm Chrome Web Store developer account (one-time $5 fee).
   - [ ] Prepare Privacy Policy URL and complete data disclosure form (permissions: storage, activeTab, scripting).
 - [ ] Release readiness
-  - [ ] Bump `manifest.json` version for each release (can be validated in CI).
+  - [x] Bump `manifest.json` version for each release (validated in CI).
   - [ ] Ensure required assets exist: icons (include 128×128 referenced in manifest), screenshots (≥1280×800), optional promo tiles (440×280, 920×680), optional YouTube promo.
   - [ ] Verify listing descriptions: short and detailed.
 - [ ] Build & package (automated in CI)
@@ -179,7 +190,7 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 - [ ] Store upload (human step unless API is wired)
   - [ ] Upload zip to the Web Store item and submit for review; publish when approved.
 - [ ] Optional full automation
-  - [ ] Add CI job to call the Chrome Web Store API to upload/publish using client ID/secret + refresh token (guarded behind manual approval).
+  - [x] Add CI job to call the Chrome Web Store API to upload/publish using client ID/secret + refresh token (guarded behind manual approval).
 - [ ] Pre-publish QA
   - [ ] Test via Chrome “Load unpacked” pointing to the built folder and re-verify clip flows.
 

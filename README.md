@@ -38,5 +38,6 @@ This Chromium extension allows users to quickly create new topics or replies on 
 - Load the extension locally via `chrome://extensions`, enable Developer mode, and choose "Load unpacked" with this repo folder.
 - Open the extension popup, use the Settings link to configure your Discourse Base URL, API Username, and API Key.
 - After making code changes, return to `chrome://extensions` and click "Reload" for the extension.
-- Install dependencies with `npm install`, run `npm run lint`, and run tests with `npm test`.
+- Install dependencies with `npm install`, run `npm run lint`, run `npm test`, and confirm versions with `npm run version:check`.
 - Create a Chrome Web Store upload zip with `npm run package`.
+- Bump versions and generate release notes with `npm run release` (dry run: `npm run release:dry`).
