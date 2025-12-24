@@ -1,8 +1,9 @@
 import { CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
-import { getSettings } from "../shared/settings.js";
+import { getSettingsState, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
 import { buildPayload } from "../shared/payload.js";
 import { createPost } from "../shared/discourse.js";
+import { updateActionIconForProfile } from "../shared/favicon.js";
 
 const form = document.getElementById("clip-form");
 const statusEl = document.getElementById("status");
@@ -11,8 +12,12 @@ const topicField = document.getElementById("topic-field");
 const categoryInput = document.getElementById("categoryId");
 const topicInput = document.getElementById("topicId");
 const submitButton = form.querySelector("button[type=submit]");
+const profileSelect = document.getElementById("profileSelect");
 
-let currentSettings = null;
+let currentProfile = null;
+let profiles = [];
+let activeProfileId = "";
+let useFaviconForIcon = false;
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -20,7 +25,7 @@ function setStatus(message, isError = false) {
 }
 
 function setFormEnabled(enabled) {
-  form.querySelectorAll("input, button").forEach((element) => {
+  form.querySelectorAll("input, button, select").forEach((element) => {
     element.disabled = !enabled;
   });
 }
@@ -77,7 +82,40 @@ function validateSettings(settings) {
 
 function buildTopicTitle({ title }) {
   const safeTitle = normalizeTitle(title) || fallbackTitle();
-  return applyTitleTemplate(currentSettings.titleTemplate, safeTitle);
+  return applyTitleTemplate(currentProfile.titleTemplate, safeTitle);
+}
+
+function renderProfiles() {
+  profileSelect.innerHTML = "";
+  profiles.forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = profile.name || "Untitled";
+    if (profile.id === activeProfileId) {
+      option.selected = true;
+    }
+    profileSelect.appendChild(option);
+  });
+}
+
+function applyProfileDefaults(profile) {
+  const defaultClipStyle = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
+  const defaultDestination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
+
+  const clipInput = form.querySelector(`input[name='clipStyle'][value='${defaultClipStyle}']`);
+  if (clipInput && !clipInput.disabled) {
+    clipInput.checked = true;
+  }
+
+  const destinationInput = form.querySelector(`input[name='destination'][value='${defaultDestination}']`);
+  if (destinationInput) {
+    destinationInput.checked = true;
+  }
+
+  categoryInput.value = profile.defaultCategoryId || "";
+  topicInput.value = profile.defaultTopicId || "";
+
+  toggleDestinationFields(defaultDestination);
 }
 
 async function handleSubmit(event) {
@@ -86,7 +124,7 @@ async function handleSubmit(event) {
   setStatus("Clipping...");
 
   try {
-    validateSettings(currentSettings);
+    validateSettings(currentProfile);
 
     const destination = getSelectedValue("destination");
     const clipStyle = getSelectedValue("clipStyle");
@@ -128,16 +166,16 @@ async function handleSubmit(event) {
     });
 
     const response = await createPost({
-      baseUrl: currentSettings.baseUrl,
-      apiUsername: currentSettings.apiUsername,
-      apiKey: currentSettings.apiKey,
+      baseUrl: currentProfile.baseUrl,
+      apiUsername: currentProfile.apiUsername,
+      apiKey: currentProfile.apiKey,
       payload
     });
 
     const topicIdResult = response.topic_id || response.id;
     const slug = response.topic_slug;
     if (topicIdResult && slug) {
-      const link = `${currentSettings.baseUrl}/t/${slug}/${topicIdResult}`;
+      const link = `${currentProfile.baseUrl}/t/${slug}/${topicIdResult}`;
       setStatus("Clipped successfully. Open the topic from your Discourse instance.");
       statusEl.style.color = "";
       statusEl.innerHTML = `Clipped successfully. <a href='${link}' target='_blank' rel='noreferrer'>Open topic</a>.`;
@@ -151,32 +189,33 @@ async function handleSubmit(event) {
   }
 }
 
+async function handleProfileChange() {
+  const selectedId = profileSelect.value;
+  if (!selectedId || selectedId === activeProfileId) {
+    return;
+  }
+  setStatus("Switching profile...");
+  await setActiveProfile(selectedId);
+  await loadSettings();
+  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  setStatus("");
+}
+
+async function loadSettings() {
+  const state = await getSettingsState();
+  profiles = state.profiles || [];
+  activeProfileId = state.activeProfileId;
+  currentProfile = state.activeProfile;
+  useFaviconForIcon = state.useFaviconForIcon;
+  renderProfiles();
+  applyProfileDefaults(currentProfile);
+}
+
 async function init() {
   setFormEnabled(false);
   setStatus("Loading settings...");
-  currentSettings = await getSettings();
-
-  const defaultClipStyle = currentSettings.defaultClipStyle || CLIP_STYLES.TITLE_URL;
-  const defaultDestination = currentSettings.defaultDestination || DESTINATIONS.NEW_TOPIC;
-
-  const clipInput = form.querySelector(`input[name='clipStyle'][value='${defaultClipStyle}']`);
-  if (clipInput && !clipInput.disabled) {
-    clipInput.checked = true;
-  }
-
-  const destinationInput = form.querySelector(`input[name='destination'][value='${defaultDestination}']`);
-  if (destinationInput) {
-    destinationInput.checked = true;
-  }
-
-  if (currentSettings.defaultCategoryId) {
-    categoryInput.value = currentSettings.defaultCategoryId;
-  }
-  if (currentSettings.defaultTopicId) {
-    topicInput.value = currentSettings.defaultTopicId;
-  }
-
-  toggleDestinationFields(defaultDestination);
+  await loadSettings();
+  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
 
   form.addEventListener("change", (event) => {
     if (event.target.name === "destination") {
@@ -185,6 +224,7 @@ async function init() {
   });
 
   form.addEventListener("submit", handleSubmit);
+  profileSelect.addEventListener("change", handleProfileChange);
   setFormEnabled(true);
   setStatus("");
 }

@@ -42,6 +42,11 @@ Content is posted in a way that:
 
 Displayed when the extension icon is clicked.
 
+#### 4.1.0 Active Profile (frequently changed)
+
+- Profile selector to switch between saved Discourse configurations.
+- Selection immediately changes which Discourse instance and defaults are used.
+
 #### 4.1.1 Clip Style (frequently changed)
 
 Radio buttons or checkboxes (mutually exclusive):
@@ -109,6 +114,13 @@ or
 - Default Category ID / Topic ID
 - Title template for new topics, e.g. Clip: {{title}} or Clip {{date}}: {{title}}
 
+#### 4.2.3 Multiple profiles
+
+- Users can save multiple Discourse configurations (profiles).
+- Settings UI must allow creating, naming, deleting, and switching profiles.
+- Popup must allow quick switching of the active profile.
+- A global option allows using the destination site favicon for the extension toolbar icon.
+
 ## 5. Clipping Behaviour
 
 ### 5.1 Content extraction rules
@@ -173,15 +185,13 @@ All clip styles should produce predictable, searchable Markdown.
 
 Example (Title + URL only):
 
-**Title:** Example Page  
-**URL:** https://example.com
-
+### Example Page
 https://example.com
 
 Example (Excerpt):
 
-**Title:** Example Page  
-**URL:** https://example.com
+### Example Page
+https://example.com
 
 > First few lines of content…
 > truncated…
@@ -190,8 +200,8 @@ https://example.com
 
 Example (Full page):
 
-**Title:** Example Page  
-**URL:** https://example.com
+### Example Page
+https://example.com
 
 ---
 
@@ -209,10 +219,9 @@ The final bare URL ensures Discourse Oneboxing.
 
 Use `chrome.storage.sync` for:
 
-- baseUrl
-- apiUsername
-- apiKey
-- defaults
+- profiles (array of settings objects, each with its own credentials and defaults)
+- activeProfileId (string)
+- useFaviconForIcon (boolean)
 
 No server-side state required.
 
@@ -257,4 +266,3 @@ These are deliberately excluded from initial implementation:
 - Highlight-to-clip
 - Server-side relay (n8n)
 - Firefox / Safari ports
-

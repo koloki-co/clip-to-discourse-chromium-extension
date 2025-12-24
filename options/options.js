@@ -1,13 +1,26 @@
-import { getSettings, saveSettings } from "../shared/settings.js";
+import {
+  getSettingsState,
+  saveActiveProfile,
+  addProfile,
+  deleteProfile,
+  setActiveProfile,
+  saveGlobalSettings
+} from "../shared/settings.js";
 import { CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { testConnection } from "../shared/discourse.js";
+import { updateActionIconForProfile } from "../shared/favicon.js";
 
 const form = document.getElementById("settings-form");
 const statusEl = document.getElementById("status");
 const submitButton = form.querySelector("button[type=submit]");
 const testButton = document.getElementById("testConnection");
+const profileSelect = document.getElementById("profileSelect");
+const addProfileButton = document.getElementById("addProfile");
+const deleteProfileButton = document.getElementById("deleteProfile");
 
 const fields = {
+  profileName: document.getElementById("profileName"),
+  useFaviconForIcon: document.getElementById("useFaviconForIcon"),
   baseUrl: document.getElementById("baseUrl"),
   apiUsername: document.getElementById("apiUsername"),
   apiKey: document.getElementById("apiKey"),
@@ -23,6 +36,10 @@ const errors = {
   apiUsername: document.getElementById("apiUsernameError"),
   apiKey: document.getElementById("apiKeyError")
 };
+
+let profiles = [];
+let activeProfileId = "";
+let useFaviconForIcon = false;
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -85,16 +102,47 @@ function validateFields() {
   return isValid;
 }
 
+function renderProfiles() {
+  profileSelect.innerHTML = "";
+  profiles.forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = profile.name || "Untitled";
+    if (profile.id === activeProfileId) {
+      option.selected = true;
+    }
+    profileSelect.appendChild(option);
+  });
+  deleteProfileButton.disabled = profiles.length <= 1;
+}
+
+function fillProfileForm(profile) {
+  fields.profileName.value = profile.name || "";
+  fields.baseUrl.value = profile.baseUrl || "";
+  fields.apiUsername.value = profile.apiUsername || "";
+  fields.apiKey.value = profile.apiKey || "";
+  fields.defaultClipStyle.value = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
+  fields.defaultDestination.value = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
+  fields.defaultCategoryId.value = profile.defaultCategoryId || "";
+  fields.defaultTopicId.value = profile.defaultTopicId || "";
+  fields.titleTemplate.value = profile.titleTemplate || "Clip: {{title}}";
+}
+
 async function loadSettings() {
-  const settings = await getSettings();
-  fields.baseUrl.value = settings.baseUrl || "";
-  fields.apiUsername.value = settings.apiUsername || "";
-  fields.apiKey.value = settings.apiKey || "";
-  fields.defaultClipStyle.value = settings.defaultClipStyle || CLIP_STYLES.TITLE_URL;
-  fields.defaultDestination.value = settings.defaultDestination || DESTINATIONS.NEW_TOPIC;
-  fields.defaultCategoryId.value = settings.defaultCategoryId || "";
-  fields.defaultTopicId.value = settings.defaultTopicId || "";
-  fields.titleTemplate.value = settings.titleTemplate || "Clip: {{title}}";
+  const state = await getSettingsState();
+  profiles = state.profiles || [];
+  activeProfileId = state.activeProfileId;
+  useFaviconForIcon = state.useFaviconForIcon;
+  renderProfiles();
+  fillProfileForm(state.activeProfile);
+  fields.useFaviconForIcon.checked = useFaviconForIcon;
+}
+
+function setButtonsDisabled(disabled) {
+  submitButton.disabled = disabled;
+  testButton.disabled = disabled;
+  addProfileButton.disabled = disabled;
+  deleteProfileButton.disabled = disabled || profiles.length <= 1;
 }
 
 async function handleSubmit(event) {
@@ -106,14 +154,14 @@ async function handleSubmit(event) {
     return;
   }
 
-  submitButton.disabled = true;
-  testButton.disabled = true;
+  setButtonsDisabled(true);
   setStatus("Saving...");
 
   try {
     await ensureHostPermission(fields.baseUrl.value);
 
-    await saveSettings({
+    await saveActiveProfile({
+      name: fields.profileName.value,
       baseUrl: fields.baseUrl.value,
       apiUsername: fields.apiUsername.value,
       apiKey: fields.apiKey.value,
@@ -124,12 +172,20 @@ async function handleSubmit(event) {
       titleTemplate: fields.titleTemplate.value
     });
 
+    await saveGlobalSettings({
+      useFaviconForIcon: fields.useFaviconForIcon.checked
+    });
+
+    await loadSettings();
+    await updateActionIconForProfile(
+      profiles.find((profile) => profile.id === activeProfileId),
+      fields.useFaviconForIcon.checked
+    );
     setStatus("Settings saved.");
   } catch (error) {
     setStatus(error.message || "Failed to save settings.", true);
   } finally {
-    submitButton.disabled = false;
-    testButton.disabled = false;
+    setButtonsDisabled(false);
   }
 }
 
@@ -140,8 +196,7 @@ async function handleTestConnection() {
     return;
   }
 
-  submitButton.disabled = true;
-  testButton.disabled = true;
+  setButtonsDisabled(true);
   setStatus("Testing connection...");
 
   try {
@@ -156,13 +211,63 @@ async function handleTestConnection() {
   } catch (error) {
     setStatus(error.message || "Connection failed.", true);
   } finally {
-    submitButton.disabled = false;
-    testButton.disabled = false;
+    setButtonsDisabled(false);
   }
+}
+
+async function handleProfileChange() {
+  const selectedId = profileSelect.value;
+  if (!selectedId || selectedId === activeProfileId) {
+    return;
+  }
+  setStatus("Switching profile...");
+  await setActiveProfile(selectedId);
+  await loadSettings();
+  await updateActionIconForProfile(
+    profiles.find((profile) => profile.id === activeProfileId),
+    fields.useFaviconForIcon.checked
+  );
+  setStatus("");
+}
+
+async function handleAddProfile() {
+  const name = window.prompt("Profile name");
+  if (!name) {
+    return;
+  }
+  setStatus("Adding profile...");
+  await addProfile({ name });
+  await loadSettings();
+  await updateActionIconForProfile(
+    profiles.find((profile) => profile.id === activeProfileId),
+    fields.useFaviconForIcon.checked
+  );
+  setStatus("");
+}
+
+async function handleDeleteProfile() {
+  if (profiles.length <= 1) {
+    return;
+  }
+  const confirmed = window.confirm("Delete this profile? This cannot be undone.");
+  if (!confirmed) {
+    return;
+  }
+  setStatus("Deleting profile...");
+  await deleteProfile(activeProfileId);
+  await loadSettings();
+  await updateActionIconForProfile(
+    profiles.find((profile) => profile.id === activeProfileId),
+    fields.useFaviconForIcon.checked
+  );
+  setStatus("");
 }
 
 form.addEventListener("submit", handleSubmit);
 testButton.addEventListener("click", handleTestConnection);
+profileSelect.addEventListener("change", handleProfileChange);
+addProfileButton.addEventListener("click", handleAddProfile);
+deleteProfileButton.addEventListener("click", handleDeleteProfile);
 
 loadSettings().catch((error) => {
   setStatus(error.message || "Failed to load settings.", true);

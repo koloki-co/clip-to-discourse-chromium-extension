@@ -20,6 +20,30 @@
 
       <form id="settings-form">
         <section class="section">
+          <h2>Profiles</h2>
+          <label>
+            Active Profile
+            <select id="profileSelect" name="profileSelect"></select>
+          </label>
+          <label>
+            Profile Name
+            <input id="profileName" name="profileName" type="text" placeholder="e.g. Personal" />
+          </label>
+          <div class="actions">
+            <button class="secondary" type="button" id="addProfile">Add Profile</button>
+            <button class="secondary" type="button" id="deleteProfile">Delete Profile</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Appearance</h2>
+          <label class="checkbox">
+            <input id="useFaviconForIcon" name="useFaviconForIcon" type="checkbox" />
+            Use destination site favicon for the toolbar icon
+          </label>
+        </section>
+
+        <section class="section">
           <h2>Connection</h2>
           <label>
             Discourse Base URL
