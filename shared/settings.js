@@ -1,5 +1,6 @@
 import { CLIP_STYLES, DESTINATIONS } from "./constants.js";
 
+// Default per-profile settings used for normalization and migrations.
 export const DEFAULT_PROFILE = {
   id: "",
   name: "Default",
@@ -17,6 +18,7 @@ export const DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
 };
 
+// Keys from older single-profile storage schema.
 const LEGACY_KEYS = [
   "baseUrl",
   "apiUsername",
@@ -28,6 +30,7 @@ const LEGACY_KEYS = [
   "titleTemplate"
 ];
 
+// Prefer crypto UUIDs when available to avoid collisions.
 function generateId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -35,6 +38,7 @@ function generateId() {
   return `profile_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+// Normalize and strip trailing slashes for consistent API calls.
 export function normalizeBaseUrl(value) {
   if (!value) {
     return "";
@@ -47,6 +51,7 @@ function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+// Coerce a raw profile into a complete, valid profile object.
 function normalizeProfile(profile) {
   return {
     ...DEFAULT_PROFILE,
@@ -64,6 +69,7 @@ function normalizeProfile(profile) {
   };
 }
 
+// Create a new profile with a fresh id.
 function createProfile(overrides = {}) {
   return normalizeProfile({
     ...DEFAULT_PROFILE,
@@ -72,6 +78,7 @@ function createProfile(overrides = {}) {
   });
 }
 
+// Load settings and migrate legacy single-profile data if needed.
 async function loadState() {
   const data = await chrome.storage.sync.get(null);
   const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean"
@@ -112,6 +119,7 @@ async function loadState() {
   return { profiles, activeProfileId, useFaviconForIcon };
 }
 
+// Return full settings state with the active profile expanded.
 export async function getSettingsState() {
   const state = await loadState();
   const activeProfile = state.profiles.find((profile) => profile.id === state.activeProfileId);
@@ -121,6 +129,7 @@ export async function getSettingsState() {
   };
 }
 
+// Update the small set of global settings.
 export async function saveGlobalSettings(partial) {
   const useFaviconForIcon = typeof partial.useFaviconForIcon === "boolean"
     ? partial.useFaviconForIcon
@@ -128,6 +137,7 @@ export async function saveGlobalSettings(partial) {
   await chrome.storage.sync.set({ useFaviconForIcon });
 }
 
+// Persist active profile id only if it exists.
 export async function setActiveProfile(profileId) {
   const state = await loadState();
   const exists = state.profiles.some((profile) => profile.id === profileId);
@@ -137,6 +147,7 @@ export async function setActiveProfile(profileId) {
   await chrome.storage.sync.set({ activeProfileId: profileId });
 }
 
+// Merge changes into the active profile in storage.
 export async function saveActiveProfile(partial) {
   const state = await loadState();
   const updatedProfiles = state.profiles.map((profile) => {
@@ -153,6 +164,7 @@ export async function saveActiveProfile(partial) {
   await chrome.storage.sync.set({ profiles: updatedProfiles });
 }
 
+// Add a new profile and make it active.
 export async function addProfile(partial = {}) {
   const state = await loadState();
   const profile = createProfile(partial);
@@ -161,6 +173,7 @@ export async function addProfile(partial = {}) {
   return profile;
 }
 
+// Remove a profile, ensuring at least one remains active.
 export async function deleteProfile(profileId) {
   const state = await loadState();
   if (state.profiles.length <= 1) {

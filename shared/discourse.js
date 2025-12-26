@@ -1,3 +1,4 @@
+// Create a new Discourse post (topic or reply) via the API.
 export async function createPost({ baseUrl, apiUsername, apiKey, payload }) {
   const response = await fetch(`${baseUrl}/posts.json`, {
     method: "POST",
@@ -25,6 +26,7 @@ export async function createPost({ baseUrl, apiUsername, apiKey, payload }) {
   return data;
 }
 
+// Lightweight API call to verify credentials and host availability.
 export async function testConnection({ baseUrl, apiUsername, apiKey }) {
   const response = await fetch(`${baseUrl}/t/1.json`, {
     method: "GET",

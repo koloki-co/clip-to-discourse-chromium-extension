@@ -10,6 +10,7 @@ import { CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { testConnection } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 
+// Options page controller for managing profiles and defaults.
 const form = document.getElementById("settings-form");
 const statusEl = document.getElementById("status");
 const submitButton = form.querySelector("button[type=submit]");
@@ -18,6 +19,7 @@ const profileSelect = document.getElementById("profileSelect");
 const addProfileButton = document.getElementById("addProfile");
 const deleteProfileButton = document.getElementById("deleteProfile");
 
+// Cache field references to simplify validation and save logic.
 const fields = {
   profileName: document.getElementById("profileName"),
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
@@ -31,6 +33,7 @@ const fields = {
   titleTemplate: document.getElementById("titleTemplate")
 };
 
+// Error spans for validation feedback.
 const errors = {
   baseUrl: document.getElementById("baseUrlError"),
   apiUsername: document.getElementById("apiUsernameError"),
@@ -52,12 +55,14 @@ function clearErrors() {
   errors.apiKey.textContent = "";
 }
 
+// Convert a base URL into a Chrome host permission pattern.
 function getOriginPattern(baseUrl) {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
   const parsed = new URL(normalized);
   return `${parsed.origin}/*`;
 }
 
+// Ensure the extension has permission to call the Discourse instance.
 async function ensureHostPermission(baseUrl) {
   const originPattern = getOriginPattern(baseUrl);
   const alreadyGranted = await chrome.permissions.contains({ origins: [originPattern] });
@@ -102,6 +107,7 @@ function validateFields() {
   return isValid;
 }
 
+// Populate the profile selector list.
 function renderProfiles() {
   profileSelect.innerHTML = "";
   profiles.forEach((profile) => {
@@ -116,6 +122,7 @@ function renderProfiles() {
   deleteProfileButton.disabled = profiles.length <= 1;
 }
 
+// Apply the active profile into the form fields.
 function fillProfileForm(profile) {
   fields.profileName.value = profile.name || "";
   fields.baseUrl.value = profile.baseUrl || "";
@@ -128,6 +135,7 @@ function fillProfileForm(profile) {
   fields.titleTemplate.value = profile.titleTemplate || "Clip: {{title}}";
 }
 
+// Pull settings from storage and refresh the form UI.
 async function loadSettings() {
   const state = await getSettingsState();
   profiles = state.profiles || [];
@@ -145,6 +153,7 @@ function setButtonsDisabled(disabled) {
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
 }
 
+// Save profile + global settings back to storage.
 async function handleSubmit(event) {
   event.preventDefault();
   clearErrors();
@@ -189,6 +198,7 @@ async function handleSubmit(event) {
   }
 }
 
+// Validate credentials against the Discourse API without saving.
 async function handleTestConnection() {
   clearErrors();
   if (!validateFields()) {
@@ -215,6 +225,7 @@ async function handleTestConnection() {
   }
 }
 
+// Switch active profile and keep the toolbar icon in sync.
 async function handleProfileChange() {
   const selectedId = profileSelect.value;
   if (!selectedId || selectedId === activeProfileId) {
@@ -230,6 +241,7 @@ async function handleProfileChange() {
   setStatus("");
 }
 
+// Add a new profile with a prompt to collect a name.
 async function handleAddProfile() {
   const name = window.prompt("Profile name");
   if (!name) {
@@ -245,6 +257,7 @@ async function handleAddProfile() {
   setStatus("");
 }
 
+// Delete the active profile and fall back to another one.
 async function handleDeleteProfile() {
   if (profiles.length <= 1) {
     return;
@@ -263,6 +276,7 @@ async function handleDeleteProfile() {
   setStatus("");
 }
 
+// Wire up form actions after the DOM is ready.
 form.addEventListener("submit", handleSubmit);
 testButton.addEventListener("click", handleTestConnection);
 profileSelect.addEventListener("change", handleProfileChange);

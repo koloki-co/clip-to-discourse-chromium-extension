@@ -226,3 +226,21 @@ These items come directly from the spec and should be treated as a prioritised b
 - [ ] Backend and platform
   - [ ] Server-side relay (e.g. n8n) for more advanced workflows.
   - [ ] Ports to Firefox and Safari.
+- [ ] User API key onboarding (pre-user API key flow)
+  - [ ] Add a guided flow that generates per-user API keys via Discourse’s `/user-api-key/new` endpoint.
+  - [ ] Implementation outline:
+    - [ ] Generate a public/private keypair in the extension and store the private key locally (session-only or encrypted).
+    - [ ] Construct an authorization URL to `https://<site>/user-api-key/new` with:
+      - [ ] `auth_redirect` (extension callback/return page; must be in `allowed_user_api_auth_redirects` on the site).
+      - [ ] `application_name` (shown in the user’s Apps tab).
+      - [ ] `client_id` (stable identifier for this installation).
+      - [ ] `scopes` (comma-separated; must be allowed by `allow_user_api_key_scopes`).
+      - [ ] `public_key` (public key from the generated keypair).
+      - [ ] `push_url` when requesting `push` or `notifications` scopes.
+    - [ ] Open the URL in a browser tab; Discourse prompts login + consent.
+    - [ ] Receive the `payload` query parameter on the redirect URL.
+    - [ ] Decrypt `payload` with the stored private key to obtain `User-Api-Key` (and optional one-time login token).
+    - [ ] Persist the user API key per profile and use it in API requests via the `User-Api-Key` header.
+    - [ ] Optionally set `User-Api-Client-Id` header to update the stored client id on the server.
+    - [ ] Provide a “Check API version” probe via `HEAD /user-api-key/new` (read `Auth-Api-Version` response header).
+    - [ ] Add a “Revoke key” action that calls `POST /user-api-key/revoke` with the `User-Api-Key` header.

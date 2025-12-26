@@ -1,3 +1,4 @@
+// Enumerations used by both popup and options UIs.
 export const CLIP_STYLES = {
   TITLE_URL: "title_url",
   EXCERPT: "excerpt",

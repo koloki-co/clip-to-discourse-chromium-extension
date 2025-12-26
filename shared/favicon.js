@@ -1,6 +1,7 @@
 const CACHE_KEY = "faviconCache";
 const ICON_SIZES = [16, 32];
 
+// Prefer OffscreenCanvas when available (service worker friendly).
 function createCanvas(size) {
   if (typeof OffscreenCanvas !== "undefined") {
     return new OffscreenCanvas(size, size);
@@ -15,6 +16,7 @@ function getCanvasContext(canvas) {
   return canvas.getContext("2d");
 }
 
+// Decode an image blob into an Image for canvas drawing.
 async function loadImageFromBlob(blob) {
   const url = URL.createObjectURL(blob);
   try {
@@ -27,6 +29,7 @@ async function loadImageFromBlob(blob) {
   }
 }
 
+// Render the image blob into icon-sized ImageData objects.
 async function blobToImageDataMap(blob) {
   const img = await loadImageFromBlob(blob);
   const imageDataMap = {};
@@ -42,12 +45,14 @@ async function blobToImageDataMap(blob) {
   return imageDataMap;
 }
 
+// Fetch a data URL and convert it to ImageData for action icons.
 async function dataUrlToImageDataMap(dataUrl) {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
   return blobToImageDataMap(blob);
 }
 
+// Build a simple fallback icon when no favicon is available.
 function createFallbackImageDataMap() {
   const imageDataMap = {};
   ICON_SIZES.forEach((size) => {
@@ -65,6 +70,7 @@ function createFallbackImageDataMap() {
   return imageDataMap;
 }
 
+// Cache favicon data URLs locally to avoid re-fetching.
 async function getCachedDataUrl(profileId) {
   const data = await chrome.storage.local.get(CACHE_KEY);
   const cache = data[CACHE_KEY] || {};
@@ -78,6 +84,7 @@ async function setCachedDataUrl(profileId, dataUrl) {
   await chrome.storage.local.set({ [CACHE_KEY]: cache });
 }
 
+// Attempt /favicon.ico first, then fall back to parsing the homepage.
 async function fetchFaviconBlob(baseUrl) {
   const normalized = baseUrl.replace(/\/+$/, "");
   const faviconUrl = `${normalized}/favicon.ico`;
@@ -109,6 +116,7 @@ async function fetchFaviconBlob(baseUrl) {
   }
 }
 
+// Convert a blob into a data URL for caching.
 async function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -118,6 +126,7 @@ async function blobToDataUrl(blob) {
   });
 }
 
+// Update the action icon using a profile favicon or fallback.
 export async function updateActionIconForProfile(profile, useFavicon) {
   if (!useFavicon) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });

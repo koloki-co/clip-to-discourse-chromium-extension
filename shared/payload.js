@@ -1,5 +1,6 @@
 import { DESTINATIONS } from "./constants.js";
 
+// Shape payloads for new topics vs append flows.
 export function buildPayload({ destination, title, categoryId, topicId, raw }) {
   if (destination === DESTINATIONS.NEW_TOPIC) {
     const payload = {

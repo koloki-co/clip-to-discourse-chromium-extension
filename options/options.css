@@ -1,3 +1,4 @@
+/* Brand fonts for options UI. */
 @font-face {
   font-family: "Lato";
   font-style: normal;
@@ -14,6 +15,7 @@
   src: url("../assets/fonts/Lato-Bold.ttf") format("truetype");
 }
 
+/* Theme tokens. */
 :root {
   color-scheme: light;
   --bg: #d6c9aa;
@@ -28,6 +30,7 @@
   box-sizing: border-box;
 }
 
+/* Base page styling. */
 body {
   margin: 0;
   background: var(--bg);
@@ -35,6 +38,7 @@ body {
   font-family: "Lato", "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Settings card layout. */
 .container {
   max-width: 640px;
   margin: 32px auto;
@@ -48,6 +52,7 @@ h1 {
   font-size: 24px;
 }
 
+/* Header/branding row. */
 .header {
   display: flex;
   align-items: center;
@@ -71,6 +76,7 @@ h1 {
   margin: 4px 0 0;
 }
 
+/* Section headings and copy. */
 h2 {
   font-size: 14px;
   margin: 0 0 12px;
@@ -90,6 +96,7 @@ p {
   border-top: 1px solid var(--border);
 }
 
+/* Form layout helpers. */
 label {
   display: block;
   margin-bottom: 12px;
@@ -124,6 +131,7 @@ select {
   gap: 12px;
 }
 
+/* Primary/secondary actions. */
 .primary {
   margin-top: 16px;
   padding: 12px 14px;
@@ -162,6 +170,7 @@ select {
   gap: 12px;
 }
 
+/* Status and validation messaging. */
 .status {
   margin-top: 12px;
   font-size: 13px;

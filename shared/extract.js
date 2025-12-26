@@ -1,5 +1,7 @@
+// Text processing helpers for excerpt and full-text clipping.
 export const DEFAULT_EXCERPT_LENGTH = 800;
 
+// Normalize whitespace for cleaner excerpts and full-text captures.
 export function normalizeText(text) {
   if (!text) {
     return "";
@@ -11,6 +13,7 @@ export function normalizeText(text) {
     .trim();
 }
 
+// Trim to a max length without splitting into multiple paragraphs.
 export function buildExcerpt(text, maxLength = DEFAULT_EXCERPT_LENGTH) {
   const normalized = normalizeText(text);
   if (!normalized) {

@@ -6,6 +6,7 @@ import { createPost } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { buildExcerpt, normalizeText } from "../shared/extract.js";
 
+// Popup UI entry point: collect page data, build post payload, and send to Discourse.
 const form = document.getElementById("clip-form");
 const statusEl = document.getElementById("status");
 const categoryField = document.getElementById("category-field");
@@ -15,6 +16,7 @@ const topicInput = document.getElementById("topicId");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
 
+// Local UI state mirrors settings/profile selection.
 let currentProfile = null;
 let profiles = [];
 let activeProfileId = "";
@@ -39,6 +41,7 @@ function ensureValidId(value, label) {
   return numeric;
 }
 
+// Swap destination-specific fields based on destination radio.
 function toggleDestinationFields(destination) {
   if (destination === DESTINATIONS.NEW_TOPIC) {
     categoryField.classList.remove("hidden");
@@ -54,6 +57,7 @@ function getSelectedValue(name) {
   return input ? input.value : "";
 }
 
+// Grab title/text from the active tab via an injected script.
 async function getActiveTabInfo() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
@@ -73,6 +77,7 @@ async function getActiveTabInfo() {
   return result;
 }
 
+// Guardrails for required Discourse credentials.
 function validateSettings(settings) {
   if (!settings.baseUrl) {
     throw new Error("Missing Discourse Base URL. Update settings first.");
@@ -85,6 +90,7 @@ function validateSettings(settings) {
   }
 }
 
+// Apply profile title template after normalizing the page title.
 function buildTopicTitle({ title }) {
   const safeTitle = normalizeTitle(title) || fallbackTitle();
   return applyTitleTemplate(currentProfile.titleTemplate, safeTitle);
@@ -103,6 +109,7 @@ function renderProfiles() {
   });
 }
 
+// Apply profile defaults into the form without overriding disabled inputs.
 function applyProfileDefaults(profile) {
   const defaultClipStyle = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   const defaultDestination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
@@ -123,6 +130,7 @@ function applyProfileDefaults(profile) {
   toggleDestinationFields(defaultDestination);
 }
 
+// Build the clip payload and send it to Discourse.
 async function handleSubmit(event) {
   event.preventDefault();
   submitButton.disabled = true;
@@ -195,6 +203,7 @@ async function handleSubmit(event) {
   }
 }
 
+// Switch active profile and refresh the UI + icon.
 async function handleProfileChange() {
   const selectedId = profileSelect.value;
   if (!selectedId || selectedId === activeProfileId) {
@@ -207,6 +216,7 @@ async function handleProfileChange() {
   setStatus("");
 }
 
+// Load settings and normalize profile defaults for the UI.
 async function loadSettings() {
   const state = await getSettingsState();
   profiles = state.profiles || [];
@@ -217,6 +227,7 @@ async function loadSettings() {
   applyProfileDefaults(currentProfile);
 }
 
+// Wire up the popup once settings are available.
 async function init() {
   setFormEnabled(false);
   setStatus("Loading settings...");
