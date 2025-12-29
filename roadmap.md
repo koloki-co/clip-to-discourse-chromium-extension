@@ -225,7 +225,13 @@ These items come directly from the spec and should be treated as a prioritised b
   - [ ] Tagging UI in popup.
 - [ ] Backend and platform
   - [ ] Server-side relay (e.g. n8n) for more advanced workflows.
-  - [ ] Ports to Firefox and Safari.
+  - [ ] Firefox port (IU target)
+    - [ ] Confirm MV3 support for required APIs (`scripting.executeScript`, `action`, `storage.sync`, `permissions.request`) against current Firefox release.
+    - [ ] Add `browser_specific_settings.gecko.id` and `strict_min_version` to a Firefox manifest variant.
+    - [ ] Decide on API namespace strategy: keep `chrome.*` or add `webextension-polyfill` and migrate to `browser.*`.
+    - [ ] Verify optional host permissions flow (`optional_host_permissions` vs `optional_permissions`) and adjust manifest as needed.
+    - [ ] Add a Firefox build/package target (e.g. `web-ext build`) and document signing/upload steps.
+    - [ ] Run functional QA on popup injection, options persistence, and icon updates.
 - [ ] User API key onboarding (pre-user API key flow)
   - [ ] Add a guided flow that generates per-user API keys via Discourse’s `/user-api-key/new` endpoint.
   - [ ] Implementation outline:
