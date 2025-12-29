@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { DESTINATIONS } from "./constants.js";
 
 // Shape payloads for new topics vs append flows.

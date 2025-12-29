@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 const CACHE_KEY = "faviconCache";
 const ICON_SIZES = [16, 32];
 

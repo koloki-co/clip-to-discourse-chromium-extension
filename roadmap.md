@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Clip to Discourse – Delivery Roadmap
 
 This roadmap turns the specification into a concrete build order. Phases are ordered to minimise risk and make it easy to ship a solid MVP, then iterate.

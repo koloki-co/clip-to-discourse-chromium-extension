@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 // Create a new Discourse post (topic or reply) via the API.
 export async function createPost({ baseUrl, apiUsername, apiKey, payload }) {
   const response = await fetch(`${baseUrl}/posts.json`, {

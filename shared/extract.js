@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 // Text processing helpers for excerpt and full-text clipping.
 export const DEFAULT_EXCERPT_LENGTH = 800;
 

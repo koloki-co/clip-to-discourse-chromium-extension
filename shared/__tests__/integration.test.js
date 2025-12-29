@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildMarkdown } from "../markdown.js";
 import { buildPayload } from "../payload.js";

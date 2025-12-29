@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 Generate clear, concise JavaScript or TypeScript code following best practices suitable for professional development. Ensure the code is well-structured, readable, and efficient, utilizing modern language features and conventions commonly accepted in the industry.
 
 # Steps

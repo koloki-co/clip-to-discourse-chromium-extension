@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Contributing
 
 Thanks for helping improve Clip to Discourse! This guide covers local setup, testing, and release flow.

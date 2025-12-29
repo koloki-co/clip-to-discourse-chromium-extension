@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Clip To Discourse Chromium Extension
 
 This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API.
@@ -48,3 +51,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 - Install dependencies with `npm install`, run `npm run lint`, run `npm test`, and confirm versions with `npm run version:check`.
 - Create a Chrome Web Store upload zip with `npm run package`.
 - Bump versions and generate release notes with `npm run release` (dry run: `npm run release:dry`).
+
+## License
+
+Licensed under the GNU General Public License v3.0 only. See `LICENSE.md`.

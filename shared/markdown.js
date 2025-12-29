@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { CLIP_STYLES } from "./constants.js";
 
 // Normalize title input from the page.
