@@ -45,4 +45,20 @@ describe("markdown", () => {
       "### Example Page\nhttps://example.com\n\n---\n\nFull text\n\n---\n\nhttps://example.com"
     );
   });
+
+  it("uses custom templates with selection placeholders", () => {
+    const markdown = buildMarkdown({
+      title: "Example Page",
+      url: "https://example.com",
+      clipStyle: CLIP_STYLES.TITLE_URL,
+      selectionText: "First line\nSecond line",
+      templates: {
+        titleUrl: "## {{ title }}\n{{url}}\n\n{{text-selection-markdown}}\n"
+      }
+    });
+
+    expect(markdown).toBe(
+      "## Example Page\nhttps://example.com\n\n> First line\n> Second line\n"
+    );
+  });
 });

@@ -3,6 +3,45 @@
 
 import { CLIP_STYLES } from "./constants.js";
 
+export const DEFAULT_CLIP_TEMPLATES = {
+  titleUrl: "### {{title}}\n{{url}}\n",
+  excerpt: "### {{title}}\n{{url}}\n\n{{excerpt}}\n\n{{url}}",
+  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}"
+};
+
+function formatBlockquote(text) {
+  const trimmed = text ? text.trim() : "";
+  if (!trimmed) {
+    return "";
+  }
+  return `> ${trimmed.replace(/\n/g, "\n> ")}`;
+}
+
+function formatCodeBlock(text) {
+  const trimmed = text ? text.trim() : "";
+  if (!trimmed) {
+    return "";
+  }
+  return `\`\`\`\n${trimmed}\n\`\`\``;
+}
+
+function normalizeToken(value) {
+  return value.toLowerCase().replace(/_/g, "-");
+}
+
+export function applyTemplate(template, data) {
+  if (!template) {
+    return "";
+  }
+  return template.replace(/\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g, (match, token) => {
+    const key = normalizeToken(token);
+    if (!(key in data)) {
+      return "";
+    }
+    return data[key] ?? "";
+  });
+}
+
 // Normalize title input from the page.
 export function normalizeTitle(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -14,40 +53,65 @@ export function fallbackTitle() {
   return `${timestamp} Clipped with Clip To Discourse`;
 }
 
-// Apply title template tokens ({{title}}, {{date}}).
+function buildTemplateData({ title, url, excerpt, fullText, selectionText }) {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const datetime = now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+  const safeUrl = url || "";
+  const safeTitle = normalizeTitle(title) || fallbackTitle();
+  const safeExcerptPlain = excerpt ? excerpt.trim() : "";
+  const safeFullText = fullText ? fullText.trim() : "";
+  const safeSelection = selectionText ? selectionText.trim() : "";
+
+  return {
+    title: safeTitle,
+    url: safeUrl,
+    date,
+    datetime,
+    excerpt: formatBlockquote(safeExcerptPlain),
+    "excerpt-markdown": formatBlockquote(safeExcerptPlain),
+    "excerpt-plain": safeExcerptPlain,
+    "full-text": safeFullText,
+    "full-text-markdown": formatCodeBlock(safeFullText),
+    "text-selection": safeSelection,
+    "text-selection-markdown": formatBlockquote(safeSelection)
+  };
+}
+
+function buildTitleTemplateData(title) {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const datetime = now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+  return {
+    title: normalizeTitle(title) || fallbackTitle(),
+    date,
+    datetime
+  };
+}
+
+// Apply title template tokens ({{title}}, {{date}}, {{datetime}}).
 export function applyTitleTemplate(template, title) {
   const safeTemplate = template && template.includes("{{title}}") ? template : "Clip: {{title}}";
-  const date = new Date().toISOString().slice(0, 10);
-  return safeTemplate.replace(/\{\{title\}\}/g, title).replace(/\{\{date\}\}/g, date);
+  return applyTemplate(safeTemplate, buildTitleTemplateData(title));
 }
 
 // Build the Discourse post body based on the selected clip style.
-export function buildMarkdown({ title, url, clipStyle, excerpt, fullText }) {
-  const safeTitle = normalizeTitle(title) || fallbackTitle();
-  const safeUrl = url || "";
+export function buildMarkdown({ title, url, clipStyle, excerpt, fullText, selectionText, templates = {} }) {
+  const data = buildTemplateData({ title, url, excerpt, fullText, selectionText });
 
   if (clipStyle === CLIP_STYLES.TITLE_URL) {
-    return `### ${safeTitle}\n` + `${safeUrl}\n`;
+    const template = templates.titleUrl || DEFAULT_CLIP_TEMPLATES.titleUrl;
+    return applyTemplate(template, data);
   }
 
   if (clipStyle === CLIP_STYLES.EXCERPT) {
-    const text = excerpt ? excerpt.trim() : "";
-    return (
-      `### ${safeTitle}\n` +
-      `${safeUrl}\n\n` +
-      (text ? `> ${text.replace(/\n/g, "\n> ")}\n\n` : "") +
-      `${safeUrl}`
-    );
+    const template = templates.excerpt || DEFAULT_CLIP_TEMPLATES.excerpt;
+    return applyTemplate(template, data);
   }
 
   if (clipStyle === CLIP_STYLES.FULL_TEXT) {
-    const text = fullText ? fullText.trim() : "";
-    return (
-      `### ${safeTitle}\n` +
-      `${safeUrl}\n\n---\n\n` +
-      `${text}\n\n---\n\n` +
-      `${safeUrl}`
-    );
+    const template = templates.fullText || DEFAULT_CLIP_TEMPLATES.fullText;
+    return applyTemplate(template, data);
   }
 
   throw new Error("Unsupported clip style.");

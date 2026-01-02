@@ -53,17 +53,17 @@
         <section class="section">
           <h2>Connection</h2>
           <label>
-            Discourse Base URL
+            Discourse BaseURL
             <input id="baseUrl" name="baseUrl" type="url" placeholder="https://forum.example.com" required />
             <span id="baseUrlError" class="error"></span>
           </label>
           <label>
-            API Username
+            Discourse API Username
             <input id="apiUsername" name="apiUsername" type="text" placeholder="clipbot" required />
             <span id="apiUsernameError" class="error"></span>
           </label>
           <label>
-            API Key
+            Discourse API Key
             <input id="apiKey" name="apiKey" type="password" required />
             <span id="apiKeyError" class="error"></span>
             <span class="hint">Use a user-scoped API key with Granular scope: Topics read (for test), write, update.</span>
@@ -91,17 +91,33 @@
           <div class="grid">
             <label>
               Default Category ID
-              <input id="defaultCategoryId" name="defaultCategoryId" type="number" min="1" placeholder="e.g. 12" />
+              <input id="defaultCategoryId" name="defaultCategoryId" type="number" min="1" placeholder="4" />
             </label>
             <label>
               Default Topic ID
               <input id="defaultTopicId" name="defaultTopicId" type="number" min="1" placeholder="e.g. 345" />
             </label>
           </div>
+          <h2>Templates</h2>
           <label>
-            Title Template
+            Title
             <input id="titleTemplate" name="titleTemplate" type="text" placeholder="Clip: {{title}}" />
-            <span class="hint">Use {{title}} and {{date}} placeholders.</span>
+            <span class="hint">Variables: {{title}} (recommended), {{url}}, {{date}}, and {{datetime}}.</span>
+          </label>
+          <label>
+            Title + URL Clip Style
+            <textarea id="titleUrlTemplate" name="titleUrlTemplate" rows="4" placeholder="### {{title}}&#10;{{url}}"></textarea>
+            <span class="hint">Variables: {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
+          </label>
+          <label>
+            Title + URL + Excerpt Clip Style
+            <textarea id="excerptTemplate" name="excerptTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{excerpt}}&#10;&#10;{{url}}"></textarea>
+            <span class="hint">Variables: {{excerpt}} (markdown blockquote) or {{excerpt-plain}}, plus {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
+          </label>
+          <label>
+            Full Page Text Clip Style
+            <textarea id="fullTextTemplate" name="fullTextTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;---&#10;&#10;{{full-text}}&#10;&#10;---&#10;&#10;{{url}}"></textarea>
+            <span class="hint">Variables: {{full-text}}, {{full-text-markdown}}, plus {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
           </label>
         </section>
 

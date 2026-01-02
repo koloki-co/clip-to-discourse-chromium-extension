@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { CLIP_STYLES, DESTINATIONS } from "./constants.js";
+import { DEFAULT_CLIP_TEMPLATES } from "./markdown.js";
 
 // Default per-profile settings used for normalization and migrations.
 export const DEFAULT_PROFILE = {
@@ -14,7 +15,10 @@ export const DEFAULT_PROFILE = {
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
   defaultTopicId: "",
-  titleTemplate: "Clip: {{title}}"
+  titleTemplate: "Clip: {{title}}",
+  titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
+  excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
+  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText
 };
 
 export const DEFAULT_GLOBAL_SETTINGS = {
@@ -68,7 +72,10 @@ function normalizeProfile(profile) {
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
     defaultTopicId: normalizeString(profile.defaultTopicId),
-    titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate
+    titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
+    titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
+    excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
+    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate
   };
 }
 

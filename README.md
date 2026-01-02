@@ -13,39 +13,39 @@ This Chromium extension allows users to quickly create new topics or replies on 
 
 ## Features
 
-- Clips page title and URL, with optional excerpt or full text (coming soon).
+- Clips page title and URL, with optional excerpts, text selection, or full text (coming soon).
 - Create new topics or append clips to existing topics.
-
-## Design Principles
-
-- Clipping is a conscious act; nothing is archived without an explicit click.
-- Output is Discourse-native Markdown with Onebox previews.
-- Frequent choices live in the popup; infrequent settings live in the options page.
+- Clips are converted to Markdown with Onebox previews.
+- Clipping is user-driven - nothing is clipped without an explicit click.
 
 ## Installation & Setup
 
 1. Download the extension from the Chrome Web Store
 2. Click the extension icon and go to Settings
-3. Enter your Discourse Base URL, API Username, and API Key
-   - Create a user-scoped API key from your Discourse admin UI with a **Granular** scope that allows **Topics: read (for connection test only), write, and update**. Avoid admin or global keys.
-4. Set your default clip style and destination mode
-5. Start clipping content to your Discourse forum!
-6. **Tip**: Pin the extension to your toolbar for easy access
+3. Create a user-scoped API key from your Discourse admin UI with a **Granular** scope that allows **Topics: read (for connection test only), write, and update**. Avoid admin or global keys.
+4. Enter your Discourse Base URL, API Username, and API Key in the settings page
+5. Set your Profile's default clip style and destination mode
+6. Start clipping content to your Discourse forum!
+7. **Tip**: Pin the extension to your toolbar for easy access
 
-## Security Notes
+## Profiles
 
-- Use a dedicated Discourse user for the API key when possible.
-- Avoid admin keys; create a scoped key with only the permissions you need.
+- Within each profile you can set these options, to allow you to have multiple sets of preferences including clipping to different Discourse instances, or as different users on the same.
 
-## How It Works
+  - **Discourse Base URL**: The root URL of your Discourse instance (e.g. `https://meta.discourse.org`).
+  - **Discourse API Username**: The username of the Discourse user associated with the API key.
+  - **Discourse API Key**: The API key generated from your Discourse instance.
+  - **Default Clip Style**: Choose between "Title + URL", "Title + URL + Selection", or "Full Page Text".
+  - **Default Destination Mode**: Choose between creating a new topic or appending to an existing topic.
 
-- Use the popup to choose a clip style and destination.
-- For new topics, provide a Category ID; for replies, provide a Topic ID.
-- The extension posts to `POST /posts.json` with Discourse API headers from your settings.
+### Clip Templates
+
+You can customize the clip body templates (Title + URL, Excerpt, Full text) ion a per-Profile basis using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{excerpt-plain}}`, `{{full-text}}`, `{{full-text-markdown}}`, `{{text-selection}}`, and `{{text-selection-markdown}}`.
 
 ### Development
 
-- Load the extension locally via `chrome://extensions`, enable Developer mode, and choose "Load unpacked" with this repo folder.
+- Clone the repository to your local machine.
+- Load the extension from file locally via `chrome://extensions`, enable Developer mode, and choose "Load unpacked" with this repo folder.
 - Open the extension popup, use the Settings link to configure your Discourse Base URL, API Username, and API Key.
 - After making code changes, return to `chrome://extensions` and click "Reload" for the extension.
 - Install dependencies with `npm install`, run `npm run lint`, run `npm test`, and confirm versions with `npm run version:check`.

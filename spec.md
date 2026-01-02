@@ -3,23 +3,11 @@
 
 # Clip to Discourse Chromium Extension
 
-## 1. Overview
+## Overview
 
-Clip to Disourse is a Chromium browser extension that allows a user to manually clip web content into their own Discourse instance, turning Discourse into a personal knowledge base and Evernote-style archive. It works with any Discourse forum where the user has an account and can create an API key.
+Clip to Disourse is a Chromium browser extension that allows a user to clip web content into their own Discourse instance, turning Discourse into a personal knowledge base and Evernote-style archive. It works with any Discourse forum where the user can create an API key. No data is sent to any third-party servers; all content is posted directly from the user’s browser to their Discourse instance.
 
-## 2. Design Principles
 
-- Clipping is a conscious act. Nothing is archived unless the user explicitly clips it.
-- One click  [change clip style only if necessary]  clip.
-
-### Discourse-native output
-
-Content is posted in a way that:
-
-- is readable in Discourse
-- is searchable in Discourse
-- benefits from Onebox previews
-- feels native, not machine-generated
 
 ### Separation of concerns
 

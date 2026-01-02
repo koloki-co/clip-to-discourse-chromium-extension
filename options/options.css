@@ -119,13 +119,19 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   margin-top: 6px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 14px;
+}
+
+textarea {
+  font-family: inherit;
+  resize: vertical;
 }
 
 .grid {

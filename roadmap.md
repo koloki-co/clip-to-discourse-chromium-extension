@@ -201,8 +201,8 @@ This roadmap turns the specification into a concrete build order. Phases are ord
 
 ## Phase 9 – Documentation and Developer Experience
 
-- [ ] User-facing docs
-  - [ ] README with:
+- [x] User-facing docs
+  - [x] README with:
     - [x] What the extension does and high-level design principles (manual clipping, Discourse-native output, separation of concerns).
     - [x] Basic setup flow: generating a Discourse API key, configuring BaseURL, username, and defaults.
     - [x] How to use the popup to clip content (new topic vs append).
@@ -224,10 +224,13 @@ These items come directly from the spec and should be treated as a prioritised b
 - [ ] UX refinements
   - [ ] Context-menu "Clip this page".
   - [ ] Highlight-to-clip.
+  - [ ] Clip selected text (pre-select content before opening the popup)
+    - [ ] Read the current page selection when the popup opens and include it in the payload.
+    - [ ] Provide a UI hint in the popup when a selection is detected.
+    - [ ] If a selection exists, switch clip style to "Selection + URL + Title" (selection overrides excerpt/full page).
   - [ ] Daily log topic mode.
   - [ ] Tagging UI in popup.
 - [ ] Backend and platform
-  - [ ] Server-side relay (e.g. n8n) for more advanced workflows.
   - [ ] Firefox port (IU target)
     - [ ] Confirm MV3 support for required APIs (`scripting.executeScript`, `action`, `storage.sync`, `permissions.request`) against current Firefox release.
     - [ ] Add `browser_specific_settings.gecko.id` and `strict_min_version` to a Firefox manifest variant.

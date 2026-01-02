@@ -74,7 +74,8 @@ async function getActiveTabInfo() {
       const article = document.querySelector("article") || document.querySelector("main") || document.body;
       const fullText = article ? article.innerText : "";
       const pageText = document.body ? document.body.innerText : fullText;
-      return { title, url, fullText, pageText };
+      const selectionText = window.getSelection ? window.getSelection().toString() : "";
+      return { title, url, fullText, pageText, selectionText };
     }
   });
   return result;
@@ -165,13 +166,20 @@ async function handleSubmit(event) {
     const url = pageInfo.url;
     const excerpt = buildExcerpt(pageInfo.pageText);
     const fullText = normalizeText(pageInfo.fullText);
+    const selectionText = normalizeText(pageInfo.selectionText);
 
     const raw = buildMarkdown({
       title,
       url,
       clipStyle,
       excerpt,
-      fullText
+      fullText,
+      selectionText,
+      templates: {
+        titleUrl: currentProfile.titleUrlTemplate,
+        excerpt: currentProfile.excerptTemplate,
+        fullText: currentProfile.fullTextTemplate
+      }
     });
 
     const payload = buildPayload({

@@ -33,7 +33,10 @@ const fields = {
   defaultDestination: document.getElementById("defaultDestination"),
   defaultCategoryId: document.getElementById("defaultCategoryId"),
   defaultTopicId: document.getElementById("defaultTopicId"),
-  titleTemplate: document.getElementById("titleTemplate")
+  titleTemplate: document.getElementById("titleTemplate"),
+  titleUrlTemplate: document.getElementById("titleUrlTemplate"),
+  excerptTemplate: document.getElementById("excerptTemplate"),
+  fullTextTemplate: document.getElementById("fullTextTemplate")
 };
 
 // Error spans for validation feedback.
@@ -135,7 +138,10 @@ function fillProfileForm(profile) {
   fields.defaultDestination.value = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
   fields.defaultCategoryId.value = profile.defaultCategoryId || "";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
-  fields.titleTemplate.value = profile.titleTemplate || "Clip: {{title}}";
+  fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
+  fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
+  fields.excerptTemplate.value = profile.excerptTemplate || "";
+  fields.fullTextTemplate.value = profile.fullTextTemplate || "";
 }
 
 // Pull settings from storage and refresh the form UI.
@@ -181,7 +187,10 @@ async function handleSubmit(event) {
       defaultDestination: fields.defaultDestination.value,
       defaultCategoryId: fields.defaultCategoryId.value,
       defaultTopicId: fields.defaultTopicId.value,
-      titleTemplate: fields.titleTemplate.value
+      titleTemplate: fields.titleTemplate.value,
+      titleUrlTemplate: fields.titleUrlTemplate.value,
+      excerptTemplate: fields.excerptTemplate.value,
+      fullTextTemplate: fields.fullTextTemplate.value
     });
 
     await saveGlobalSettings({
