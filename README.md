@@ -3,6 +3,12 @@
 
 # Clip To Discourse Chromium Extension
 
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/clip-to-discourse/copdhiejkkdblhdcdjapcoalldkondhi">
+    <img src="https://developer.chrome.com/static/docs/webstore/branding/image/HRs9MPufa1J1h5glNhut.png" alt="Available in the Chrome Web Store">
+  </a>
+</p>
+
 This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API.
 
 ## Privacy
@@ -40,7 +46,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 
 ### Clip Templates
 
-You can customize the clip body templates (Title + URL, Excerpt, Full text) ion a per-Profile basis using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{excerpt-plain}}`, `{{full-text}}`, `{{full-text-markdown}}`, `{{text-selection}}`, and `{{text-selection-markdown}}`.
+You can customize the clip body templates (Title + URL, Excerpt, Full text) on a per-profile basis using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{excerpt-plain}}`, `{{full-text}}`, `{{full-text-plain}}`, `{{full-text-markdown}}`, `{{text-selection}}`, and `{{text-selection-markdown}}`. Excerpt, full-text, and selection placeholders are converted from HTML to Markdown by default.
 
 ### Development
 
