@@ -9,14 +9,6 @@ export const DEFAULT_CLIP_TEMPLATES = {
   fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}"
 };
 
-function formatBlockquote(text) {
-  const trimmed = text ? text.trim() : "";
-  if (!trimmed) {
-    return "";
-  }
-  return `> ${trimmed.replace(/\n/g, "\n> ")}`;
-}
-
 function formatCodeBlock(text) {
   const trimmed = text ? text.trim() : "";
   if (!trimmed) {
@@ -53,28 +45,40 @@ export function fallbackTitle() {
   return `${timestamp} Clipped with Clip To Discourse`;
 }
 
-function buildTemplateData({ title, url, excerpt, fullText, selectionText }) {
+function buildTemplateData({
+  title,
+  url,
+  excerpt,
+  excerptPlain,
+  fullText,
+  fullTextPlain,
+  selectionText,
+  selectionMarkdown
+}) {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
   const datetime = now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
   const safeUrl = url || "";
   const safeTitle = normalizeTitle(title) || fallbackTitle();
-  const safeExcerptPlain = excerpt ? excerpt.trim() : "";
+  const safeExcerpt = excerpt ? excerpt.trim() : "";
+  const safeExcerptPlain = excerptPlain ? excerptPlain.trim() : "";
   const safeFullText = fullText ? fullText.trim() : "";
-  const safeSelection = selectionText ? selectionText.trim() : "";
+  const safeFullTextPlain = fullTextPlain ? fullTextPlain.trim() : "";
+  const safeSelectionPlain = selectionText ? selectionText.trim() : "";
+  const safeSelectionMarkdown = selectionMarkdown ? selectionMarkdown.trim() : "";
 
   return {
     title: safeTitle,
     url: safeUrl,
     date,
     datetime,
-    excerpt: formatBlockquote(safeExcerptPlain),
-    "excerpt-markdown": formatBlockquote(safeExcerptPlain),
+    excerpt: safeExcerpt,
     "excerpt-plain": safeExcerptPlain,
     "full-text": safeFullText,
     "full-text-markdown": formatCodeBlock(safeFullText),
-    "text-selection": safeSelection,
-    "text-selection-markdown": formatBlockquote(safeSelection)
+    "full-text-plain": safeFullTextPlain,
+    "text-selection": safeSelectionPlain,
+    "text-selection-markdown": safeSelectionMarkdown || safeSelectionPlain
   };
 }
 
@@ -96,8 +100,28 @@ export function applyTitleTemplate(template, title) {
 }
 
 // Build the Discourse post body based on the selected clip style.
-export function buildMarkdown({ title, url, clipStyle, excerpt, fullText, selectionText, templates = {} }) {
-  const data = buildTemplateData({ title, url, excerpt, fullText, selectionText });
+export function buildMarkdown({
+  title,
+  url,
+  clipStyle,
+  excerpt,
+  excerptPlain,
+  fullText,
+  fullTextPlain,
+  selectionText,
+  selectionMarkdown,
+  templates = {}
+}) {
+  const data = buildTemplateData({
+    title,
+    url,
+    excerpt,
+    excerptPlain,
+    fullText,
+    fullTextPlain,
+    selectionText,
+    selectionMarkdown
+  });
 
   if (clipStyle === CLIP_STYLES.TITLE_URL) {
     const template = templates.titleUrl || DEFAULT_CLIP_TEMPLATES.titleUrl;

@@ -29,7 +29,7 @@ describe("markdown", () => {
     });
 
     expect(markdown).toBe(
-      "### Example Page\nhttps://example.com\n\n> Line 1\n> Line 2\n\nhttps://example.com"
+      "### Example Page\nhttps://example.com\n\nLine 1\nLine 2\n\nhttps://example.com"
     );
   });
 
@@ -58,7 +58,7 @@ describe("markdown", () => {
     });
 
     expect(markdown).toBe(
-      "## Example Page\nhttps://example.com\n\n> First line\n> Second line\n"
+      "## Example Page\nhttps://example.com\n\nFirst line\nSecond line\n"
     );
   });
 });

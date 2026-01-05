@@ -7,7 +7,7 @@ import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from
 import { buildPayload } from "../shared/payload.js";
 import { createPost } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
-import { buildExcerpt, normalizeText } from "../shared/extract.js";
+import { buildExcerpt, htmlToMarkdown, normalizeText } from "../shared/extract.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
 const form = document.getElementById("clip-form");
@@ -74,8 +74,18 @@ async function getActiveTabInfo() {
       const article = document.querySelector("article") || document.querySelector("main") || document.body;
       const fullText = article ? article.innerText : "";
       const pageText = document.body ? document.body.innerText : fullText;
-      const selectionText = window.getSelection ? window.getSelection().toString() : "";
-      return { title, url, fullText, pageText, selectionText };
+      const fullHtml = article ? article.innerHTML : "";
+      const pageHtml = document.body ? document.body.innerHTML : fullHtml;
+      const selection = window.getSelection ? window.getSelection() : null;
+      let selectionText = "";
+      let selectionHtml = "";
+      if (selection && selection.rangeCount > 0) {
+        selectionText = selection.toString();
+        const container = document.createElement("div");
+        container.appendChild(selection.getRangeAt(0).cloneContents());
+        selectionHtml = container.innerHTML;
+      }
+      return { title, url, fullText, pageText, fullHtml, pageHtml, selectionText, selectionHtml };
     }
   });
   return result;
@@ -164,17 +174,23 @@ async function handleSubmit(event) {
     const pageInfo = await getActiveTabInfo();
     const title = normalizeTitle(pageInfo.title) || fallbackTitle();
     const url = pageInfo.url;
-    const excerpt = buildExcerpt(pageInfo.pageText);
-    const fullText = normalizeText(pageInfo.fullText);
+    const excerptPlain = buildExcerpt(pageInfo.pageText);
+    const excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
+    const fullTextPlain = normalizeText(pageInfo.fullText);
+    const fullText = normalizeText(htmlToMarkdown(pageInfo.fullHtml));
     const selectionText = normalizeText(pageInfo.selectionText);
+    const selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
 
     const raw = buildMarkdown({
       title,
       url,
       clipStyle,
       excerpt,
+      excerptPlain,
       fullText,
+      fullTextPlain,
       selectionText,
+      selectionMarkdown,
       templates: {
         titleUrl: currentProfile.titleUrlTemplate,
         excerpt: currentProfile.excerptTemplate,

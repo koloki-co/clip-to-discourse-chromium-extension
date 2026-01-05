@@ -100,24 +100,27 @@
           </div>
           <h2>Templates</h2>
           <label>
-            Title
+            Title (used for New Topic clipping only)
             <input id="titleTemplate" name="titleTemplate" type="text" placeholder="Clip: {{title}}" />
-            <span class="hint">Variables: {{title}} (recommended), {{url}}, {{date}}, and {{datetime}}.</span>
+            <span class="hint">Required: {{title}}. Optional: {{date}}, {{datetime}}.</span>
           </label>
           <label>
-            Title + URL Clip Style
+            Title + URL Template
             <textarea id="titleUrlTemplate" name="titleUrlTemplate" rows="4" placeholder="### {{title}}&#10;{{url}}"></textarea>
-            <span class="hint">Variables: {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
+            <span class="hint">Defaults to the built-in template when left blank.</span>
+            <span class="hint">Use {{title}}, {{url}}, {{date}}, {{datetime}}, {{text-selection}}, {{text-selection-markdown}}.</span>
           </label>
           <label>
-            Title + URL + Excerpt Clip Style
+            Title + URL + Excerpt Template
             <textarea id="excerptTemplate" name="excerptTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{excerpt}}&#10;&#10;{{url}}"></textarea>
-            <span class="hint">Variables: {{excerpt}} (markdown blockquote) or {{excerpt-plain}}, plus {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
+            <span class="hint">Defaults to the built-in template when left blank.</span>
+            <span class="hint">Use {{excerpt}} (Markdown) or {{excerpt-plain}}, plus Title + URL placeholders.</span>
           </label>
           <label>
-            Full Page Text Clip Style
+            Full Page Text Template
             <textarea id="fullTextTemplate" name="fullTextTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;---&#10;&#10;{{full-text}}&#10;&#10;---&#10;&#10;{{url}}"></textarea>
-            <span class="hint">Variables: {{full-text}}, {{full-text-markdown}}, plus {{title}}, {{url}}, {{date}}, and {{datetime}}.</span>
+            <span class="hint">Defaults to the built-in template when left blank.</span>
+            <span class="hint">Use {{full-text}} (Markdown), {{full-text-plain}}, {{full-text-markdown}}, plus Title + URL placeholders.</span>
           </label>
         </section>
 
