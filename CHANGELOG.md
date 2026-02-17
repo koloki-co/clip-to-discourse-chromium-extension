@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.19.2](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.1...v0.19.2) (2026-02-17)
+
+
+### Bug Fixes
+
+* remove generated artefacts from eslint ([d94bbbc](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/d94bbbcf774f91e1c6e7fcf6bc45c973aa95deaa))
+
 ### 0.19.1 (2026-02-17)
 
 
