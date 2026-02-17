@@ -1,4 +1,4 @@
-name: CI
+name: npm lint, test, version check
 
 on:
   push:
