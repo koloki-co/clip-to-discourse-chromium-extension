@@ -1,6 +1,6 @@
 {
   "name": "clip-to-discourse-chromium-extension",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -23,6 +23,7 @@
   "devDependencies": {
     "esbuild": "^0.25.1",
     "eslint": "^8.57.0",
+    "jsdom": "^28.1.0",
     "standard-version": "^9.5.0",
     "vitest": "^4.0.16"
   }
