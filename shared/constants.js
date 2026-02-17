@@ -12,3 +12,7 @@ export const DESTINATIONS = {
   NEW_TOPIC: "new_topic",
   APPEND_TOPIC: "append_topic"
 };
+
+// Maximum character length for the raw post body sent to Discourse.
+// Content exceeding this limit is truncated before posting.
+export const MAX_PAYLOAD_LENGTH = 50000;
