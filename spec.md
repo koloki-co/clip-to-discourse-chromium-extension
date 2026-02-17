@@ -116,6 +116,13 @@ or
 
 ### 5.1 Content extraction rules
 
+#### Full page text (implementation notes)
+
+- Use Mozilla Readability to extract the primary article content (`charThreshold: 500`).
+- Convert HTML to Markdown with Turndown + GFM tables/strikethrough.
+- Apply get-md inspired cleanup defaults: aggressive noise removal, heading normalization, code block normalization, relative URL resolution, and post-processing to normalize spacing.
+- Bundle these dependencies into the extension at build time (no runtime CDN imports).
+
 #### Title + URL
 
 - Title comes from `document.title`
@@ -150,6 +157,8 @@ The above renders as a H3 header in Discourse, which is visually distinct withou
 Plain text only for MVP (no HTML retention)
 
 ### 5.2 Discourse payload format
+
+The maxmimum content length for a Discourse post is 50,000 characters. The extension should enforce this limit client-side before posting.
 
 New topic
 

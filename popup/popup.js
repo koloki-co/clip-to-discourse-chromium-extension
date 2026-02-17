@@ -7,7 +7,7 @@ import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from
 import { buildPayload } from "../shared/payload.js";
 import { createPost } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
-import { buildExcerpt, htmlToMarkdown, normalizeText } from "../shared/extract.js";
+import { buildExcerpt, htmlToMarkdown, htmlToMarkdownFullPage, normalizeText } from "../shared/extract.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
 const form = document.getElementById("clip-form");
@@ -177,7 +177,11 @@ async function handleSubmit(event) {
     const excerptPlain = buildExcerpt(pageInfo.pageText);
     const excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
     const fullTextPlain = normalizeText(pageInfo.fullText);
-    const fullText = normalizeText(htmlToMarkdown(pageInfo.fullHtml));
+    const fullText = normalizeText(
+      htmlToMarkdownFullPage(pageInfo.fullHtml, {
+        baseUrl: url
+      })
+    );
     const selectionText = normalizeText(pageInfo.selectionText);
     const selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
 

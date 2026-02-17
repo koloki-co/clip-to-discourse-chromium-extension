@@ -9,12 +9,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "version:check": "node scripts/check-versions.js",
-    "build": "npm run lint && npm run test && npm run version:check",
+    "bundle": "node scripts/bundle.js",
+    "build": "npm run lint && npm run test && npm run bundle && npm run version:check",
     "package": "npm run build && rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets",
     "release": "standard-version",
     "release:dry": "standard-version --dry-run"
   },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "turndown": "^7.1.2",
+    "turndown-plugin-gfm": "^1.0.2"
+  },
   "devDependencies": {
+    "esbuild": "^0.25.1",
     "eslint": "^8.57.0",
     "standard-version": "^9.5.0",
     "vitest": "^4.0.16"
