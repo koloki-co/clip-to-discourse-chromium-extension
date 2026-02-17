@@ -324,6 +324,7 @@ function removeNoiseElements(doc) {
   ];
 
   const noiseSelectors = [
+    "nav",
     "nav[role='navigation']",
     "nav.navbar",
     "nav.nav-menu",
