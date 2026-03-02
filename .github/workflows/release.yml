@@ -22,7 +22,7 @@ jobs:
       - run: npm test
       - run: npm run version:check
       - run: npm run package
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: clip-to-discourse-extension
           path: clip-to-discourse-extension.zip
