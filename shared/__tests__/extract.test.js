@@ -44,6 +44,29 @@ describe("extract", () => {
       expect(markdown).toContain("[Docs](https://example.com/docs)");
       expect(markdown).not.toContain("Home");
     });
+
+    it("preserves syntax-highlighted code comments in full page mode", () => {
+      const input = `
+        <html>
+          <body>
+            <article>
+              <h1>Submodule Notes</h1>
+              <pre>
+                <span class="hljs-comment"># initialize the submodule</span>
+                <span class="hljs-comment">-- keep SQL comments too</span>
+                <span class="hljs-keyword">git</span> submodule update --init
+              </pre>
+            </article>
+          </body>
+        </html>
+      `;
+
+      const markdown = htmlToMarkdownFullPage(input);
+
+      expect(markdown).toContain("# initialize the submodule");
+      expect(markdown).toContain("-- keep SQL comments too");
+      expect(markdown).toContain("git submodule update --init");
+    });
   } else {
     it("falls back to plain text when DOMParser is unavailable", () => {
       const input = "<h2>Title</h2><p>Hello <strong>world</strong>.</p>";

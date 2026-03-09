@@ -637,8 +637,27 @@ function filterContent(doc, { includeImages, includeLinks, includeTables }) {
   }
 }
 
+function protectCodeHighlightCommentClasses(doc) {
+  doc.querySelectorAll("pre [class*='comment'], code [class*='comment']").forEach((node) => {
+    const className = node.getAttribute("class");
+    if (!className) {
+      return;
+    }
+    node.setAttribute("class", className.replace(/comment/gi, "cmt"));
+  });
+
+  doc.querySelectorAll("pre [id*='comment'], code [id*='comment']").forEach((node) => {
+    const id = node.getAttribute("id");
+    if (!id) {
+      return;
+    }
+    node.setAttribute("id", id.replace(/comment/gi, "cmt"));
+  });
+}
+
 function extractWithReadability(html, baseUrl, charThreshold) {
   const doc = parseHtmlDocument(html, baseUrl);
+  protectCodeHighlightCommentClasses(doc);
   const reader = new Readability(doc, { charThreshold });
   return reader.parse();
 }
