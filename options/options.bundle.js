@@ -342,6 +342,7 @@ var testButton = document.getElementById("testConnection");
 var profileSelect = document.getElementById("profileSelect");
 var addProfileButton = document.getElementById("addProfile");
 var deleteProfileButton = document.getElementById("deleteProfile");
+var extensionVersion = document.getElementById("extensionVersion");
 var fields = {
   profileName: document.getElementById("profileName"),
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
@@ -365,6 +366,13 @@ var errors = {
 var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
+function setExtensionVersion() {
+  if (!extensionVersion) {
+    return;
+  }
+  const version = typeof chrome !== "undefined" && chrome.runtime?.getManifest ? chrome.runtime.getManifest().version : "dev";
+  extensionVersion.textContent = version;
+}
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.style.color = isError ? "#b42318" : "";
@@ -571,6 +579,7 @@ testButton.addEventListener("click", handleTestConnection);
 profileSelect.addEventListener("change", handleProfileChange);
 addProfileButton.addEventListener("click", handleAddProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
+setExtensionVersion();
 loadSettings().catch((error) => {
   setStatus(error.message || "Failed to load settings.", true);
 });

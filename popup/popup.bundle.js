@@ -3980,10 +3980,18 @@ var categoryInput = document.getElementById("categoryId");
 var topicInput = document.getElementById("topicId");
 var submitButton = form.querySelector("button[type=submit]");
 var profileSelect = document.getElementById("profileSelect");
+var popupExtensionVersion = document.getElementById("popupExtensionVersion");
 var currentProfile = null;
 var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
+function setExtensionVersion() {
+  if (!popupExtensionVersion) {
+    return;
+  }
+  const version = typeof chrome !== "undefined" && chrome.runtime?.getManifest ? chrome.runtime.getManifest().version : "dev";
+  popupExtensionVersion.textContent = version;
+}
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.style.color = isError ? "#b42318" : "";
@@ -4186,6 +4194,7 @@ async function loadSettings() {
 }
 async function init() {
   setFormEnabled(false);
+  setExtensionVersion();
   setStatus("Loading settings...");
   await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);

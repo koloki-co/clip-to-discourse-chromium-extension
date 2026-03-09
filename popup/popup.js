@@ -18,12 +18,24 @@ const categoryInput = document.getElementById("categoryId");
 const topicInput = document.getElementById("topicId");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
+const popupExtensionVersion = document.getElementById("popupExtensionVersion");
 
 // Local UI state mirrors settings/profile selection.
 let currentProfile = null;
 let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
+
+function setExtensionVersion() {
+  if (!popupExtensionVersion) {
+    return;
+  }
+  const version =
+    typeof chrome !== "undefined" && chrome.runtime?.getManifest
+      ? chrome.runtime.getManifest().version
+      : "dev";
+  popupExtensionVersion.textContent = version;
+}
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -261,6 +273,7 @@ async function loadSettings() {
 // Wire up the popup once settings are available.
 async function init() {
   setFormEnabled(false);
+  setExtensionVersion();
   setStatus("Loading settings...");
   await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);

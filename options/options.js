@@ -21,6 +21,7 @@ const testButton = document.getElementById("testConnection");
 const profileSelect = document.getElementById("profileSelect");
 const addProfileButton = document.getElementById("addProfile");
 const deleteProfileButton = document.getElementById("deleteProfile");
+const extensionVersion = document.getElementById("extensionVersion");
 
 // Cache field references to simplify validation and save logic.
 const fields = {
@@ -49,6 +50,17 @@ const errors = {
 let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
+
+function setExtensionVersion() {
+  if (!extensionVersion) {
+    return;
+  }
+  const version =
+    typeof chrome !== "undefined" && chrome.runtime?.getManifest
+      ? chrome.runtime.getManifest().version
+      : "dev";
+  extensionVersion.textContent = version;
+}
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -295,6 +307,7 @@ profileSelect.addEventListener("change", handleProfileChange);
 addProfileButton.addEventListener("click", handleAddProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
 
+setExtensionVersion();
 loadSettings().catch((error) => {
   setStatus(error.message || "Failed to load settings.", true);
 });
