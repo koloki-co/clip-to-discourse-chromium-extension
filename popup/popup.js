@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
+import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { getSettingsState, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
 import { buildPayload } from "../shared/payload.js";
@@ -108,6 +108,14 @@ function validateSettings(settings) {
   if (!settings.baseUrl) {
     throw new Error("Missing Discourse Base URL. Update settings first.");
   }
+
+  if (settings.authMethod === AUTH_METHODS.USER_API) {
+    if (!settings.userApiKey) {
+      throw new Error("Missing User API Key. Update settings first.");
+    }
+    return;
+  }
+
   if (!settings.apiUsername) {
     throw new Error("Missing API Username. Update settings first.");
   }
@@ -214,9 +222,11 @@ async function handleSubmit(event) {
       }
     });
 
+    const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : undefined;
+
     const payload = buildPayload({
       destination,
-      title: destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : undefined,
+      title: topicTitle,
       categoryId,
       topicId,
       raw
@@ -224,8 +234,11 @@ async function handleSubmit(event) {
 
     const response = await createPost({
       baseUrl: currentProfile.baseUrl,
+      authMethod: currentProfile.authMethod,
       apiUsername: currentProfile.apiUsername,
       apiKey: currentProfile.apiKey,
+      userApiKey: currentProfile.userApiKey,
+      userApiClientId: currentProfile.userApiClientId,
       payload
     });
 

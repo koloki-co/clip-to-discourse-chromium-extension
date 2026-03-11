@@ -2093,7 +2093,53 @@ var DESTINATIONS = {
   NEW_TOPIC: "new_topic",
   APPEND_TOPIC: "append_topic"
 };
+var AUTH_METHODS = {
+  ADMIN_API_KEY: "admin_api_key",
+  USER_API: "user_api"
+};
 var MAX_PAYLOAD_LENGTH = 5e4;
+var MAX_TITLE_LENGTH = 255;
+
+// shared/payload.js
+function truncateRaw(raw) {
+  if (typeof raw !== "string") {
+    return raw;
+  }
+  if (raw.length <= MAX_PAYLOAD_LENGTH) {
+    return raw;
+  }
+  return raw.slice(0, MAX_PAYLOAD_LENGTH);
+}
+function truncateTitle(title) {
+  if (typeof title !== "string") {
+    return title;
+  }
+  if (title.length <= MAX_TITLE_LENGTH) {
+    return title;
+  }
+  return title.slice(0, MAX_TITLE_LENGTH);
+}
+function buildPayload({ destination, title, categoryId, topicId, raw }) {
+  const trimmedRaw = truncateRaw(raw);
+  const trimmedTitle = truncateTitle(title);
+  if (destination === DESTINATIONS.NEW_TOPIC) {
+    const payload = {
+      title: trimmedTitle,
+      raw: trimmedRaw
+    };
+    if (categoryId) {
+      payload.category = Number(categoryId);
+    }
+    return payload;
+  }
+  if (destination === DESTINATIONS.APPEND_TOPIC) {
+    return {
+      topic_id: Number(topicId),
+      raw: trimmedRaw
+    };
+  }
+  throw new Error("Unsupported destination mode.");
+}
 
 // shared/markdown.js
 var DEFAULT_CLIP_TEMPLATES = {
@@ -2179,7 +2225,8 @@ function buildTitleTemplateData(title) {
 }
 function applyTitleTemplate(template, title) {
   const safeTemplate = template && template.includes("{{title}}") ? template : "Clip: {{title}}";
-  return applyTemplate(safeTemplate, buildTitleTemplateData(title));
+  const result = applyTemplate(safeTemplate, buildTitleTemplateData(title));
+  return truncateTitle(result);
 }
 function buildMarkdown({
   title,
@@ -2223,8 +2270,11 @@ var DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
+  authMethod: AUTH_METHODS.ADMIN_API_KEY,
   apiUsername: "",
   apiKey: "",
+  userApiKey: "",
+  userApiClientId: "",
   defaultClipStyle: CLIP_STYLES.TITLE_URL,
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
@@ -2263,6 +2313,9 @@ function normalizeBaseUrl(value) {
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
+function normalizeAuthMethod(value) {
+  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+}
 function normalizeProfile(profile) {
   return {
     ...DEFAULT_PROFILE,
@@ -2270,8 +2323,11 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
+    authMethod: normalizeAuthMethod(profile.authMethod),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
+    userApiKey: normalizeString(profile.userApiKey),
+    userApiClientId: normalizeString(profile.userApiClientId),
     defaultClipStyle: profile.defaultClipStyle || DEFAULT_PROFILE.defaultClipStyle,
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
@@ -2334,57 +2390,75 @@ async function setActiveProfile(profileId) {
   await chrome.storage.sync.set({ activeProfileId: profileId });
 }
 
-// shared/payload.js
-function truncateRaw(raw) {
-  if (typeof raw !== "string") {
-    return raw;
-  }
-  if (raw.length <= MAX_PAYLOAD_LENGTH) {
-    return raw;
-  }
-  return raw.slice(0, MAX_PAYLOAD_LENGTH);
-}
-function buildPayload({ destination, title, categoryId, topicId, raw }) {
-  const trimmedRaw = truncateRaw(raw);
-  if (destination === DESTINATIONS.NEW_TOPIC) {
-    const payload = {
-      title,
-      raw: trimmedRaw
-    };
-    if (categoryId) {
-      payload.category = Number(categoryId);
-    }
-    return payload;
-  }
-  if (destination === DESTINATIONS.APPEND_TOPIC) {
-    return {
-      topic_id: Number(topicId),
-      raw: trimmedRaw
-    };
-  }
-  throw new Error("Unsupported destination mode.");
-}
-
 // shared/discourse.js
-async function createPost({ baseUrl, apiUsername, apiKey, payload }) {
+function buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId }) {
+  const effectiveAuthMethod = authMethod || (userApiKey ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY);
+  if (effectiveAuthMethod === AUTH_METHODS.USER_API) {
+    if (!userApiKey) {
+      throw new Error("Missing User API key. Update settings first.");
+    }
+    const headers = {
+      "User-Api-Key": userApiKey
+    };
+    if (userApiClientId) {
+      headers["User-Api-Client-Id"] = userApiClientId;
+    }
+    return headers;
+  }
+  if (!apiKey) {
+    throw new Error("Missing API key. Update settings first.");
+  }
+  if (!apiUsername) {
+    throw new Error("Missing API username. Update settings first.");
+  }
+  return {
+    "Api-Key": apiKey,
+    "Api-Username": apiUsername
+  };
+}
+async function extractErrorMessage(response) {
+  let data = null;
+  let rawText = "";
+  try {
+    data = await response.json();
+  } catch (error) {
+    try {
+      rawText = await response.text();
+    } catch (textError) {
+      rawText = "";
+    }
+  }
+  if (data && (data.errors || data.error)) {
+    return (data.errors || data.error).toString();
+  }
+  return rawText || response.statusText;
+}
+async function createPost({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId,
+  payload
+}) {
   const response = await fetch(`${baseUrl}/posts.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Api-Key": apiKey,
-      "Api-Username": apiUsername
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
     },
     body: JSON.stringify(payload)
   });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(`Discourse error: ${errorMessage}`);
+  }
   let data = null;
   try {
     data = await response.json();
   } catch (error) {
     data = null;
-  }
-  if (!response.ok) {
-    const errorMessage = data && (data.errors || data.error) ? (data.errors || data.error).toString() : response.statusText;
-    throw new Error(`Discourse error: ${errorMessage}`);
   }
   return data;
 }
@@ -4054,6 +4128,12 @@ function validateSettings(settings) {
   if (!settings.baseUrl) {
     throw new Error("Missing Discourse Base URL. Update settings first.");
   }
+  if (settings.authMethod === AUTH_METHODS.USER_API) {
+    if (!settings.userApiKey) {
+      throw new Error("Missing User API Key. Update settings first.");
+    }
+    return;
+  }
   if (!settings.apiUsername) {
     throw new Error("Missing API Username. Update settings first.");
   }
@@ -4143,17 +4223,21 @@ async function handleSubmit(event) {
         fullText: currentProfile.fullTextTemplate
       }
     });
+    const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : void 0;
     const payload = buildPayload({
       destination,
-      title: destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : void 0,
+      title: topicTitle,
       categoryId,
       topicId,
       raw
     });
     const response = await createPost({
       baseUrl: currentProfile.baseUrl,
+      authMethod: currentProfile.authMethod,
       apiUsername: currentProfile.apiUsername,
       apiKey: currentProfile.apiKey,
+      userApiKey: currentProfile.userApiKey,
+      userApiClientId: currentProfile.userApiClientId,
       payload
     });
     const topicIdResult = response.topic_id || response.id;

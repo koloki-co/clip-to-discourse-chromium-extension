@@ -1,8 +1,9 @@
-import { build } from "esbuild";
+import { context } from "esbuild";
 
 const entryPoints = ["popup/popup.js", "options/options.js"];
+const watchMode = process.argv.includes("--watch");
 
-await build({
+const buildOptions = {
   entryPoints,
   bundle: true,
   format: "esm",
@@ -13,4 +14,13 @@ await build({
   entryNames: "[dir]/[name].bundle",
   sourcemap: false,
   logLevel: "info"
-});
+};
+
+if (watchMode) {
+  const ctx = await context(buildOptions);
+  await ctx.watch();
+  console.log("Watching for changes...");
+} else {
+  const { build } = await import("esbuild");
+  await build(buildOptions);
+}

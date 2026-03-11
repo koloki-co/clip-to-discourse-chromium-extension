@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { normalizeBaseUrl, DEFAULT_PROFILE } from "../settings.js";
+import { AUTH_METHODS } from "../constants.js";
 
 describe("settings", () => {
   it("normalizes base url by trimming trailing slashes", () => {
@@ -13,5 +14,6 @@ describe("settings", () => {
   it("provides sane profile defaults", () => {
     expect(DEFAULT_PROFILE.defaultClipStyle).toBeDefined();
     expect(DEFAULT_PROFILE.defaultDestination).toBeDefined();
+    expect(DEFAULT_PROFILE.authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
   });
 });

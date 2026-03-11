@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { buildPayload, truncateRaw } from "../payload.js";
-import { DESTINATIONS, MAX_PAYLOAD_LENGTH } from "../constants.js";
+import { buildPayload, truncateRaw, truncateTitle } from "../payload.js";
+import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "../constants.js";
 
 describe("payload", () => {
   it("builds a new topic payload with category", () => {
@@ -81,5 +81,42 @@ describe("buildPayload truncation", () => {
     });
 
     expect(payload.raw.length).toBe(MAX_PAYLOAD_LENGTH);
+  });
+
+  it("truncates title in a new topic payload", () => {
+    const longTitle = "A".repeat(MAX_TITLE_LENGTH + 50);
+    const payload = buildPayload({
+      destination: DESTINATIONS.NEW_TOPIC,
+      title: longTitle,
+      categoryId: "1",
+      raw: "Content"
+    });
+
+    expect(payload.title.length).toBe(MAX_TITLE_LENGTH);
+    expect(payload.title).toBe("A".repeat(MAX_TITLE_LENGTH));
+  });
+});
+
+describe("truncateTitle", () => {
+  it("returns short titles unchanged", () => {
+    expect(truncateTitle("Short Title")).toBe("Short Title");
+  });
+
+  it("returns titles at exactly the limit unchanged", () => {
+    const exact = "T".repeat(MAX_TITLE_LENGTH);
+    expect(truncateTitle(exact)).toBe(exact);
+    expect(truncateTitle(exact).length).toBe(MAX_TITLE_LENGTH);
+  });
+
+  it("truncates titles exceeding the limit", () => {
+    const long = "Long Title ".repeat(50);
+    const result = truncateTitle(long);
+    expect(result.length).toBe(MAX_TITLE_LENGTH);
+    expect(result).toBe(long.slice(0, MAX_TITLE_LENGTH));
+  });
+
+  it("passes through non-string values", () => {
+    expect(truncateTitle(undefined)).toBeUndefined();
+    expect(truncateTitle(null)).toBeNull();
   });
 });

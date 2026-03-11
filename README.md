@@ -51,12 +51,22 @@ You can customize the clip body templates (Title + URL, Excerpt, Full text) on a
 ### Development
 
 - Clone the repository to your local machine.
+- Install dependencies with `npm install`.
+- **Run `npm run dev` to start the bundler in watch mode** - this will automatically rebuild when you make code changes.
 - Load the extension from file locally via `chrome://extensions`, enable Developer mode, and choose "Load unpacked" with this repo folder.
 - Open the extension popup, use the Settings link to configure your Discourse Base URL, API Username, and API Key.
-- After making code changes, return to `chrome://extensions` and click "Reload" for the extension.
-- Install dependencies with `npm install`, run `npm run lint`, run `npm test`, and confirm versions with `npm run version:check`.
+- After the bundler rebuilds your changes, return to `chrome://extensions` and click "Reload" for the extension to pick up the changes.
+- Run `npm run lint` to check code style, `npm test` to run tests, and `npm run version:check` to confirm versions.
 - Create a Chrome Web Store upload zip with `npm run package`.
 - Bump versions and generate release notes with `npm run release` (dry run: `npm run release:dry`).
+
+**Available npm scripts:**
+- `npm run dev` - Start bundler in watch mode (recommended for development)
+- `npm run bundle` - Build once without watching
+- `npm run test` - Run tests once
+- `npm run test:watch` - Run tests in watch mode
+- `npm run build` - Full build with lint, test, bundle, and version check
+- `npm run package` - Create release zip file
 
 ## License
 

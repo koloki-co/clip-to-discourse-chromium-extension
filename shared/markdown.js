@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { CLIP_STYLES } from "./constants.js";
+import { truncateTitle } from "./payload.js";
 
 export const DEFAULT_CLIP_TEMPLATES = {
   titleUrl: "### {{title}}\n{{url}}\n",
@@ -96,7 +97,8 @@ function buildTitleTemplateData(title) {
 // Apply title template tokens ({{title}}, {{date}}, {{datetime}}).
 export function applyTitleTemplate(template, title) {
   const safeTemplate = template && template.includes("{{title}}") ? template : "Clip: {{title}}";
-  return applyTemplate(safeTemplate, buildTitleTemplateData(title));
+  const result = applyTemplate(safeTemplate, buildTitleTemplateData(title));
+  return truncateTitle(result);
 }
 
 // Build the Discourse post body based on the selected clip style.

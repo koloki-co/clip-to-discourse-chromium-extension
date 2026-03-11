@@ -8,6 +8,10 @@ var DESTINATIONS = {
   NEW_TOPIC: "new_topic",
   APPEND_TOPIC: "append_topic"
 };
+var AUTH_METHODS = {
+  ADMIN_API_KEY: "admin_api_key",
+  USER_API: "user_api"
+};
 
 // shared/markdown.js
 var DEFAULT_CLIP_TEMPLATES = {
@@ -21,8 +25,11 @@ var DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
+  authMethod: AUTH_METHODS.ADMIN_API_KEY,
   apiUsername: "",
   apiKey: "",
+  userApiKey: "",
+  userApiClientId: "",
   defaultClipStyle: CLIP_STYLES.TITLE_URL,
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
@@ -61,6 +68,9 @@ function normalizeBaseUrl(value) {
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
+function normalizeAuthMethod(value) {
+  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+}
 function normalizeProfile(profile) {
   return {
     ...DEFAULT_PROFILE,
@@ -68,8 +78,11 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
+    authMethod: normalizeAuthMethod(profile.authMethod),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
+    userApiKey: normalizeString(profile.userApiKey),
+    userApiClientId: normalizeString(profile.userApiClientId),
     defaultClipStyle: profile.defaultClipStyle || DEFAULT_PROFILE.defaultClipStyle,
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
@@ -167,15 +180,32 @@ async function deleteProfile(profileId) {
 }
 
 // shared/discourse.js
-async function testConnection({ baseUrl, apiUsername, apiKey }) {
-  const response = await fetch(`${baseUrl}/t/1.json`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Api-Key": apiKey,
-      "Api-Username": apiUsername
+function buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId }) {
+  const effectiveAuthMethod = authMethod || (userApiKey ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY);
+  if (effectiveAuthMethod === AUTH_METHODS.USER_API) {
+    if (!userApiKey) {
+      throw new Error("Missing User API key. Update settings first.");
     }
-  });
+    const headers = {
+      "User-Api-Key": userApiKey
+    };
+    if (userApiClientId) {
+      headers["User-Api-Client-Id"] = userApiClientId;
+    }
+    return headers;
+  }
+  if (!apiKey) {
+    throw new Error("Missing API key. Update settings first.");
+  }
+  if (!apiUsername) {
+    throw new Error("Missing API username. Update settings first.");
+  }
+  return {
+    "Api-Key": apiKey,
+    "Api-Username": apiUsername
+  };
+}
+async function extractErrorMessage(response) {
   let data = null;
   let rawText = "";
   try {
@@ -187,16 +217,67 @@ async function testConnection({ baseUrl, apiUsername, apiKey }) {
       rawText = "";
     }
   }
-  if (!response.ok) {
-    let errorMessage = response.statusText;
-    if (data && (data.errors || data.error)) {
-      errorMessage = (data.errors || data.error).toString();
-    } else if (rawText) {
-      errorMessage = rawText;
+  if (data && (data.errors || data.error)) {
+    return (data.errors || data.error).toString();
+  }
+  return rawText || response.statusText;
+}
+async function testConnection({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId
+}) {
+  const response = await fetch(`${baseUrl}/t/1.json`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
     }
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
     throw new Error(`Discourse error: ${errorMessage}`);
   }
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (error) {
+    data = null;
+  }
   return data;
+}
+async function checkUserApiVersion({ baseUrl }) {
+  const response = await fetch(`${baseUrl}/user-api-key/new`, {
+    method: "HEAD"
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(`Discourse error: ${errorMessage}`);
+  }
+  return response.headers.get("Auth-Api-Version") || response.headers.get("auth-api-version") || "";
+}
+async function revokeUserApiKey({ baseUrl, userApiKey, userApiClientId }) {
+  if (!userApiKey) {
+    throw new Error("Missing User API key.");
+  }
+  const headers = {
+    "Content-Type": "application/json",
+    "User-Api-Key": userApiKey
+  };
+  if (userApiClientId) {
+    headers["User-Api-Client-Id"] = userApiClientId;
+  }
+  const response = await fetch(`${baseUrl}/user-api-key/revoke`, {
+    method: "POST",
+    headers
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(`Discourse error: ${errorMessage}`);
+  }
 }
 
 // shared/favicon.js
@@ -343,12 +424,23 @@ var profileSelect = document.getElementById("profileSelect");
 var addProfileButton = document.getElementById("addProfile");
 var deleteProfileButton = document.getElementById("deleteProfile");
 var extensionVersion = document.getElementById("extensionVersion");
+var authTabButtons = Array.from(document.querySelectorAll(".auth-tab"));
+var authPanelAdmin = document.getElementById("authPanelAdmin");
+var authPanelUser = document.getElementById("authPanelUser");
+var checkUserApiSupportButton = document.getElementById("checkUserApiSupport");
+var connectUserApiButton = document.getElementById("connectUserApi");
+var revokeUserApiButton = document.getElementById("revokeUserApi");
+var userApiStatusEl = document.getElementById("userApiStatus");
+var userApiRedirectUrlEl = document.getElementById("userApiRedirectUrl");
 var fields = {
   profileName: document.getElementById("profileName"),
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
   baseUrl: document.getElementById("baseUrl"),
+  authMethod: document.getElementById("authMethod"),
   apiUsername: document.getElementById("apiUsername"),
   apiKey: document.getElementById("apiKey"),
+  userApiKey: document.getElementById("userApiKey"),
+  userApiClientId: document.getElementById("userApiClientId"),
   defaultClipStyle: document.getElementById("defaultClipStyle"),
   defaultDestination: document.getElementById("defaultDestination"),
   defaultCategoryId: document.getElementById("defaultCategoryId"),
@@ -361,11 +453,122 @@ var fields = {
 var errors = {
   baseUrl: document.getElementById("baseUrlError"),
   apiUsername: document.getElementById("apiUsernameError"),
-  apiKey: document.getElementById("apiKeyError")
+  apiKey: document.getElementById("apiKeyError"),
+  userApiKey: document.getElementById("userApiKeyError")
 };
 var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
+var USER_API_SCOPES = "read,write";
+var USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
+function createUserApiClientId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `clip-to-discourse-${crypto.randomUUID()}`;
+  }
+  return `clip-to-discourse-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+function randomHex(length) {
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
+}
+function setUserApiStatus(message, isError = false) {
+  if (!userApiStatusEl) {
+    return;
+  }
+  userApiStatusEl.textContent = message;
+  userApiStatusEl.style.color = isError ? "#b42318" : "";
+}
+function ensureUserApiClientId() {
+  if (fields.userApiClientId.value.trim()) {
+    return fields.userApiClientId.value.trim();
+  }
+  const clientId = createUserApiClientId();
+  fields.userApiClientId.value = clientId;
+  return clientId;
+}
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+function base64ToArrayBuffer(base64) {
+  const normalized = base64.replace(/\s+/g, "");
+  const binary = atob(normalized);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+function toPem(base64, label) {
+  const lines = base64.match(/.{1,64}/g) || [];
+  return `-----BEGIN ${label}-----
+${lines.join("\n")}
+-----END ${label}-----`;
+}
+async function generateUserApiKeyPair() {
+  if (typeof crypto === "undefined" || !crypto.subtle) {
+    throw new Error("Web Crypto API is unavailable in this browser context.");
+  }
+  const keyPair = await crypto.subtle.generateKey(
+    {
+      name: "RSA-OAEP",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-1"
+    },
+    true,
+    ["encrypt", "decrypt"]
+  );
+  const spki = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+  const publicKeyPem = toPem(arrayBufferToBase64(spki), "PUBLIC KEY");
+  return { publicKeyPem, privateKey: keyPair.privateKey };
+}
+async function decryptUserApiPayload(payload, privateKey) {
+  const encrypted = base64ToArrayBuffer(payload);
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: "RSA-OAEP"
+    },
+    privateKey,
+    encrypted
+  );
+  return new TextDecoder().decode(decrypted);
+}
+function getActiveAuthMethod() {
+  return fields.authMethod.value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+}
+function setAuthMethod(authMethod) {
+  const nextAuthMethod = authMethod === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+  fields.authMethod.value = nextAuthMethod;
+  authTabButtons.forEach((button) => {
+    const isActive = button.dataset.authMethod === nextAuthMethod;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+  if (nextAuthMethod === AUTH_METHODS.USER_API) {
+    authPanelAdmin.classList.add("hidden");
+    authPanelUser.classList.remove("hidden");
+  } else {
+    authPanelAdmin.classList.remove("hidden");
+    authPanelUser.classList.add("hidden");
+  }
+}
+function refreshUserApiControls(disabled = false) {
+  if (disabled) {
+    checkUserApiSupportButton.disabled = true;
+    connectUserApiButton.disabled = true;
+    revokeUserApiButton.disabled = true;
+    return;
+  }
+  checkUserApiSupportButton.disabled = false;
+  connectUserApiButton.disabled = false;
+  revokeUserApiButton.disabled = !fields.userApiKey.value.trim();
+}
 function setExtensionVersion() {
   if (!extensionVersion) {
     return;
@@ -381,6 +584,24 @@ function clearErrors() {
   errors.baseUrl.textContent = "";
   errors.apiUsername.textContent = "";
   errors.apiKey.textContent = "";
+  errors.userApiKey.textContent = "";
+}
+function validateBaseUrlField() {
+  const baseUrl = fields.baseUrl.value.trim();
+  if (!baseUrl) {
+    errors.baseUrl.textContent = "Base URL is required.";
+    return false;
+  }
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("Invalid protocol");
+    }
+  } catch (error) {
+    errors.baseUrl.textContent = "Enter a valid URL (http or https).";
+    return false;
+  }
+  return true;
 }
 function getOriginPattern(baseUrl) {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
@@ -400,28 +621,23 @@ async function ensureHostPermission(baseUrl) {
 function validateFields() {
   clearErrors();
   let isValid = true;
-  const baseUrl = fields.baseUrl.value.trim();
-  if (!baseUrl) {
-    errors.baseUrl.textContent = "Base URL is required.";
+  if (!validateBaseUrlField()) {
     isValid = false;
-  } else {
-    try {
-      const parsed = new URL(baseUrl);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new Error("Invalid protocol");
-      }
-    } catch (error) {
-      errors.baseUrl.textContent = "Enter a valid URL (http or https).";
+  }
+  if (getActiveAuthMethod() === AUTH_METHODS.USER_API) {
+    if (!fields.userApiKey.value.trim()) {
+      errors.userApiKey.textContent = "User API Key is required.";
       isValid = false;
     }
-  }
-  if (!fields.apiUsername.value.trim()) {
-    errors.apiUsername.textContent = "API Username is required.";
-    isValid = false;
-  }
-  if (!fields.apiKey.value.trim()) {
-    errors.apiKey.textContent = "API Key is required.";
-    isValid = false;
+  } else {
+    if (!fields.apiUsername.value.trim()) {
+      errors.apiUsername.textContent = "API Username is required.";
+      isValid = false;
+    }
+    if (!fields.apiKey.value.trim()) {
+      errors.apiKey.textContent = "API Key is required.";
+      isValid = false;
+    }
   }
   return isValid;
 }
@@ -441,8 +657,11 @@ function renderProfiles() {
 function fillProfileForm(profile) {
   fields.profileName.value = profile.name || "";
   fields.baseUrl.value = profile.baseUrl || "";
+  setAuthMethod(profile.authMethod || AUTH_METHODS.ADMIN_API_KEY);
   fields.apiUsername.value = profile.apiUsername || "";
   fields.apiKey.value = profile.apiKey || "";
+  fields.userApiKey.value = profile.userApiKey || "";
+  fields.userApiClientId.value = profile.userApiClientId || createUserApiClientId();
   fields.defaultClipStyle.value = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   fields.defaultDestination.value = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
   fields.defaultCategoryId.value = profile.defaultCategoryId || "";
@@ -451,6 +670,8 @@ function fillProfileForm(profile) {
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
   fields.fullTextTemplate.value = profile.fullTextTemplate || "";
+  setUserApiStatus("");
+  refreshUserApiControls();
 }
 async function loadSettings() {
   const state = await getSettingsState();
@@ -466,6 +687,7 @@ function setButtonsDisabled(disabled) {
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
+  refreshUserApiControls(disabled);
 }
 async function handleSubmit(event) {
   event.preventDefault();
@@ -478,11 +700,18 @@ async function handleSubmit(event) {
   setStatus("Saving...");
   try {
     await ensureHostPermission(fields.baseUrl.value);
+    const authMethod = getActiveAuthMethod();
+    if (authMethod === AUTH_METHODS.USER_API && !fields.userApiClientId.value.trim()) {
+      fields.userApiClientId.value = createUserApiClientId();
+    }
     await saveActiveProfile({
       name: fields.profileName.value,
       baseUrl: fields.baseUrl.value,
+      authMethod,
       apiUsername: fields.apiUsername.value,
       apiKey: fields.apiKey.value,
+      userApiKey: fields.userApiKey.value,
+      userApiClientId: fields.userApiClientId.value,
       defaultClipStyle: fields.defaultClipStyle.value,
       defaultDestination: fields.defaultDestination.value,
       defaultCategoryId: fields.defaultCategoryId.value,
@@ -519,8 +748,11 @@ async function handleTestConnection() {
     await ensureHostPermission(fields.baseUrl.value.trim());
     await testConnection({
       baseUrl: fields.baseUrl.value.trim().replace(/\/+$/, ""),
+      authMethod: getActiveAuthMethod(),
       apiUsername: fields.apiUsername.value.trim(),
-      apiKey: fields.apiKey.value.trim()
+      apiKey: fields.apiKey.value.trim(),
+      userApiKey: fields.userApiKey.value.trim(),
+      userApiClientId: fields.userApiClientId.value.trim()
     });
     setStatus("Connection successful.");
   } catch (error) {
@@ -528,6 +760,164 @@ async function handleTestConnection() {
   } finally {
     setButtonsDisabled(false);
   }
+}
+function getUserApiRedirectUrl() {
+  if (typeof chrome === "undefined" || !chrome.identity?.getRedirectURL) {
+    throw new Error("Chrome identity API is unavailable. Ensure the extension has identity permission.");
+  }
+  return chrome.identity.getRedirectURL("discourse-user-api");
+}
+function setUserApiRedirectUrl() {
+  if (!userApiRedirectUrlEl) {
+    return;
+  }
+  try {
+    userApiRedirectUrlEl.textContent = getUserApiRedirectUrl();
+  } catch {
+    userApiRedirectUrlEl.textContent = "Unavailable";
+  }
+}
+async function handleCheckUserApiSupport() {
+  clearErrors();
+  setUserApiStatus("");
+  if (!validateBaseUrlField()) {
+    setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+  setButtonsDisabled(true);
+  setUserApiStatus("Checking API version...");
+  try {
+    const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
+    await ensureHostPermission(baseUrl);
+    const version = await checkUserApiVersion({ baseUrl });
+    setUserApiStatus(version ? `User API version: ${version}` : "User API endpoint is reachable.");
+    setStatus("User API check successful.");
+  } catch (error) {
+    setUserApiStatus(error.message || "Failed to check User API support.", true);
+    setStatus(error.message || "Failed to check User API support.", true);
+  } finally {
+    setButtonsDisabled(false);
+  }
+}
+async function handleConnectUserApi() {
+  clearErrors();
+  setUserApiStatus("");
+  if (!validateBaseUrlField()) {
+    setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+  setButtonsDisabled(true);
+  setUserApiStatus("Preparing secure login...");
+  try {
+    const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
+    await ensureHostPermission(baseUrl);
+    const authApiVersion = await checkUserApiVersion({ baseUrl });
+    const redirectUrl = getUserApiRedirectUrl();
+    const clientId = ensureUserApiClientId();
+    const nonce = randomHex(32);
+    const { publicKeyPem, privateKey } = await generateUserApiKeyPair();
+    const params = new URLSearchParams({
+      auth_redirect: redirectUrl,
+      application_name: USER_API_APPLICATION_NAME,
+      client_id: clientId,
+      scopes: USER_API_SCOPES,
+      nonce,
+      public_key: publicKeyPem,
+      padding: "oaep"
+    });
+    const authUrl = `${baseUrl}/user-api-key/new?${params.toString()}`;
+    setUserApiStatus("Waiting for authorization in browser...");
+    const redirectResult = await chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    });
+    if (!redirectResult) {
+      throw new Error("Authorization did not return a callback URL.");
+    }
+    const payload = new URL(redirectResult).searchParams.get("payload");
+    if (!payload) {
+      throw new Error("Authorization completed but no payload was returned.");
+    }
+    const decrypted = JSON.parse(await decryptUserApiPayload(payload, privateKey));
+    if (decrypted.nonce !== nonce) {
+      throw new Error("Received an invalid authorization payload (nonce mismatch).");
+    }
+    if (!decrypted.key) {
+      throw new Error("Authorization payload did not include a User API key.");
+    }
+    fields.userApiKey.value = decrypted.key;
+    fields.userApiClientId.value = clientId;
+    setAuthMethod(AUTH_METHODS.USER_API);
+    refreshUserApiControls();
+    await saveActiveProfile({
+      baseUrl,
+      authMethod: AUTH_METHODS.USER_API,
+      userApiKey: decrypted.key,
+      userApiClientId: clientId
+    });
+    await loadSettings();
+    setUserApiStatus(
+      authApiVersion ? `Connected. User API version: ${authApiVersion}` : "Connected with User API key."
+    );
+    setStatus("User API key connected and saved.");
+  } catch (error) {
+    setUserApiStatus(error.message || "User API connection failed.", true);
+    setStatus(error.message || "User API connection failed.", true);
+  } finally {
+    setButtonsDisabled(false);
+  }
+}
+async function handleRevokeUserApi() {
+  clearErrors();
+  setUserApiStatus("");
+  if (!validateBaseUrlField()) {
+    setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+  const userApiKey = fields.userApiKey.value.trim();
+  if (!userApiKey) {
+    errors.userApiKey.textContent = "User API Key is required.";
+    setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+  const confirmed = window.confirm("Revoke this User API key now?");
+  if (!confirmed) {
+    return;
+  }
+  setButtonsDisabled(true);
+  setUserApiStatus("Revoking key...");
+  try {
+    const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
+    await ensureHostPermission(baseUrl);
+    await revokeUserApiKey({
+      baseUrl,
+      userApiKey,
+      userApiClientId: fields.userApiClientId.value.trim()
+    });
+    fields.userApiKey.value = "";
+    setAuthMethod(AUTH_METHODS.ADMIN_API_KEY);
+    await saveActiveProfile({
+      baseUrl,
+      authMethod: AUTH_METHODS.ADMIN_API_KEY,
+      userApiKey: "",
+      userApiClientId: fields.userApiClientId.value.trim()
+    });
+    await loadSettings();
+    setUserApiStatus("User API key revoked.");
+    setStatus("User API key revoked.");
+  } catch (error) {
+    setUserApiStatus(error.message || "Failed to revoke User API key.", true);
+    setStatus(error.message || "Failed to revoke User API key.", true);
+  } finally {
+    setButtonsDisabled(false);
+  }
+}
+function handleAuthMethodClick(event) {
+  const authMethod = event.currentTarget.dataset.authMethod;
+  setAuthMethod(authMethod);
+  clearErrors();
+  setUserApiStatus("");
+  setStatus("");
 }
 async function handleProfileChange() {
   const selectedId = profileSelect.value;
@@ -579,7 +969,17 @@ testButton.addEventListener("click", handleTestConnection);
 profileSelect.addEventListener("change", handleProfileChange);
 addProfileButton.addEventListener("click", handleAddProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
+checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
+connectUserApiButton.addEventListener("click", handleConnectUserApi);
+revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
+fields.userApiKey.addEventListener("input", () => {
+  refreshUserApiControls();
+});
+authTabButtons.forEach((button) => {
+  button.addEventListener("click", handleAuthMethodClick);
+});
 setExtensionVersion();
+setUserApiRedirectUrl();
 loadSettings().catch((error) => {
   setStatus(error.message || "Failed to load settings.", true);
 });

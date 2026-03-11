@@ -57,17 +57,67 @@
             <input id="baseUrl" name="baseUrl" type="url" placeholder="https://forum.example.com" required />
             <span id="baseUrlError" class="error"></span>
           </label>
-          <label>
-            Discourse API Username
-            <input id="apiUsername" name="apiUsername" type="text" placeholder="clipbot" required />
-            <span id="apiUsernameError" class="error"></span>
-          </label>
-          <label>
-            Discourse API Key
-            <input id="apiKey" name="apiKey" type="password" required />
-            <span id="apiKeyError" class="error"></span>
-            <span class="hint">Use a user-scoped API key with Granular scope: Topics read (for test), write, update.</span>
-          </label>
+          <input id="authMethod" name="authMethod" type="hidden" value="admin_api_key" />
+
+          <div class="auth-tabs" role="tablist" aria-label="Authentication methods">
+            <button
+              id="authTabAdmin"
+              class="auth-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="authPanelAdmin"
+              data-auth-method="admin_api_key"
+            >
+              Admin API Key
+            </button>
+            <button
+              id="authTabUser"
+              class="auth-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="authPanelUser"
+              data-auth-method="user_api"
+            >
+              User API
+            </button>
+          </div>
+
+          <div id="authPanelAdmin" class="auth-panel" role="tabpanel" aria-labelledby="authTabAdmin">
+            <label>
+              Discourse API Username
+              <input id="apiUsername" name="apiUsername" type="text" placeholder="clipbot" />
+              <span id="apiUsernameError" class="error"></span>
+            </label>
+            <label>
+              Discourse API Key
+              <input id="apiKey" name="apiKey" type="password" />
+              <span id="apiKeyError" class="error"></span>
+              <span class="hint">Use a user-scoped API key with Granular scope: Topics read (for test), write, update.</span>
+            </label>
+          </div>
+
+          <div id="authPanelUser" class="auth-panel hidden" role="tabpanel" aria-labelledby="authTabUser">
+            <label>
+              User API Key
+              <input id="userApiKey" name="userApiKey" type="password" placeholder="Paste your User API key" />
+              <span id="userApiKeyError" class="error"></span>
+            </label>
+            <label>
+              User API Client ID
+              <input id="userApiClientId" name="userApiClientId" type="text" placeholder="clip-to-discourse-..." />
+              <span class="hint">Used as the optional User-Api-Client-Id header for key tracking.</span>
+            </label>
+            <div class="actions auth-actions">
+              <button class="secondary" type="button" id="checkUserApiSupport">Check User API support</button>
+              <button class="primary" type="button" id="connectUserApi">Connect User API</button>
+              <button class="secondary" type="button" id="revokeUserApi">Revoke key</button>
+            </div>
+            <p id="userApiStatus" class="hint status-inline" role="status"></p>
+            <span class="hint">Auth redirect URL to allow in Discourse: <code id="userApiRedirectUrl">-</code></span>
+            <span class="hint">Connect uses OAuth in your browser and requests read/write scopes.</span>
+          </div>
         </section>
 
         <!-- Default clip behavior -->

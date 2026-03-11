@@ -13,6 +13,15 @@ export const DESTINATIONS = {
   APPEND_TOPIC: "append_topic"
 };
 
+export const AUTH_METHODS = {
+  ADMIN_API_KEY: "admin_api_key",
+  USER_API: "user_api"
+};
+
 // Maximum character length for the raw post body sent to Discourse.
 // Content exceeding this limit is truncated before posting.
 export const MAX_PAYLOAD_LENGTH = 50000;
+
+// Maximum character length for topic titles sent to Discourse.
+// Discourse enforces a 255 character limit for topic titles.
+export const MAX_TITLE_LENGTH = 255;

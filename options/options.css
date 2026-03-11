@@ -134,6 +134,53 @@ textarea {
   resize: vertical;
 }
 
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: #f7f4ef;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.auth-tab.active {
+  border-color: var(--accent);
+  background: #eef2f5;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.auth-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.auth-panel {
+  margin-bottom: 4px;
+}
+
+.auth-actions {
+  margin-top: 8px;
+}
+
+.auth-actions .primary,
+.auth-actions .secondary {
+  margin-top: 0;
+}
+
+.status-inline {
+  min-height: 16px;
+  margin: 6px 0 0;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -199,6 +246,11 @@ textarea {
   margin-top: 4px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.hint code {
+  font-size: 11px;
+  word-break: break-all;
 }
 
 .meta-footer {

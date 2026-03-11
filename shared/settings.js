@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { CLIP_STYLES, DESTINATIONS } from "./constants.js";
+import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "./constants.js";
 import { DEFAULT_CLIP_TEMPLATES } from "./markdown.js";
 
 // Default per-profile settings used for normalization and migrations.
@@ -9,8 +9,11 @@ export const DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
+  authMethod: AUTH_METHODS.ADMIN_API_KEY,
   apiUsername: "",
   apiKey: "",
+  userApiKey: "",
+  userApiClientId: "",
   defaultClipStyle: CLIP_STYLES.TITLE_URL,
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
@@ -58,6 +61,10 @@ function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeAuthMethod(value) {
+  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+}
+
 // Coerce a raw profile into a complete, valid profile object.
 function normalizeProfile(profile) {
   return {
@@ -66,8 +73,11 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
+    authMethod: normalizeAuthMethod(profile.authMethod),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
+    userApiKey: normalizeString(profile.userApiKey),
+    userApiClientId: normalizeString(profile.userApiClientId),
     defaultClipStyle: profile.defaultClipStyle || DEFAULT_PROFILE.defaultClipStyle,
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
