@@ -1,6 +1,6 @@
 {
   "name": "clip-to-discourse-chromium-extension",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -10,6 +10,8 @@
     "test:watch": "vitest",
     "version:check": "node scripts/check-versions.js",
     "bundle": "node scripts/bundle.js",
+    "bundle:watch": "node scripts/bundle.js --watch",
+    "dev": "npm run bundle:watch",
     "build": "npm run lint && npm run test && npm run bundle && npm run version:check",
     "package": "npm run build && rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets",
     "release": "standard-version",

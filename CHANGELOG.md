@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.19.3](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.2...v0.19.3) (2026-03-11)
+
+
+### Features
+
+* preserve syntax-highlighted code comments and update class/id attributes ([2d18723](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/2d187232fd5e2a8ef671f5ba954886fe364ce26c))
+
 ### [0.19.2](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.1...v0.19.2) (2026-02-17)
 
 
