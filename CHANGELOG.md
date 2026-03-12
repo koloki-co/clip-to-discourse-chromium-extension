@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.19.5](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.4...v0.19.5) (2026-03-12)
+
+
+### Bug Fixes
+
+* remove unused import in popup-ui test ([6a07b0e](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/6a07b0e9c26b4062aa08188cd49ff4e9ad7151ce))
+
 ### [0.19.4](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.3...v0.19.4) (2026-03-12)
 
 
