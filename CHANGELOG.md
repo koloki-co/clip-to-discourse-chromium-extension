@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.19.4](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.3...v0.19.4) (2026-03-12)
+
+
+### Features
+
+* add text selection detection and dedicated clip style ([9aad2d1](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/9aad2d1890fee464d9c806383bd36eae39e53210))
+* Implement User API authentication and enhance payload handling ([93c710b](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/93c710b59bce1e231935154191fb6506d26448b5))
+
 ### [0.19.3](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.2...v0.19.3) (2026-03-11)
 
 
