@@ -7,7 +7,6 @@ import { AUTH_METHODS, DESTINATIONS, CLIP_STYLES } from "../../shared/constants.
 import {
   setupChromeMock,
   cleanupChromeMock,
-  waitFor,
   changeInput,
   click
 } from "./test-helpers.js";
