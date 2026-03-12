@@ -7,7 +7,8 @@ import { truncateTitle } from "./payload.js";
 export const DEFAULT_CLIP_TEMPLATES = {
   titleUrl: "### {{title}}\n{{url}}\n",
   excerpt: "### {{title}}\n{{url}}\n\n{{excerpt}}\n\n{{url}}",
-  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}"
+  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
+  textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
 };
 
 function formatCodeBlock(text) {
@@ -137,6 +138,11 @@ export function buildMarkdown({
 
   if (clipStyle === CLIP_STYLES.FULL_TEXT) {
     const template = templates.fullText || DEFAULT_CLIP_TEMPLATES.fullText;
+    return applyTemplate(template, data);
+  }
+
+  if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
+    const template = templates.textSelection || DEFAULT_CLIP_TEMPLATES.textSelection;
     return applyTemplate(template, data);
   }
 

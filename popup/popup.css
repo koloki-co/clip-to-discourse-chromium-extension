@@ -87,6 +87,29 @@ h2 {
   letter-spacing: 0.08em;
 }
 
+/* Selection indicator. */
+.selection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f0f8ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1f2328;
+}
+
+.selection-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.selection-info {
+  flex: 1;
+}
+
 /* Form sections and controls. */
 .section {
   margin-bottom: 14px;

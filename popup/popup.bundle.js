@@ -2087,7 +2087,8 @@ var require_readability = __commonJS({
 var CLIP_STYLES = {
   TITLE_URL: "title_url",
   EXCERPT: "excerpt",
-  FULL_TEXT: "full_text"
+  FULL_TEXT: "full_text",
+  TEXT_SELECTION: "text_selection"
 };
 var DESTINATIONS = {
   NEW_TOPIC: "new_topic",
@@ -2145,7 +2146,8 @@ function buildPayload({ destination, title, categoryId, topicId, raw }) {
 var DEFAULT_CLIP_TEMPLATES = {
   titleUrl: "### {{title}}\n{{url}}\n",
   excerpt: "### {{title}}\n{{url}}\n\n{{excerpt}}\n\n{{url}}",
-  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}"
+  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
+  textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
 };
 function formatCodeBlock(text) {
   const trimmed = text ? text.trim() : "";
@@ -2262,6 +2264,10 @@ function buildMarkdown({
     const template = templates.fullText || DEFAULT_CLIP_TEMPLATES.fullText;
     return applyTemplate(template, data);
   }
+  if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
+    const template = templates.textSelection || DEFAULT_CLIP_TEMPLATES.textSelection;
+    return applyTemplate(template, data);
+  }
   throw new Error("Unsupported clip style.");
 }
 
@@ -2282,7 +2288,8 @@ var DEFAULT_PROFILE = {
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
-  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText
+  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText,
+  textSelectionTemplate: DEFAULT_CLIP_TEMPLATES.textSelection
 };
 var DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
@@ -2335,7 +2342,8 @@ function normalizeProfile(profile) {
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
-    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate
+    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate,
+    textSelectionTemplate: normalizeString(profile.textSelectionTemplate) || DEFAULT_PROFILE.textSelectionTemplate
   };
 }
 function createProfile(overrides = {}) {
@@ -4220,7 +4228,8 @@ async function handleSubmit(event) {
       templates: {
         titleUrl: currentProfile.titleUrlTemplate,
         excerpt: currentProfile.excerptTemplate,
-        fullText: currentProfile.fullTextTemplate
+        fullText: currentProfile.fullTextTemplate,
+        textSelection: currentProfile.textSelectionTemplate
       }
     });
     const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : void 0;
@@ -4282,6 +4291,23 @@ async function init() {
   setStatus("Loading settings...");
   await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  try {
+    const pageInfo = await getActiveTabInfo();
+    if (pageInfo.selectionText && pageInfo.selectionText.trim().length > 0) {
+      const selectionIndicator = document.getElementById("selection-indicator");
+      const selectionInfo = document.getElementById("selection-info");
+      const charCount = pageInfo.selectionText.trim().length;
+      const wordCount = pageInfo.selectionText.trim().split(/\s+/).length;
+      selectionInfo.textContent = `Selection detected: ${charCount} characters, ${wordCount} words`;
+      selectionIndicator.classList.remove("hidden");
+      const textSelectionRadio = document.querySelector('input[name="clipStyle"][value="text_selection"]');
+      if (textSelectionRadio) {
+        textSelectionRadio.checked = true;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to check for selection:", error);
+  }
   form.addEventListener("change", (event) => {
     if (event.target.name === "destination") {
       toggleDestinationFields(event.target.value);

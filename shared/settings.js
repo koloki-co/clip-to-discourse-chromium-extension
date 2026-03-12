@@ -21,7 +21,8 @@ export const DEFAULT_PROFILE = {
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
-  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText
+  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText,
+  textSelectionTemplate: DEFAULT_CLIP_TEMPLATES.textSelection
 };
 
 export const DEFAULT_GLOBAL_SETTINGS = {
@@ -85,7 +86,8 @@ function normalizeProfile(profile) {
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
-    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate
+    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate,
+    textSelectionTemplate: normalizeString(profile.textSelectionTemplate) || DEFAULT_PROFILE.textSelectionTemplate
   };
 }
 

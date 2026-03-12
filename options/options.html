@@ -129,6 +129,7 @@
               <option value="title_url">Title + URL</option>
               <option value="excerpt">Title + URL + excerpt</option>
               <option value="full_text">Full page text</option>
+              <option value="text_selection">Text selection</option>
             </select>
           </label>
           <label>
@@ -172,6 +173,12 @@
             <textarea id="fullTextTemplate" name="fullTextTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;---&#10;&#10;{{full-text}}&#10;&#10;---&#10;&#10;{{url}}"></textarea>
             <span class="hint">Defaults to the built-in template when left blank.</span>
             <span class="hint">Use {{full-text}} (Markdown), {{full-text-plain}}, {{full-text-markdown}}, plus Title + URL placeholders.</span>
+          </label>
+          <label>
+            Text Selection Template
+            <textarea id="textSelectionTemplate" name="textSelectionTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{text-selection-markdown}}&#10;&#10;{{url}}"></textarea>
+            <span class="hint">Defaults to the built-in template when left blank.</span>
+            <span class="hint">Use {{text-selection-markdown}} or {{text-selection}}, plus Title + URL placeholders.</span>
           </label>
         </section>
 

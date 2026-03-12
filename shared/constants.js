@@ -5,7 +5,8 @@
 export const CLIP_STYLES = {
   TITLE_URL: "title_url",
   EXCERPT: "excerpt",
-  FULL_TEXT: "full_text"
+  FULL_TEXT: "full_text",
+  TEXT_SELECTION: "text_selection"
 };
 
 export const DESTINATIONS = {

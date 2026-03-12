@@ -22,6 +22,12 @@
         <a class="settings-link" href="../options/options.html" target="_blank" rel="noreferrer">Settings</a>
       </header>
 
+      <!-- Selection indicator -->
+      <div id="selection-indicator" class="selection-indicator hidden" role="status">
+        <span class="selection-icon">📝</span>
+        <span id="selection-info" class="selection-info"></span>
+      </div>
+
       <form id="clip-form">
         <!-- Profile selection -->
         <section class="section">
@@ -44,6 +50,10 @@
           <label class="radio">
             <input type="radio" name="clipStyle" value="full_text" />
             Full page text
+          </label>
+          <label class="radio">
+            <input type="radio" name="clipStyle" value="text_selection" />
+            Text selection
           </label>
         </section>
 

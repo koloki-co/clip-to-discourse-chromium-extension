@@ -218,7 +218,8 @@ async function handleSubmit(event) {
       templates: {
         titleUrl: currentProfile.titleUrlTemplate,
         excerpt: currentProfile.excerptTemplate,
-        fullText: currentProfile.fullTextTemplate
+        fullText: currentProfile.fullTextTemplate,
+        textSelection: currentProfile.textSelectionTemplate
       }
     });
 
@@ -290,6 +291,28 @@ async function init() {
   setStatus("Loading settings...");
   await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+
+  // Check for selected text and show indicator
+  try {
+    const pageInfo = await getActiveTabInfo();
+    if (pageInfo.selectionText && pageInfo.selectionText.trim().length > 0) {
+      const selectionIndicator = document.getElementById("selection-indicator");
+      const selectionInfo = document.getElementById("selection-info");
+      const charCount = pageInfo.selectionText.trim().length;
+      const wordCount = pageInfo.selectionText.trim().split(/\s+/).length;
+      selectionInfo.textContent = `Selection detected: ${charCount} characters, ${wordCount} words`;
+      selectionIndicator.classList.remove("hidden");
+      
+      // Auto-select the "Text Selection" clip style
+      const textSelectionRadio = document.querySelector('input[name="clipStyle"][value="text_selection"]');
+      if (textSelectionRadio) {
+        textSelectionRadio.checked = true;
+      }
+    }
+  } catch (error) {
+    // Silently fail if we can't get tab info - don't block popup from loading
+    console.error("Failed to check for selection:", error);
+  }
 
   form.addEventListener("change", (event) => {
     if (event.target.name === "destination") {

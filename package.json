@@ -13,7 +13,7 @@
     "bundle:watch": "node scripts/bundle.js --watch",
     "dev": "npm run bundle:watch",
     "build": "npm run lint && npm run test && npm run bundle && npm run version:check",
-    "package": "npm run build && rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets",
+    "package": "npm run build && rm -f clip-to-discourse-extension.zip && zip -r clip-to-discourse-extension.zip manifest.json popup options shared assets background.bundle.js",
     "release": "standard-version",
     "release:dry": "standard-version --dry-run"
   },

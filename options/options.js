@@ -48,7 +48,8 @@ const fields = {
   titleTemplate: document.getElementById("titleTemplate"),
   titleUrlTemplate: document.getElementById("titleUrlTemplate"),
   excerptTemplate: document.getElementById("excerptTemplate"),
-  fullTextTemplate: document.getElementById("fullTextTemplate")
+  fullTextTemplate: document.getElementById("fullTextTemplate"),
+  textSelectionTemplate: document.getElementById("textSelectionTemplate")
 };
 
 // Error spans for validation feedback.
@@ -317,6 +318,7 @@ function fillProfileForm(profile) {
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
   fields.fullTextTemplate.value = profile.fullTextTemplate || "";
+  fields.textSelectionTemplate.value = profile.textSelectionTemplate || "";
   setUserApiStatus("");
   refreshUserApiControls();
 }
@@ -376,7 +378,8 @@ async function handleSubmit(event) {
       titleTemplate: fields.titleTemplate.value,
       titleUrlTemplate: fields.titleUrlTemplate.value,
       excerptTemplate: fields.excerptTemplate.value,
-      fullTextTemplate: fields.fullTextTemplate.value
+      fullTextTemplate: fields.fullTextTemplate.value,
+      textSelectionTemplate: fields.textSelectionTemplate.value
     });
 
     await saveGlobalSettings({

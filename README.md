@@ -19,10 +19,24 @@ This Chromium extension allows users to quickly create new topics or replies on 
 
 ## Features
 
-- Clips page title and URL, with optional excerpts, text selection, or full text (coming soon).
-- Create new topics or append clips to existing topics.
-- Clips are converted to Markdown with Onebox previews.
-- Clipping is user-driven - nothing is clipped without an explicit click.
+**Core Clipping:**
+- Clip page title and URL with four clip styles: Title + URL only, Title + URL + Excerpt, Full Page Text, or Text Selection
+- Text selection clipping - select text on any page, open the popup, and the "Text Selection" style is automatically selected
+- Create new topics or append clips to existing topics
+- Automatic conversion to Discourse-compatible Markdown with Onebox previews
+- User-driven clipping - nothing is sent without an explicit click
+
+**Customization:**
+- Multiple profiles - maintain separate configurations for different Discourse instances or users
+- Customizable templates for titles and clip body using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{full-text}}`, `{{text-selection}}`
+- Optional favicon-based toolbar icon to match your Discourse instance
+- Default clip style and destination mode per profile
+
+**Security & Privacy:**
+- No data collection - all clipping happens directly between your browser and your Discourse instance
+- No third-party servers involved
+- API keys stored securely in Chrome's sync storage
+- Support for user-scoped API keys with granular permissions
 
 ## Installation & Setup
 
@@ -36,17 +50,33 @@ This Chromium extension allows users to quickly create new topics or replies on 
 
 ## Profiles
 
-- Within each profile you can set these options, to allow you to have multiple sets of preferences including clipping to different Discourse instances, or as different users on the same.
+Create multiple profiles to manage different Discourse instances or post as different users. Each profile includes:
 
-  - **Discourse Base URL**: The root URL of your Discourse instance (e.g. `https://meta.discourse.org`).
-  - **Discourse API Username**: The username of the Discourse user associated with the API key.
-  - **Discourse API Key**: The API key generated from your Discourse instance.
-  - **Default Clip Style**: Choose between "Title + URL", "Title + URL + Selection", or "Full Page Text".
-  - **Default Destination Mode**: Choose between creating a new topic or appending to an existing topic.
+- **Discourse Base URL**: The root URL of your Discourse instance (e.g. `https://meta.discourse.org`)
+- **Discourse API Username**: The username associated with the API key
+- **Discourse API Key**: Admin API key or user-scoped API key with granular permissions
+- **Default Clip Style**: Choose between "Title + URL", "Excerpt", or "Full Page Text"
+- **Default Destination Mode**: Create new topics or append to existing topics
+- **Default Category/Topic**: Pre-fill category ID for new topics or topic ID for replies
+- **Custom Templates**: Personalize how your clips appear using template placeholders
 
-### Clip Templates
+## Templates
 
-You can customize the clip body templates (Title + URL, Excerpt, Full text) on a per-profile basis using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{excerpt-plain}}`, `{{full-text}}`, `{{full-text-plain}}`, `{{full-text-markdown}}`, `{{text-selection}}`, and `{{text-selection-markdown}}`. Excerpt, full-text, and selection placeholders are converted from HTML to Markdown by default.
+Customize your clip appearance using template placeholders:
+
+**Title Template** (for new topics):
+- `{{title}}` - Page title
+- `{{date}}` - Current date (YYYY-MM-DD)
+- `{{datetime}}` - Full timestamp with UTC
+
+**Body Templates** (for clip content):
+- `{{title}}`, `{{url}}` - Page metadata
+- `{{excerpt}}`, `{{excerpt-plain}}` - Short excerpt (Markdown or plain text)
+- `{{full-text}}`, `{{full-text-plain}}`, `{{full-text-markdown}}` - Full page content
+- `{{text-selection}}`, `{{text-selection-markdown}}` - Selected text
+
+Example title template: `Clip {{date}}: {{title}}`
+Example body template: `### {{title}}\n{{url}}\n\n{{excerpt}}`
 
 ### Development
 

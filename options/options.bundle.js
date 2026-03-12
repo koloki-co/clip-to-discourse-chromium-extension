@@ -2,7 +2,8 @@
 var CLIP_STYLES = {
   TITLE_URL: "title_url",
   EXCERPT: "excerpt",
-  FULL_TEXT: "full_text"
+  FULL_TEXT: "full_text",
+  TEXT_SELECTION: "text_selection"
 };
 var DESTINATIONS = {
   NEW_TOPIC: "new_topic",
@@ -17,7 +18,8 @@ var AUTH_METHODS = {
 var DEFAULT_CLIP_TEMPLATES = {
   titleUrl: "### {{title}}\n{{url}}\n",
   excerpt: "### {{title}}\n{{url}}\n\n{{excerpt}}\n\n{{url}}",
-  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}"
+  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
+  textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
 };
 
 // shared/settings.js
@@ -37,7 +39,8 @@ var DEFAULT_PROFILE = {
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
-  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText
+  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText,
+  textSelectionTemplate: DEFAULT_CLIP_TEMPLATES.textSelection
 };
 var DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
@@ -90,7 +93,8 @@ function normalizeProfile(profile) {
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
-    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate
+    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate,
+    textSelectionTemplate: normalizeString(profile.textSelectionTemplate) || DEFAULT_PROFILE.textSelectionTemplate
   };
 }
 function createProfile(overrides = {}) {
@@ -448,7 +452,8 @@ var fields = {
   titleTemplate: document.getElementById("titleTemplate"),
   titleUrlTemplate: document.getElementById("titleUrlTemplate"),
   excerptTemplate: document.getElementById("excerptTemplate"),
-  fullTextTemplate: document.getElementById("fullTextTemplate")
+  fullTextTemplate: document.getElementById("fullTextTemplate"),
+  textSelectionTemplate: document.getElementById("textSelectionTemplate")
 };
 var errors = {
   baseUrl: document.getElementById("baseUrlError"),
@@ -670,6 +675,7 @@ function fillProfileForm(profile) {
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
   fields.fullTextTemplate.value = profile.fullTextTemplate || "";
+  fields.textSelectionTemplate.value = profile.textSelectionTemplate || "";
   setUserApiStatus("");
   refreshUserApiControls();
 }
@@ -719,7 +725,8 @@ async function handleSubmit(event) {
       titleTemplate: fields.titleTemplate.value,
       titleUrlTemplate: fields.titleUrlTemplate.value,
       excerptTemplate: fields.excerptTemplate.value,
-      fullTextTemplate: fields.fullTextTemplate.value
+      fullTextTemplate: fields.fullTextTemplate.value,
+      textSelectionTemplate: fields.textSelectionTemplate.value
     });
     await saveGlobalSettings({
       useFaviconForIcon: fields.useFaviconForIcon.checked

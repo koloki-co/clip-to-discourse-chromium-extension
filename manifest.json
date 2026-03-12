@@ -17,12 +17,18 @@
       "32": "assets/images/clip-to-discourse-logo.png"
     }
   },
+  "background": {
+    "service_worker": "background.bundle.js",
+    "type": "module"
+  },
   "options_page": "options/options.html",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
-    "identity"
+    "identity",
+    "contextMenus",
+    "notifications"
   ],
   "optional_host_permissions": [
     "https://*/*",

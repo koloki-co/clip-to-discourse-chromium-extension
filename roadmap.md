@@ -1,258 +1,158 @@
 <!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Clip to Discourse – Delivery Roadmap
+# Clip to Discourse – Roadmap
 
-This roadmap turns the specification into a concrete build order. Phases are ordered to minimise risk and make it easy to ship a solid MVP, then iterate.
-
----
-
-## Phase 0 – Project Foundations
-
-- [x] Establish repo structure
-  - [x] Initialise project, package manager, and basic tooling (lint, test, package scripts).
-  - [x] Decide on TypeScript vs JavaScript and bundler (e.g. Vite/Rollup/Webpack) for the Chromium extension.
-- [x] Coding standards and QA
-  - [x] Add linter (ESLint) with a simple, documented config.
-  - [x] Add basic unit test framework (e.g. Vitest/Jest/Mocha) and a single smoke test.
-- [x] Continuous Integration
-  - [x] Add CI workflow (e.g. GitHub Actions) to run lint and tests on every push/PR.
-- [x] Developer documentation
-  - [x] Create a concise CONTRIBUTING section or doc describing how to build, test, and package the extension.
+This roadmap lists outstanding features and improvements for the extension. All core MVP features (Phases 0-5) have been completed and the extension is live on the Chrome Web Store.
 
 ---
 
-## Phase 1 – Discourse Integration Skeleton (Spec §4.2, §6, §7, §8)
+## Active Development
 
-- [x] Settings model and storage
-  - [x] Implement a typed settings model for:
-    - Discourse BaseURL (stored without trailing slash).
-    - API Username (clipbot or user account).
-    - Discourse API Key.
-    - Optional defaults: clip style, destination mode, default Category ID / Topic ID, title template.
-  - [x] Implement persistence using `chrome.storage.sync` (per spec §6.1).
-- [x] Discourse HTTP client
-  - [x] Implement a minimal client wrapper around `fetch` for Discourse API calls.
-  - [x] Inject `Api-Key` and `Api-Username` headers from stored settings.
-  - [x] Enforce JSON Content-Type and basic error handling (HTTP status, network errors).
-- [x] Security considerations
-  - [x] Ensure the API key is never hard-coded; only read from `chrome.storage.sync`.
-  - [x] Document recommended practices (dedicated user, avoid admin keys) per spec §8.
-- [x] Privacy and transparency
-  - [x] Avoid external network requests for UI assets (bundle fonts locally).
-  - [x] Allow optional favicon-based toolbar icon with per-site requests only.
-- [x] Permissions and manifest
-  - [x] Define minimal Chrome permissions (storage, activeTab, scripting) in the extension manifest per spec §7.
-- [x] Multiple profiles
-  - [x] Support storing multiple Discourse configurations in sync storage.
-  - [x] Add migration from legacy single-profile settings.
+### Testing & Quality Assurance
 
----
+**Configuration Storage Tests**
+- [x] Add tests for `chrome.storage.sync` configuration loading/saving using Chrome extension test utilities or mocks
+- [x] Add storage migration tests to verify upgrade paths from old to new settings formats
 
-## Phase 2 – Core Clipping Engine (Spec §5)
+**UI Tests**
+- [x] Add lightweight UI tests for popup behavior (state changes, validation, happy path clipping)
+- [ ] Test profile switching and settings persistence
 
-- [x] Page context access
-  - [x] Implement a small content script or scripting API usage to access `document.title` and `window.location.href`.
-- [x] Content extraction utilities
-  - [x] Title extraction (spec §5.1):
-    - [x] Read from `document.title`.
-    - [x] Trim whitespace sensibly.
-    - [x] Apply fallback title pattern: `"{{datetime}} Clipped with Clip To Discourse"` when needed.
-  - [x] URL extraction:
-    - [x] Read from `window.location.href`.
-  - [x] Short excerpt:
-    - [x] Extract visible text from page.
-    - [x] Truncate to configurable character limit (e.g. 500–1000).
-    - [x] Ensure pure truncation (no summarisation / AI).
-  - [x] Full page text:
-    - [x] Extract readable article content (main text, excluding navigation, scripts, styles).
-    - [x] Keep plain text only (no HTML retention for MVP).
-- [x] Markdown formatting
-  - [x] Implement helpers to generate Markdown in the three example shapes (Title + URL only, Excerpt, Full page) per spec §5.3.
-  - [x] Ensure the final bare URL is always present to allow Discourse Oneboxing.
+**Coverage & Regression**
+- [ ] Set up coverage thresholds for core logic (extraction, payload building, posting)
+- [ ] Add regression tests for edge cases (empty titles, very long content, special characters)
+
+### Chrome Web Store
+
+**Release Assets**
+- [ ] Create/update promotional assets:
+  - [ ] Screenshots (≥1280×800) showing key features
+  - [ ] Optional promo tiles (440×280, 920×680)
+  - [ ] Optional YouTube promo video
+- [ ] Verify and update store listing descriptions
+- [ ] Complete data disclosure form with current permissions
+
+**Pre-publish QA**
+- [ ] Test via "Load unpacked" on a fresh profile before each release
+- [ ] Verify all clip styles work correctly
+- [ ] Test connection test feature
+- [ ] Verify favicon icon feature
+- [ ] Test profile switching
+
+### Documentation
+
+**Developer Documentation**
+- [ ] Add architecture overview linking modules to functionality:
+  - [ ] Content extraction flow
+  - [ ] Payload building
+  - [ ] Discourse API integration
+  - [ ] Settings/profile management
+- [ ] Document how to add new clip styles or extend functionality
+- [ ] Add troubleshooting guide for common development issues
 
 ---
 
-## Phase 3 – Discourse Payload Builder and Posting (Spec §5.2)
+## Future Enhancements
 
-- [x] Payload builder
-  - [x] Implement a function that builds the `raw` markdown body according to the chosen clip style and spec §5.3.
-  - [x] Implement a function that builds a `POST /posts.json` request body for:
-    - [x] New topic: `title`, `raw`, `category` (optional integer category ID used only when creating a new topic).
-    - [x] Reply to topic: `topic_id`, `raw`.
-- [x] API integration
-  - [x] Wire payload builder to the Discourse client.
-  - [x] Implement success and error responses handling (surface to UI for user feedback).
-- [x] Guardrails
-  - [x] Handle invalid or missing configuration (no base URL, no API key, missing username) with clear error messages.
-  - [x] Handle Discourse-specific errors (e.g. invalid category ID, topic ID) and show readable feedback in the popup.
+### User Experience
 
----
+**Keyboard Shortcuts**
+- [ ] Add configurable keyboard shortcut to open popup
+- [ ] Add shortcut to clip with default settings (no popup)
 
-## Phase 4 – Extension Popup UI (Spec §3, §4.1)
+**Enhanced Selection Clipping**
+- [x] Pre-detect selection when popup opens and show visual indicator
+- [ ] Auto-switch to excerpt mode when selection is detected
+- [ ] Add preset "Clip Selection" style with selection-focused template
+- [ ] Support multiple selections or ranges
 
-- [x] Popup shell
-  - [x] Implement the popup entry component rendered when the extension icon is clicked (spec §3.1, §4.1).
-  - [x] Display loading state while settings and context are loaded.
-- [x] Profile switcher
-  - [x] Allow switching between profiles from the popup.
-- [x] Visual styling
-  - [x] Apply Lato font to popup and settings UI.
-  - [x] Set popup and settings background to `#D6C9AA`.
-  - [x] Update button color to `#577188`.
-- [x] Clip style selector (spec §4.1.1)
-  - [x] Implement radio-buttons (mutually exclusive) for clip styles:
-    - [x] Title + URL only.
-    - [x] Title + URL + short excerpt.
-    - [x] Full page text.
-    - [ ] (Placeholders for future: screenshot; Archive.org link.)
-  - [x] Ensure only one clip style is active per clip.
-  - [x] Honour default clip style from settings.
-- [x] Destination mode selector (spec §4.1.2)
-  - [x] Implement dropdown or radio-buttons with:
-    - [x] Create new topic (requires Category ID).
-    - [x] Append to existing topic (requires Topic ID).
-  - [x] Dynamically show/hide CategoryId and TopicId fields based on selected mode.
-  - [x] Honour default destination mode and default IDs from settings.
-- [x] Clip action
-  - [x] Implement the primary "Clip" button.
-  - [x] On click, gather content (title, URL), build markdown, build payload, and post to Discourse.
-  - [x] Extend clip action for excerpt/full text.
-  - [x] Show success / error notification and optionally a link to the created/updated topic.
+**Daily Log Mode**
+- [ ] Add "Daily Log" destination mode that appends to a daily topic
+- [ ] Auto-create new daily topics with date-based naming
+- [ ] Support custom date format templates
 
----
+**Tagging Support**
+- [ ] Add tag input field in popup
+- [ ] Store default tags per profile
+- [ ] Support tag autocomplete from Discourse API
 
-## Phase 5 – Settings / Options UI (Spec §4.2)
+### Clip Styles
 
-- [x] Options page
-  - [x] Implement a dedicated Options / Settings page accessible via:
-    - [x] Chrome Extensions → Extension Details → Options.
-    - [x] A "Settings" link/button from the popup.
-- [x] Profile management
-  - [x] Allow creating, naming, deleting, and switching profiles.
-- [x] Appearance options
-  - [x] Add a global option to use destination site favicon for toolbar icon.
-- [x] Settings editing
-  - [x] Allow the user to set and update:
-    - [x] Discourse BaseURL (with validation and trimming of trailing slash).
-    - [x] API Username.
-    - [x] Discourse API Key.
-    - [x] Default clip style.
-    - [x] Default destination mode.
-    - [x] Default Category ID / Topic ID.
-    - [x] Title template for new topics (e.g. `Clip: {{title}}`, `Clip {{date}}: {{title}}`).
-- [x] UX safeguards
-  - [x] Provide basic validation and inline error messages.
-  - [x] Offer a test request or "Test connection" button that pings Discourse to confirm credentials.
+**Screenshot Clipping**
+- [ ] Capture visible viewport as screenshot
+- [ ] Upload image to Discourse
+- [ ] Include in clip body with optional caption
+- [ ] Support full-page screenshots (scroll capture)
+
+**Archive.org Integration**
+- [ ] Add option to trigger archive.org capture when clipping
+- [ ] Include archive.org link in clip body
+- [ ] Show archive status in popup (pending/completed)
+- [ ] Support checking for existing archives
+
+### Platform Expansion
+
+**Firefox Support**
+- [ ] Verify MV3 API compatibility (`scripting.executeScript`, `action`, `storage.sync`, `permissions.request`)
+- [ ] Add `browser_specific_settings.gecko.id` and `strict_min_version` to manifest
+- [ ] Decide on namespace strategy: keep `chrome.*` or use `browser.*` with polyfill
+- [ ] Verify optional host permissions flow for Firefox
+- [ ] Add Firefox build target using `web-ext build`
+- [ ] Document AMO signing and upload process
+- [ ] Run full functional QA on Firefox
+
+### Authentication
+
+**User API Key Flow**
+- [ ] Implement guided flow for per-user API key generation via `/user-api-key/new`
+- [ ] Generate and store public/private keypair locally
+- [ ] Construct authorization URL with required parameters
+- [ ] Handle OAuth-style redirect callback
+- [ ] Decrypt payload and persist user API key
+- [ ] Support `User-Api-Key` and `User-Api-Client-Id` headers
+- [ ] Add "Check API version" probe via `HEAD /user-api-key/new`
+- [ ] Add "Revoke key" action via `POST /user-api-key/revoke`
+- [ ] Update UI to support both admin API keys and user API keys
 
 ---
 
-## Phase 6 – Testing Strategy
+## Technical Debt & Maintenance
 
-- [x] Unit tests
-  - [x] Content extraction utilities (title, URL, excerpt, full page text parser where feasible).
-  - [x] Markdown builder for each clip style (ensure stable, predictable formats).
-  - [x] Discourse payload builder for both new topic and reply.
-- [ ] Integration tests
-  - [x] Mocked HTTP tests for posting to `POST /posts.json` with different combinations of clip style and destination.
-  - [ ] Tests around configuration loading/saving via `chrome.storage.sync` (using Chrome extension test utilities or mocks).
-- [ ] UI tests (optional but recommended)
-  - [ ] Add light-weight UI tests for popup behaviour (state changes, validation, happy path clip).
-- [ ] Regression safeguards
-  - [ ] Set up coverage thresholds for core logic (extraction + payload + posting).
+### Code Quality
+- [ ] Review and refactor payload building for better testability
+- [ ] Consolidate error handling patterns across modules
+- [ ] Add JSDoc comments to public APIs
+- [ ] Consider TypeScript migration for better type safety
 
----
+### Performance
+- [ ] Optimize bundle size (currently 148KB for popup)
+- [ ] Lazy-load Turndown and Readability libraries
+- [ ] Cache compiled templates
 
-## Phase 7 – CI / Automation and Packaging
-
-- [x] CI workflows
-  - [x] Run lint and tests on every push and pull request.
-  - [x] Cache dependencies for faster builds.
-- [x] Build and packaging
-  - [x] Provide a production zip script suitable for Chrome Web Store upload.
-- [ ] Release management
-  - [x] Tag releases and attach built extension packages (automate via CI).
-  - [x] Maintain a simple CHANGELOG that references spec sections when major behaviours are added or changed.
-  - [x] Add version bump tooling for tagged releases.
+### Security
+- [ ] Review CSP for extension pages
+- [ ] Audit third-party dependencies
+- [ ] Add security disclosure policy
 
 ---
 
-## Phase 8 – Chrome Web Store Release & Listing (Deployment)
+## Completed Features
 
-- [ ] Account & compliance (manual)
-  - [ ] Create/confirm Chrome Web Store developer account (one-time $5 fee).
-  - [ ] Prepare Privacy Policy URL and complete data disclosure form (permissions: storage, activeTab, scripting).
-- [ ] Release readiness
-  - [x] Bump `manifest.json` version for each release (validated in CI).
-  - [ ] Ensure required assets exist: icons (include 128×128 referenced in manifest), screenshots (≥1280×800), optional promo tiles (440×280, 920×680), optional YouTube promo.
-  - [ ] Verify listing descriptions: short and detailed.
-- [ ] Build & package (automated in CI)
-  - [x] Run packaging script.
-  - [x] Zip the built folder contents (manifest at zip root; exclude `node_modules`, tests, configs, and source maps unless desired).
-  - [x] Publish build artifact from CI (attach to release).
-- [ ] Store upload (human step unless API is wired)
-  - [ ] Upload zip to the Web Store item and submit for review; publish when approved.
-- [ ] Optional full automation
-  - [x] Add CI job to call the Chrome Web Store API to upload/publish using client ID/secret + refresh token (guarded behind manual approval).
-- [ ] Pre-publish QA
-  - [ ] Test via Chrome “Load unpacked” pointing to the built folder and re-verify clip flows.
-
----
-
-## Phase 9 – Documentation and Developer Experience
-
-- [x] User-facing docs
-  - [x] README with:
-    - [x] What the extension does and high-level design principles (manual clipping, Discourse-native output, separation of concerns).
-    - [x] Basic setup flow: generating a Discourse API key, configuring BaseURL, username, and defaults.
-    - [x] How to use the popup to clip content (new topic vs append).
-  - [x] Short security note covering key storage and recommended Discourse account practices.
-- [ ] Developer docs
-  - [ ] Brief architecture overview linking modules to spec sections (e.g. content extraction ↔ §5.1, payload ↔ §5.2).
-  - [ ] Notes on how to add new clip styles or future enhancements (context menu, highlight-to-clip, etc.).
-
----
-
-## Phase 10 – Post-MVP Enhancements (Backlog from Spec §5, §10)
-
-These items come directly from the spec and should be treated as a prioritised backlog once the MVP is stable.
-
-- [ ] Additional clip styles and behaviours
-  - [x] Implement Short excerpt and Full page modes.
-  - [ ] Add screenshot-based clip style.
-  - [ ] Add Archive.org integration (link to saved version, possibly triggering archive on clip).
-- [ ] UX refinements
-  - [ ] Context-menu "Clip this page".
-  - [ ] Highlight-to-clip.
-  - [ ] Clip selected text (pre-select content before opening the popup)
-    - [ ] Read the current page selection when the popup opens and include it in the payload.
-    - [ ] Provide a UI hint in the popup when a selection is detected.
-    - [ ] If a selection exists, switch clip style to "Selection + URL + Title" (selection overrides excerpt/full page).
-  - [ ] Daily log topic mode.
-  - [ ] Tagging UI in popup.
-- [ ] Backend and platform
-  - [ ] Firefox port (IU target)
-    - [ ] Confirm MV3 support for required APIs (`scripting.executeScript`, `action`, `storage.sync`, `permissions.request`) against current Firefox release.
-    - [ ] Add `browser_specific_settings.gecko.id` and `strict_min_version` to a Firefox manifest variant.
-    - [ ] Decide on API namespace strategy: keep `chrome.*` or add `webextension-polyfill` and migrate to `browser.*`.
-    - [ ] Verify optional host permissions flow (`optional_host_permissions` vs `optional_permissions`) and adjust manifest as needed.
-    - [ ] Add a Firefox build/package target (e.g. `web-ext build`) and document signing/upload steps.
-    - [ ] Run functional QA on popup injection, options persistence, and icon updates.
-- [ ] User API key onboarding (pre-user API key flow)
-  - [ ] Add a guided flow that generates per-user API keys via Discourse’s `/user-api-key/new` endpoint.
-  - [ ] Implementation outline:
-    - [ ] Generate a public/private keypair in the extension and store the private key locally (session-only or encrypted).
-    - [ ] Construct an authorization URL to `https://<site>/user-api-key/new` with:
-      - [ ] `auth_redirect` (extension callback/return page; must be in `allowed_user_api_auth_redirects` on the site).
-      - [ ] `application_name` (shown in the user’s Apps tab).
-      - [ ] `client_id` (stable identifier for this installation).
-      - [ ] `scopes` (comma-separated; must be allowed by `allow_user_api_key_scopes`).
-      - [ ] `public_key` (public key from the generated keypair).
-      - [ ] `push_url` when requesting `push` or `notifications` scopes.
-    - [ ] Open the URL in a browser tab; Discourse prompts login + consent.
-    - [ ] Receive the `payload` query parameter on the redirect URL.
-    - [ ] Decrypt `payload` with the stored private key to obtain `User-Api-Key` (and optional one-time login token).
-    - [ ] Persist the user API key per profile and use it in API requests via the `User-Api-Key` header.
-    - [ ] Optionally set `User-Api-Client-Id` header to update the stored client id on the server.
-    - [ ] Provide a “Check API version” probe via `HEAD /user-api-key/new` (read `Auth-Api-Version` response header).
-    - [ ] Add a “Revoke key” action that calls `POST /user-api-key/revoke` with the `User-Api-Key` header.
+All Phase 0-5 features are complete:
+- ✅ Project foundations, CI/CD, testing framework
+- ✅ Discourse API integration with admin and user API key support
+- ✅ Multiple profile management
+- ✅ Content extraction (title, URL, excerpt, full text, selection)
+- ✅ Three clip styles (Title+URL, Excerpt, Full Text)
+- ✅ Markdown conversion with Onebox support
+- ✅ Create new topics or append to existing topics
+- ✅ Popup UI with profile switcher
+- ✅ Settings/Options page
+- ✅ Custom templates for titles and clip bodies
+- ✅ Connection test functionality
+- ✅ Optional favicon-based toolbar icon
+- ✅ Chrome Web Store deployment
+- ✅ Auto-bundling development workflow
+- ✅ Context menu integration (simple right-click to open popup)
+- ✅ Selection detection with visual indicator in popup
