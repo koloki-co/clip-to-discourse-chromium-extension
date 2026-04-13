@@ -26,6 +26,6 @@ jobs:
         with:
           name: clip-to-discourse-extension
           path: clip-to-discourse-extension.zip
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: clip-to-discourse-extension.zip
