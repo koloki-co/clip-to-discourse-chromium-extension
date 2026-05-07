@@ -379,18 +379,27 @@ function removeNoiseElements(doc) {
     node.remove();
   });
 
-  doc.querySelectorAll("*").forEach((node) => {
+  // Secondary text-pattern pass: only drop short snippets that look like UI
+  // chrome widgets (cookie banners, signup CTAs). Skip <p> entirely — that's
+  // the main content carrier and Readability strips the surrounding <article>
+  // so we can't rely on ancestor checks. For the remaining containers, require
+  // the chrome phrase to dominate the text rather than just appear in it.
+  const chromePhrases = [
+    "cookie policy",
+    "accept cookies",
+    "sign up for our newsletter",
+    "subscribe to our newsletter",
+    "follow us on"
+  ];
+  doc.querySelectorAll("aside, footer, div, span").forEach((node) => {
     const text = (node.textContent || "").toLowerCase().trim();
-    if (text.length > 200) {
+    if (!text || text.length > 80) {
       return;
     }
-    if (
-      text.includes("cookie policy") ||
-      text.includes("accept cookies") ||
-      text.includes("sign up for") ||
-      text.includes("newsletter") ||
-      text.includes("follow us")
-    ) {
+    if (node.querySelector("h1, h2, h3, h4, h5, h6, p, article, section")) {
+      return;
+    }
+    if (chromePhrases.some((phrase) => text.includes(phrase))) {
       node.remove();
     }
   });

@@ -45,6 +45,28 @@ describe("extract", () => {
       expect(markdown).not.toContain("Home");
     });
 
+    it("preserves article body text that mentions chrome phrases", () => {
+      const input = `
+        <html>
+          <body>
+            <article>
+              <h1>How to design a newsletter</h1>
+              <p>Subscribers want a great newsletter, so follow us through this guide.</p>
+              <p>Make sure to follow us on every channel for updates.</p>
+            </article>
+          </body>
+        </html>
+      `;
+
+      const markdown = htmlToMarkdownFullPage(input, { baseUrl: "https://example.com" });
+
+      // Body paragraphs that merely mention "newsletter" / "follow us" must
+      // survive the chrome-phrase pass — only standalone widget-shaped
+      // elements should be removed.
+      expect(markdown).toContain("follow us through this guide");
+      expect(markdown).toContain("follow us on every channel");
+    });
+
     it("preserves syntax-highlighted code comments in full page mode", () => {
       const input = `
         <html>

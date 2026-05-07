@@ -87,7 +87,9 @@ export async function createPost({
   return data;
 }
 
-// Lightweight API call to verify credentials and host availability.
+// Verify credentials by asking Discourse who we're authenticated as.
+// /session/current.json works for both Admin API keys and User API keys
+// and returns the resolved username, which we surface to the user.
 export async function testConnection({
   baseUrl,
   authMethod,
@@ -96,7 +98,7 @@ export async function testConnection({
   userApiKey,
   userApiClientId
 }) {
-  const response = await fetch(`${baseUrl}/t/1.json`, {
+  const response = await fetch(`${baseUrl}/session/current.json`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -116,13 +118,23 @@ export async function testConnection({
     data = null;
   }
 
-  return data;
+  const username = data?.current_user?.username || data?.user?.username || "";
+  return { data, username };
 }
 
 export async function checkUserApiVersion({ baseUrl }) {
-  const response = await fetch(`${baseUrl}/user-api-key/new`, {
-    method: "HEAD"
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/user-api-key/new`, { method: "HEAD" });
+  } catch (error) {
+    throw new Error(`Could not reach ${baseUrl}: ${error.message}`);
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      "This Discourse instance does not support the User API key flow. Use an Admin API key instead."
+    );
+  }
 
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);

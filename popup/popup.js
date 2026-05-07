@@ -25,6 +25,10 @@ let currentProfile = null;
 let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
+// Cached page snapshot from popup-open; the popup closes on focus loss so
+// the page state is stable for the lifetime of the popup, and re-running the
+// scripting injection on submit was duplicating work.
+let cachedPageInfo = null;
 
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
@@ -73,7 +77,7 @@ function getSelectedValue(name) {
 }
 
 // Grab title/text from the active tab via an injected script.
-async function getActiveTabInfo() {
+async function fetchActiveTabInfo() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
     throw new Error("No active tab found.");
@@ -81,7 +85,11 @@ async function getActiveTabInfo() {
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      const title = document.title;
+      const ogTitle = document
+        .querySelector('meta[property="og:title"]')
+        ?.getAttribute("content");
+      const docTitle = (document.title || "").trim();
+      const title = docTitle || (ogTitle ? ogTitle.trim() : "");
       const url = window.location.href;
       const article = document.querySelector("article") || document.querySelector("main") || document.body;
       const fullText = article ? article.innerText : "";
@@ -101,6 +109,13 @@ async function getActiveTabInfo() {
     }
   });
   return result;
+}
+
+async function getActiveTabInfo() {
+  if (!cachedPageInfo) {
+    cachedPageInfo = await fetchActiveTabInfo();
+  }
+  return cachedPageInfo;
 }
 
 // Guardrails for required Discourse credentials.

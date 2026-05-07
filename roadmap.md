@@ -105,15 +105,18 @@ This roadmap lists outstanding features and improvements for the extension. All 
 ### Authentication
 
 **User API Key Flow**
-- [ ] Implement guided flow for per-user API key generation via `/user-api-key/new`
-- [ ] Generate and store public/private keypair locally
-- [ ] Construct authorization URL with required parameters
-- [ ] Handle OAuth-style redirect callback
-- [ ] Decrypt payload and persist user API key
-- [ ] Support `User-Api-Key` and `User-Api-Client-Id` headers
-- [ ] Add "Check API version" probe via `HEAD /user-api-key/new`
-- [ ] Add "Revoke key" action via `POST /user-api-key/revoke`
-- [ ] Update UI to support both admin API keys and user API keys
+- [x] Implement guided flow for per-user API key generation via `/user-api-key/new`
+- [x] Generate public/private keypair locally (private key stays in memory only)
+- [x] Construct authorization URL with required parameters
+- [x] Handle OAuth-style redirect callback via `chrome.identity.launchWebAuthFlow`
+- [x] Decrypt payload and persist user API key
+- [x] Support `User-Api-Key` and `User-Api-Client-Id` headers
+- [x] Add "Check API version" probe via `HEAD /user-api-key/new`
+- [x] Pick OAEP hash (SHA-1 vs SHA-256) based on `Auth-Api-Version`
+- [x] Auto-verify the new key with `/session/current.json` and surface the resolved username
+- [x] Add "Revoke key" action via `POST /user-api-key/revoke`
+- [x] Update UI to support both admin API keys and user API keys
+- [ ] End-to-end QA on a live Discourse 3.x instance
 
 ---
 

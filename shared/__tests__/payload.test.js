@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { buildPayload, truncateRaw, truncateTitle } from "../payload.js";
+import { buildPayload, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
 import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "../constants.js";
 
 describe("payload", () => {
@@ -46,11 +46,12 @@ describe("truncateRaw", () => {
     expect(truncateRaw(exact).length).toBe(MAX_PAYLOAD_LENGTH);
   });
 
-  it("truncates strings exceeding the limit", () => {
+  it("truncates strings exceeding the limit and appends a truncation notice", () => {
     const long = "b".repeat(MAX_PAYLOAD_LENGTH + 500);
     const result = truncateRaw(long);
     expect(result.length).toBe(MAX_PAYLOAD_LENGTH);
-    expect(result).toBe("b".repeat(MAX_PAYLOAD_LENGTH));
+    expect(result.endsWith(TRUNCATION_NOTICE)).toBe(true);
+    expect(result.startsWith("b".repeat(MAX_PAYLOAD_LENGTH - TRUNCATION_NOTICE.length))).toBe(true);
   });
 
   it("passes through non-string values", () => {
@@ -70,6 +71,7 @@ describe("buildPayload truncation", () => {
     });
 
     expect(payload.raw.length).toBe(MAX_PAYLOAD_LENGTH);
+    expect(payload.raw.endsWith(TRUNCATION_NOTICE)).toBe(true);
   });
 
   it("truncates raw in a reply payload", () => {
@@ -81,6 +83,7 @@ describe("buildPayload truncation", () => {
     });
 
     expect(payload.raw.length).toBe(MAX_PAYLOAD_LENGTH);
+    expect(payload.raw.endsWith(TRUNCATION_NOTICE)).toBe(true);
   });
 
   it("truncates title in a new topic payload", () => {
