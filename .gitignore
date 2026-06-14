@@ -142,3 +142,6 @@ vite.config.ts.timestamp-*
 
 # .zip files 
 *.zip 
+
+# private files
+.private/
