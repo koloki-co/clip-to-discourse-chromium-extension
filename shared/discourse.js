@@ -38,10 +38,10 @@ async function extractErrorMessage(response) {
 
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     try {
       rawText = await response.text();
-    } catch (textError) {
+    } catch {
       rawText = "";
     }
   }
@@ -77,14 +77,11 @@ export async function createPost({
     throw new Error(`Discourse error: ${errorMessage}`);
   }
 
-  let data = null;
   try {
-    data = await response.json();
-  } catch (error) {
-    data = null;
+    return await response.json();
+  } catch {
+    return null;
   }
-
-  return data;
 }
 
 // Verify credentials by asking Discourse who we're authenticated as.
@@ -114,10 +111,9 @@ export async function testConnection({
   let data = null;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     data = null;
   }
-
   const username = data?.current_user?.username || data?.user?.username || "";
   return { data, username };
 }

@@ -5,7 +5,11 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -2431,10 +2435,10 @@ async function extractErrorMessage(response) {
   let rawText = "";
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     try {
       rawText = await response.text();
-    } catch (textError) {
+    } catch {
       rawText = "";
     }
   }
@@ -2464,13 +2468,11 @@ async function createPost({
     const errorMessage = await extractErrorMessage(response);
     throw new Error(`Discourse error: ${errorMessage}`);
   }
-  let data = null;
   try {
-    data = await response.json();
-  } catch (error) {
-    data = null;
+    return await response.json();
+  } catch {
+    return null;
   }
-  return data;
 }
 
 // shared/favicon.js
@@ -2551,7 +2553,7 @@ async function fetchFaviconBlob(baseUrl) {
     if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
       return await response.blob();
     }
-  } catch (error) {
+  } catch {
   }
   try {
     const response = await fetch(normalized);
@@ -2567,7 +2569,7 @@ async function fetchFaviconBlob(baseUrl) {
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
     return await iconResponse.blob();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -2594,7 +2596,7 @@ async function updateActionIconForProfile(profile, useFavicon) {
       const imageData2 = await dataUrlToImageDataMap(cachedDataUrl);
       await chrome.action.setIcon({ imageData: imageData2 });
       return;
-    } catch (error) {
+    } catch {
     }
   }
   const blob = await fetchFaviconBlob(profile.baseUrl);
@@ -2613,7 +2615,7 @@ function extend(destination) {
   for (var i = 1; i < arguments.length; i++) {
     var source = arguments[i];
     for (var key in source) {
-      if (source.hasOwnProperty(key)) destination[key] = source[key];
+      if (Object.prototype.hasOwnProperty.call(source, key)) destination[key] = source[key];
     }
   }
   return destination;
@@ -2632,97 +2634,18 @@ function trimTrailingNewlines(string) {
 function trimNewlines(string) {
   return trimTrailingNewlines(trimLeadingNewlines(string));
 }
-var blockElements = [
-  "ADDRESS",
-  "ARTICLE",
-  "ASIDE",
-  "AUDIO",
-  "BLOCKQUOTE",
-  "BODY",
-  "CANVAS",
-  "CENTER",
-  "DD",
-  "DIR",
-  "DIV",
-  "DL",
-  "DT",
-  "FIELDSET",
-  "FIGCAPTION",
-  "FIGURE",
-  "FOOTER",
-  "FORM",
-  "FRAMESET",
-  "H1",
-  "H2",
-  "H3",
-  "H4",
-  "H5",
-  "H6",
-  "HEADER",
-  "HGROUP",
-  "HR",
-  "HTML",
-  "ISINDEX",
-  "LI",
-  "MAIN",
-  "MENU",
-  "NAV",
-  "NOFRAMES",
-  "NOSCRIPT",
-  "OL",
-  "OUTPUT",
-  "P",
-  "PRE",
-  "SECTION",
-  "TABLE",
-  "TBODY",
-  "TD",
-  "TFOOT",
-  "TH",
-  "THEAD",
-  "TR",
-  "UL"
-];
+var blockElements = ["ADDRESS", "ARTICLE", "ASIDE", "AUDIO", "BLOCKQUOTE", "BODY", "CANVAS", "CENTER", "DD", "DIR", "DIV", "DL", "DT", "FIELDSET", "FIGCAPTION", "FIGURE", "FOOTER", "FORM", "FRAMESET", "H1", "H2", "H3", "H4", "H5", "H6", "HEADER", "HGROUP", "HR", "HTML", "ISINDEX", "LI", "MAIN", "MENU", "NAV", "NOFRAMES", "NOSCRIPT", "OL", "OUTPUT", "P", "PRE", "SECTION", "TABLE", "TBODY", "TD", "TFOOT", "TH", "THEAD", "TR", "UL"];
 function isBlock(node) {
   return is(node, blockElements);
 }
-var voidElements = [
-  "AREA",
-  "BASE",
-  "BR",
-  "COL",
-  "COMMAND",
-  "EMBED",
-  "HR",
-  "IMG",
-  "INPUT",
-  "KEYGEN",
-  "LINK",
-  "META",
-  "PARAM",
-  "SOURCE",
-  "TRACK",
-  "WBR"
-];
+var voidElements = ["AREA", "BASE", "BR", "COL", "COMMAND", "EMBED", "HR", "IMG", "INPUT", "KEYGEN", "LINK", "META", "PARAM", "SOURCE", "TRACK", "WBR"];
 function isVoid(node) {
   return is(node, voidElements);
 }
 function hasVoid(node) {
   return has(node, voidElements);
 }
-var meaningfulWhenBlankElements = [
-  "A",
-  "TABLE",
-  "THEAD",
-  "TBODY",
-  "TFOOT",
-  "TH",
-  "TD",
-  "IFRAME",
-  "SCRIPT",
-  "AUDIO",
-  "VIDEO"
-];
+var meaningfulWhenBlankElements = ["A", "TABLE", "THEAD", "TBODY", "TFOOT", "TH", "TD", "IFRAME", "SCRIPT", "AUDIO", "VIDEO"];
 function isMeaningfulWhenBlank(node) {
   return is(node, meaningfulWhenBlankElements);
 }
@@ -2736,6 +2659,12 @@ function has(node, tagNames) {
   return node.getElementsByTagName && tagNames.some(function(tagName) {
     return node.getElementsByTagName(tagName).length;
   });
+}
+var markdownEscapes = [[/\\/g, "\\\\"], [/\*/g, "\\*"], [/^-/g, "\\-"], [/^\+ /g, "\\+ "], [/^(=+)/g, "\\$1"], [/^(#{1,6}) /g, "\\$1 "], [/`/g, "\\`"], [/^~~~/g, "\\~~~"], [/\[/g, "\\["], [/\]/g, "\\]"], [/^>/g, "\\>"], [/_/g, "\\_"], [/^(\d+)\. /g, "$1\\. "]];
+function escapeMarkdown(string) {
+  return markdownEscapes.reduce(function(accumulator, escape) {
+    return accumulator.replace(escape[0], escape[1]);
+  }, string);
 }
 var rules = {};
 rules.paragraph = {
@@ -2836,11 +2765,10 @@ rules.inlineLink = {
     return options.linkStyle === "inlined" && node.nodeName === "A" && node.getAttribute("href");
   },
   replacement: function(content, node) {
-    var href = node.getAttribute("href");
-    if (href) href = href.replace(/([()])/g, "\\$1");
-    var title = cleanAttribute(node.getAttribute("title"));
-    if (title) title = ' "' + title.replace(/"/g, '\\"') + '"';
-    return "[" + content + "](" + href + title + ")";
+    var href = escapeLinkDestination(node.getAttribute("href"));
+    var title = escapeLinkTitle(cleanAttribute(node.getAttribute("title")));
+    var titlePart = title ? ' "' + title + '"' : "";
+    return "[" + content + "](" + href + titlePart + ")";
   }
 };
 rules.referenceLink = {
@@ -2848,9 +2776,9 @@ rules.referenceLink = {
     return options.linkStyle === "referenced" && node.nodeName === "A" && node.getAttribute("href");
   },
   replacement: function(content, node, options) {
-    var href = node.getAttribute("href");
+    var href = escapeLinkDestination(node.getAttribute("href"));
     var title = cleanAttribute(node.getAttribute("title"));
-    if (title) title = ' "' + title + '"';
+    if (title) title = ' "' + escapeLinkTitle(title) + '"';
     var replacement;
     var reference;
     switch (options.linkReferenceStyle) {
@@ -2913,15 +2841,22 @@ rules.code = {
 rules.image = {
   filter: "img",
   replacement: function(content, node) {
-    var alt = cleanAttribute(node.getAttribute("alt"));
-    var src = node.getAttribute("src") || "";
+    var alt = escapeMarkdown(cleanAttribute(node.getAttribute("alt")));
+    var src = escapeLinkDestination(node.getAttribute("src") || "");
     var title = cleanAttribute(node.getAttribute("title"));
-    var titlePart = title ? ' "' + title + '"' : "";
+    var titlePart = title ? ' "' + escapeLinkTitle(title) + '"' : "";
     return src ? "![" + alt + "](" + src + titlePart + ")" : "";
   }
 };
 function cleanAttribute(attribute) {
   return attribute ? attribute.replace(/(\n+\s*)+/g, "\n") : "";
+}
+function escapeLinkDestination(destination) {
+  var escaped = destination.replace(/([<>()])/g, "\\$1");
+  return escaped.indexOf(" ") >= 0 ? "<" + escaped + ">" : escaped;
+}
+function escapeLinkTitle(title) {
+  return title.replace(/"/g, '\\"');
 }
 function Rules(options) {
   this.options = options;
@@ -3138,7 +3073,10 @@ function isBlank(node) {
 }
 function flankingWhitespace(node, options) {
   if (node.isBlock || options.preformattedCode && node.isCode) {
-    return { leading: "", trailing: "" };
+    return {
+      leading: "",
+      trailing: ""
+    };
   }
   var edges = edgeWhitespace(node.textContent);
   if (edges.leadingAscii && isFlankedByWhitespace("left", node, options)) {
@@ -3147,7 +3085,10 @@ function flankingWhitespace(node, options) {
   if (edges.trailingAscii && isFlankedByWhitespace("right", node, options)) {
     edges.trailing = edges.trailingNonAscii;
   }
-  return { leading: edges.leading, trailing: edges.trailing };
+  return {
+    leading: edges.leading,
+    trailing: edges.trailing
+  };
 }
 function edgeWhitespace(string) {
   var m = string.match(/^(([ \t\r\n]*)(\s*))(?:(?=\S)[\s\S]*\S)?((\s*?)([ \t\r\n]*))$/);
@@ -3185,21 +3126,6 @@ function isFlankedByWhitespace(side, node, options) {
   return isFlanked;
 }
 var reduce = Array.prototype.reduce;
-var escapes = [
-  [/\\/g, "\\\\"],
-  [/\*/g, "\\*"],
-  [/^-/g, "\\-"],
-  [/^\+ /g, "\\+ "],
-  [/^(=+)/g, "\\$1"],
-  [/^(#{1,6}) /g, "\\$1 "],
-  [/`/g, "\\`"],
-  [/^~~~/g, "\\~~~"],
-  [/\[/g, "\\["],
-  [/\]/g, "\\]"],
-  [/^>/g, "\\>"],
-  [/_/g, "\\_"],
-  [/^(\d+)\. /g, "$1\\. "]
-];
 function TurndownService(options) {
   if (!(this instanceof TurndownService)) return new TurndownService(options);
   var defaults = {
@@ -3238,9 +3164,7 @@ TurndownService.prototype = {
    */
   turndown: function(input) {
     if (!canConvert(input)) {
-      throw new TypeError(
-        input + " is not a string, or an element/document/fragment node."
-      );
+      throw new TypeError(input + " is not a string, or an element/document/fragment node.");
     }
     if (input === "") return "";
     var output = process.call(this, new RootNode(input, this.options));
@@ -3305,9 +3229,7 @@ TurndownService.prototype = {
    * @type String
    */
   escape: function(string) {
-    return escapes.reduce(function(accumulator, escape) {
-      return accumulator.replace(escape[0], escape[1]);
-    }, string);
+    return escapeMarkdown(string);
   }
 };
 function process(parentNode) {
@@ -3349,7 +3271,6 @@ function join(output, replacement) {
 function canConvert(input) {
   return input != null && (typeof input === "string" || input.nodeType && (input.nodeType === 1 || input.nodeType === 9 || input.nodeType === 11));
 }
-var turndown_browser_es_default = TurndownService;
 
 // node_modules/turndown-plugin-gfm/lib/turndown-plugin-gfm.es.js
 var highlightRegExp = /highlight-(?:text|source)-([a-z0-9]+)/;
@@ -3620,7 +3541,7 @@ var DEFAULT_FULL_TEXT_OPTIONS = {
   charThreshold: 500
 };
 function createTurndownService() {
-  const turndown = new turndown_browser_es_default({
+  const turndown = new TurndownService({
     headingStyle: "atx",
     hr: "---",
     bulletListMarker: "-",

@@ -237,7 +237,7 @@ function validateBaseUrlField() {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error("Invalid protocol");
     }
-  } catch (error) {
+  } catch {
     errors.baseUrl.textContent = "Enter a valid URL (http or https).";
     return false;
   }

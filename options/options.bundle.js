@@ -214,10 +214,10 @@ async function extractErrorMessage(response) {
   let rawText = "";
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     try {
       rawText = await response.text();
-    } catch (textError) {
+    } catch {
       rawText = "";
     }
   }
@@ -248,7 +248,7 @@ async function testConnection({
   let data = null;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     data = null;
   }
   const username = data?.current_user?.username || data?.user?.username || "";
@@ -371,7 +371,7 @@ async function fetchFaviconBlob(baseUrl) {
     if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
       return await response.blob();
     }
-  } catch (error) {
+  } catch {
   }
   try {
     const response = await fetch(normalized);
@@ -387,7 +387,7 @@ async function fetchFaviconBlob(baseUrl) {
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
     return await iconResponse.blob();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -414,7 +414,7 @@ async function updateActionIconForProfile(profile, useFavicon) {
       const imageData2 = await dataUrlToImageDataMap(cachedDataUrl);
       await chrome.action.setIcon({ imageData: imageData2 });
       return;
-    } catch (error) {
+    } catch {
     }
   }
   const blob = await fetchFaviconBlob(profile.baseUrl);
@@ -613,7 +613,7 @@ function validateBaseUrlField() {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error("Invalid protocol");
     }
-  } catch (error) {
+  } catch {
     errors.baseUrl.textContent = "Enter a valid URL (http or https).";
     return false;
   }

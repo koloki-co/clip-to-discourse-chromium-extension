@@ -57,6 +57,13 @@ This roadmap lists outstanding features and improvements for the extension. All 
 
 ### User Experience
 
+**Dark Mode / Theming**
+- [ ] Auto-detect the browser's Light/Dark preference via `prefers-color-scheme` and theme the popup and options pages accordingly
+- [ ] Add a simple Light/Dark mode toggle in the clipping popup
+- [ ] Offer a three-way choice (System / Light / Dark), defaulting to System (auto-detection)
+- [ ] Persist the chosen theme in `chrome.storage.sync` so it applies across the popup and options pages
+- [ ] React live to OS theme changes while open via a `prefers-color-scheme` media-query listener
+
 **Keyboard Shortcuts**
 - [ ] Add configurable keyboard shortcut to open popup
 - [ ] Add shortcut to clip with default settings (no popup)

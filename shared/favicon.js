@@ -96,7 +96,7 @@ async function fetchFaviconBlob(baseUrl) {
     if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
       return await response.blob();
     }
-  } catch (error) {
+  } catch {
     // Ignore and try HTML parsing.
   }
 
@@ -114,7 +114,7 @@ async function fetchFaviconBlob(baseUrl) {
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
     return await iconResponse.blob();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -147,7 +147,7 @@ export async function updateActionIconForProfile(profile, useFavicon) {
       const imageData = await dataUrlToImageDataMap(cachedDataUrl);
       await chrome.action.setIcon({ imageData });
       return;
-    } catch (error) {
+    } catch {
       // Ignore cache errors and refetch.
     }
   }
