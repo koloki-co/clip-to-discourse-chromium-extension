@@ -4,7 +4,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildMarkdown, applyTitleTemplate } from "../markdown.js";
 import { buildPayload } from "../payload.js";
-import { checkUserApiVersion, createPost, revokeUserApiKey } from "../discourse.js";
+import {
+  checkUserApiVersion,
+  createPost,
+  revokeUserApiKey,
+  testConnection
+} from "../discourse.js";
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS, MAX_TITLE_LENGTH } from "../constants.js";
 
 describe("integration", () => {
@@ -119,6 +124,7 @@ describe("integration", () => {
   it("checks user api version with HEAD request", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
+      status: 200,
       headers: new Headers({ "Auth-Api-Version": "4" })
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -130,6 +136,60 @@ describe("integration", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://forum.example.com/user-api-key/new");
     expect(options.method).toBe("HEAD");
+  });
+
+  it("throws a clear error when the User API endpoint returns 404", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      json: async () => ({}),
+      text: async () => ""
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      checkUserApiVersion({ baseUrl: "https://forum.example.com" })
+    ).rejects.toThrow(/does not support the User API key flow/);
+  });
+
+  it("hits /session/current.json and returns the resolved username", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ current_user: { username: "marcusbaw" } })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await testConnection({
+      baseUrl: "https://forum.example.com",
+      apiUsername: "marcusbaw",
+      apiKey: "key"
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://forum.example.com/session/current.json");
+    expect(result.username).toBe("marcusbaw");
+  });
+
+  it("returns an empty username when the response shape is unexpected", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({})
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await testConnection({
+      baseUrl: "https://forum.example.com",
+      authMethod: AUTH_METHODS.USER_API,
+      userApiKey: "user-key",
+      userApiClientId: "client-123"
+    });
+
+    expect(result.username).toBe("");
+    const [, options] = fetchMock.mock.calls[0];
+    expect(options.headers["User-Api-Key"]).toBe("user-key");
+    expect(options.headers["User-Api-Client-Id"]).toBe("client-123");
   });
 
   it("revokes user api key with user api headers", async () => {

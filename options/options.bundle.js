@@ -234,7 +234,7 @@ async function testConnection({
   userApiKey,
   userApiClientId
 }) {
-  const response = await fetch(`${baseUrl}/t/1.json`, {
+  const response = await fetch(`${baseUrl}/session/current.json`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -251,12 +251,21 @@ async function testConnection({
   } catch (error) {
     data = null;
   }
-  return data;
+  const username = data?.current_user?.username || data?.user?.username || "";
+  return { data, username };
 }
 async function checkUserApiVersion({ baseUrl }) {
-  const response = await fetch(`${baseUrl}/user-api-key/new`, {
-    method: "HEAD"
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/user-api-key/new`, { method: "HEAD" });
+  } catch (error) {
+    throw new Error(`Could not reach ${baseUrl}: ${error.message}`);
+  }
+  if (response.status === 404) {
+    throw new Error(
+      "This Discourse instance does not support the User API key flow. Use an Admin API key instead."
+    );
+  }
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);
     throw new Error(`Discourse error: ${errorMessage}`);
@@ -515,7 +524,11 @@ function toPem(base64, label) {
 ${lines.join("\n")}
 -----END ${label}-----`;
 }
-async function generateUserApiKeyPair() {
+function pickOaepHash(authApiVersion) {
+  const version = Number.parseInt(authApiVersion, 10);
+  return Number.isFinite(version) && version >= 4 ? "SHA-256" : "SHA-1";
+}
+async function generateUserApiKeyPair(hashAlgorithm) {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error("Web Crypto API is unavailable in this browser context.");
   }
@@ -524,7 +537,7 @@ async function generateUserApiKeyPair() {
       name: "RSA-OAEP",
       modulusLength: 2048,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: "SHA-1"
+      hash: hashAlgorithm
     },
     true,
     ["encrypt", "decrypt"]
@@ -536,9 +549,7 @@ async function generateUserApiKeyPair() {
 async function decryptUserApiPayload(payload, privateKey) {
   const encrypted = base64ToArrayBuffer(payload);
   const decrypted = await crypto.subtle.decrypt(
-    {
-      name: "RSA-OAEP"
-    },
+    { name: "RSA-OAEP" },
     privateKey,
     encrypted
   );
@@ -753,7 +764,7 @@ async function handleTestConnection() {
   setStatus("Testing connection...");
   try {
     await ensureHostPermission(fields.baseUrl.value.trim());
-    await testConnection({
+    const result = await testConnection({
       baseUrl: fields.baseUrl.value.trim().replace(/\/+$/, ""),
       authMethod: getActiveAuthMethod(),
       apiUsername: fields.apiUsername.value.trim(),
@@ -761,7 +772,9 @@ async function handleTestConnection() {
       userApiKey: fields.userApiKey.value.trim(),
       userApiClientId: fields.userApiClientId.value.trim()
     });
-    setStatus("Connection successful.");
+    setStatus(
+      result.username ? `Connection successful \u2014 authenticated as @${result.username}.` : "Connection successful."
+    );
   } catch (error) {
     setStatus(error.message || "Connection failed.", true);
   } finally {
@@ -819,10 +832,11 @@ async function handleConnectUserApi() {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
     const authApiVersion = await checkUserApiVersion({ baseUrl });
+    const hashAlgorithm = pickOaepHash(authApiVersion);
     const redirectUrl = getUserApiRedirectUrl();
     const clientId = ensureUserApiClientId();
     const nonce = randomHex(32);
-    const { publicKeyPem, privateKey } = await generateUserApiKeyPair();
+    const { publicKeyPem, privateKey } = await generateUserApiKeyPair(hashAlgorithm);
     const params = new URLSearchParams({
       auth_redirect: redirectUrl,
       application_name: USER_API_APPLICATION_NAME,
@@ -832,6 +846,9 @@ async function handleConnectUserApi() {
       public_key: publicKeyPem,
       padding: "oaep"
     });
+    if (authApiVersion) {
+      params.set("auth_api_version", authApiVersion);
+    }
     const authUrl = `${baseUrl}/user-api-key/new?${params.toString()}`;
     setUserApiStatus("Waiting for authorization in browser...");
     const redirectResult = await chrome.identity.launchWebAuthFlow({
@@ -863,8 +880,26 @@ async function handleConnectUserApi() {
       userApiClientId: clientId
     });
     await loadSettings();
+    let username = "";
+    try {
+      const result = await testConnection({
+        baseUrl,
+        authMethod: AUTH_METHODS.USER_API,
+        userApiKey: decrypted.key,
+        userApiClientId: clientId
+      });
+      username = result.username || "";
+    } catch (verifyError) {
+      setUserApiStatus(
+        `User API key saved, but verification call failed: ${verifyError.message}`,
+        true
+      );
+      setStatus("User API key saved, but verification failed.", true);
+      return;
+    }
+    const versionSuffix = authApiVersion ? ` (API v${authApiVersion})` : "";
     setUserApiStatus(
-      authApiVersion ? `Connected. User API version: ${authApiVersion}` : "Connected with User API key."
+      username ? `Connected as @${username}${versionSuffix}.` : `Connected with User API key${versionSuffix}.`
     );
     setStatus("User API key connected and saved.");
   } catch (error) {

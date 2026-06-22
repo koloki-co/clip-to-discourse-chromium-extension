@@ -2102,6 +2102,7 @@ var MAX_PAYLOAD_LENGTH = 5e4;
 var MAX_TITLE_LENGTH = 255;
 
 // shared/payload.js
+var TRUNCATION_NOTICE = "\n\n_(truncated by Clip to Discourse \u2014 original exceeded Discourse's 50,000 character post limit)_";
 function truncateRaw(raw) {
   if (typeof raw !== "string") {
     return raw;
@@ -2109,7 +2110,8 @@ function truncateRaw(raw) {
   if (raw.length <= MAX_PAYLOAD_LENGTH) {
     return raw;
   }
-  return raw.slice(0, MAX_PAYLOAD_LENGTH);
+  const noticeLength = TRUNCATION_NOTICE.length;
+  return raw.slice(0, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
 }
 function truncateTitle(title) {
   if (typeof title !== "string") {
@@ -3789,12 +3791,22 @@ function removeNoiseElements(doc) {
   doc.querySelectorAll([...roleSelectors, ...noiseSelectors].join(",")).forEach((node) => {
     node.remove();
   });
-  doc.querySelectorAll("*").forEach((node) => {
+  const chromePhrases = [
+    "cookie policy",
+    "accept cookies",
+    "sign up for our newsletter",
+    "subscribe to our newsletter",
+    "follow us on"
+  ];
+  doc.querySelectorAll("aside, footer, div, span").forEach((node) => {
     const text = (node.textContent || "").toLowerCase().trim();
-    if (text.length > 200) {
+    if (!text || text.length > 80) {
       return;
     }
-    if (text.includes("cookie policy") || text.includes("accept cookies") || text.includes("sign up for") || text.includes("newsletter") || text.includes("follow us")) {
+    if (node.querySelector("h1, h2, h3, h4, h5, h6, p, article, section")) {
+      return;
+    }
+    if (chromePhrases.some((phrase) => text.includes(phrase))) {
       node.remove();
     }
   });
@@ -4067,6 +4079,7 @@ var currentProfile = null;
 var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
+var cachedPageInfo = null;
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
     return;
@@ -4103,7 +4116,7 @@ function getSelectedValue(name) {
   const input = form.querySelector(`input[name='${name}']:checked`);
   return input ? input.value : "";
 }
-async function getActiveTabInfo() {
+async function fetchActiveTabInfo() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
     throw new Error("No active tab found.");
@@ -4111,7 +4124,9 @@ async function getActiveTabInfo() {
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      const title = document.title;
+      const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute("content");
+      const docTitle = (document.title || "").trim();
+      const title = docTitle || (ogTitle ? ogTitle.trim() : "");
       const url = window.location.href;
       const article = document.querySelector("article") || document.querySelector("main") || document.body;
       const fullText = article ? article.innerText : "";
@@ -4131,6 +4146,12 @@ async function getActiveTabInfo() {
     }
   });
   return result;
+}
+async function getActiveTabInfo() {
+  if (!cachedPageInfo) {
+    cachedPageInfo = await fetchActiveTabInfo();
+  }
+  return cachedPageInfo;
 }
 function validateSettings(settings) {
   if (!settings.baseUrl) {
