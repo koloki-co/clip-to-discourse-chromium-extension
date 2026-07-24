@@ -5,6 +5,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
+
+
+### Features
+
+* harden User API auth flow and tighten content extraction ([#20](https://github.com/koloki-co/clip-to-discourse-chromium-extension/issues/20)) ([bff7f98](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/bff7f9860d7111aebaa572f69cf33de592cfdb1c))
+* improve Discourse setup and clipping workflows ([98baf37](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/98baf371aff1cee55694ce795e4ece5782fff81e))
+
+
+### Bug Fixes
+
+* preserve Discourse connection error context ([db3296f](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/db3296fb51d6af0759ebd2dd3e1c96c5b83a7c16))
+
 ### [0.19.5](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.4...v0.19.5) (2026-03-12)
 
 ### Bug Fixes
