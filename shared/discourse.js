@@ -139,7 +139,7 @@ export async function testConnection({
     throw new Error(actionableDiscourseError(response, errorMessage, "connection test"));
   }
 
-  let data = null;
+  let data;
   try {
     data = await response.json();
   } catch {
@@ -195,7 +195,7 @@ export async function checkUserApiVersion({ baseUrl }) {
   try {
     response = await fetch(`${baseUrl}/user-api-key/new`, { method: "HEAD" });
   } catch (error) {
-    throw new Error(`Could not reach ${baseUrl}: ${error.message}`);
+    throw new Error(`Could not reach ${baseUrl}: ${error.message}`, { cause: error });
   }
 
   if (response.status === 404) {
