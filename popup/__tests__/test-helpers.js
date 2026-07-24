@@ -94,7 +94,8 @@ export function createRuntimeMock(version = "0.19.3") {
  */
 export function createActionMock() {
   return {
-    setIcon: vi.fn(() => Promise.resolve())
+    setIcon: vi.fn(() => Promise.resolve()),
+    setTitle: vi.fn(() => Promise.resolve())
   };
 }
 

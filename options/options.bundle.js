@@ -27,7 +27,7 @@ var DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
-  authMethod: AUTH_METHODS.ADMIN_API_KEY,
+  authMethod: AUTH_METHODS.USER_API,
   apiUsername: "",
   apiKey: "",
   userApiKey: "",
@@ -45,6 +45,15 @@ var DEFAULT_PROFILE = {
 var DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
 };
+function isProfileConnected(profile) {
+  if (!profile?.baseUrl) {
+    return false;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API) {
+    return Boolean(profile.userApiKey);
+  }
+  return Boolean(profile.apiUsername && profile.apiKey);
+}
 var LEGACY_KEYS = [
   "baseUrl",
   "apiUsername",
@@ -71,8 +80,17 @@ function normalizeBaseUrl(value) {
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
-function normalizeAuthMethod(value) {
-  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+function normalizeAuthMethod(profile) {
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY || profile.authMethod === AUTH_METHODS.USER_API) {
+    return profile.authMethod;
+  }
+  if (normalizeString(profile.userApiKey)) {
+    return AUTH_METHODS.USER_API;
+  }
+  if (normalizeString(profile.apiUsername) || normalizeString(profile.apiKey)) {
+    return AUTH_METHODS.ADMIN_API_KEY;
+  }
+  return DEFAULT_PROFILE.authMethod;
 }
 function normalizeProfile(profile) {
   return {
@@ -81,7 +99,7 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
-    authMethod: normalizeAuthMethod(profile.authMethod),
+    authMethod: normalizeAuthMethod(profile),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
     userApiKey: normalizeString(profile.userApiKey),
@@ -99,7 +117,6 @@ function normalizeProfile(profile) {
 }
 function createProfile(overrides = {}) {
   return normalizeProfile({
-    ...DEFAULT_PROFILE,
     ...overrides,
     id: overrides.id || generateId()
   });
@@ -109,8 +126,9 @@ async function loadState() {
   const useFaviconForIcon2 = typeof data.useFaviconForIcon === "boolean" ? data.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
   if (Array.isArray(data.profiles) && data.profiles.length > 0) {
     const profiles3 = data.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles3.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
     const activeProfileId3 = profiles3.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles3[0].id;
-    if (activeProfileId3 !== data.activeProfileId || data.useFaviconForIcon === void 0) {
+    if (activeProfileId3 !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged) {
       await chrome.storage.sync.set({ profiles: profiles3, activeProfileId: activeProfileId3, useFaviconForIcon: useFaviconForIcon2 });
     }
     return { profiles: profiles3, activeProfileId: activeProfileId3, useFaviconForIcon: useFaviconForIcon2 };
@@ -226,6 +244,32 @@ async function extractErrorMessage(response) {
   }
   return rawText || response.statusText;
 }
+function actionableDiscourseError(response, detail, context) {
+  const normalized = detail.toLowerCase();
+  let guidance;
+  if (normalized.includes("scope") || normalized.includes("not permitted")) {
+    guidance = "The available User API scopes are insufficient. Ask the site administrator to enable both read and write in 'allow user API key scopes', then authorize again.";
+  } else if (normalized.includes("unable to issue user api keys") || normalized.includes("trust level") || normalized.includes("allowed group")) {
+    guidance = "This account is not allowed to create User API keys. Ask the site administrator to enable User API keys and include your group in 'user API key allowed groups'.";
+  } else if (normalized.includes("redirect")) {
+    guidance = "The site rejected the authorization callback. Current sites should use device authorization; on older sites an administrator must allow the redirect URL shown in Authorization details.";
+  } else if (normalized.includes("expired") || response.status === 410) {
+    guidance = "The authorization or credential has expired. Start authorization again.";
+  } else if (response.status === 401) {
+    guidance = "Discourse rejected the stored credential. It may have been revoked or expired; authorize this profile again.";
+  } else if (response.status === 403) {
+    guidance = context === "posting" ? "Discourse accepted the credential but refused this action. Check that the account can post to the selected category or topic and that write scope is enabled." : "Discourse refused this authorization request. Check User API scopes, allowed groups, and the account's site permissions.";
+  } else if (response.status === 404) {
+    guidance = "The expected Discourse API endpoint was not found. Check the Base URL and confirm the site is a supported, current Discourse installation.";
+  } else if (response.status === 429) {
+    guidance = "Discourse is rate-limiting requests. Wait a few minutes before trying again.";
+  } else if (response.status >= 500) {
+    guidance = "The Discourse site encountered a server error. Retry later or ask the site administrator to inspect the server logs.";
+  } else {
+    guidance = "Discourse rejected the request. Check the Base URL, authentication method, account permissions, and selected destination.";
+  }
+  return `${guidance} Server response: ${detail || `HTTP ${response.status}`}`;
+}
 async function testConnection({
   baseUrl,
   authMethod,
@@ -243,7 +287,7 @@ async function testConnection({
   });
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);
-    throw new Error(`Discourse error: ${errorMessage}`);
+    throw new Error(actionableDiscourseError(response, errorMessage, "connection test"));
   }
   let data = null;
   try {
@@ -253,6 +297,36 @@ async function testConnection({
   }
   const username = data?.current_user?.username || data?.user?.username || "";
   return { data, username };
+}
+async function listCategories({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId
+}) {
+  const response = await fetch(`${baseUrl}/site.json`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
+    }
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "category loading"));
+  }
+  const data = await response.json();
+  const categories = Array.isArray(data.categories) ? data.categories : data.category_list?.categories;
+  if (!Array.isArray(categories)) {
+    throw new Error("Discourse returned an unexpected category response. The site may need to be updated.");
+  }
+  const namesById = new Map(categories.map((category) => [category.id, category.name]));
+  return categories.filter((category) => Number.isInteger(category.id) && category.name).map((category) => ({
+    id: category.id,
+    name: category.parent_category_id && namesById.has(category.parent_category_id) ? `${namesById.get(category.parent_category_id)} / ${category.name}` : category.name
+  })).sort((left, right) => left.name.localeCompare(right.name));
 }
 async function checkUserApiVersion({ baseUrl }) {
   let response;
@@ -268,9 +342,60 @@ async function checkUserApiVersion({ baseUrl }) {
   }
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);
-    throw new Error(`Discourse error: ${errorMessage}`);
+    throw new Error(actionableDiscourseError(response, errorMessage, "support check"));
   }
-  return response.headers.get("Auth-Api-Version") || response.headers.get("auth-api-version") || "";
+  return {
+    version: response.headers.get("Auth-Api-Version") || response.headers.get("auth-api-version") || "",
+    supportsDeviceCode: response.headers.get("Auth-Api-Device-Code")?.toLowerCase() === "true"
+  };
+}
+async function createUserApiDeviceRequest({
+  baseUrl,
+  applicationName,
+  clientId,
+  scopes,
+  nonce,
+  publicKey,
+  expiresInSeconds
+}) {
+  const response = await fetch(`${baseUrl}/user-api-key/device.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      application_name: applicationName,
+      client_id: clientId,
+      scopes,
+      nonce,
+      public_key: publicKey,
+      padding: "oaep",
+      ...expiresInSeconds ? { expires_in_seconds: expiresInSeconds } : {}
+    })
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "authorization"));
+  }
+  const data = await response.json();
+  if (!data.device_code || !data.user_code || !data.verification_uri) {
+    throw new Error("Discourse returned an incomplete device authorization response.");
+  }
+  return data;
+}
+async function pollUserApiDeviceRequest({ baseUrl, deviceCode }) {
+  const response = await fetch(`${baseUrl}/user-api-key/device/poll.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_code: deviceCode })
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "authorization polling"));
+  }
+  const data = await response.json();
+  if (!data.status) {
+    throw new Error("Discourse returned an incomplete authorization status.");
+  }
+  return data;
 }
 async function revokeUserApiKey({ baseUrl, userApiKey, userApiClientId }) {
   if (!userApiKey) {
@@ -289,7 +414,7 @@ async function revokeUserApiKey({ baseUrl, userApiKey, userApiClientId }) {
   });
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);
-    throw new Error(`Discourse error: ${errorMessage}`);
+    throw new Error(actionableDiscourseError(response, errorMessage, "revocation"));
   }
 }
 
@@ -336,12 +461,12 @@ async function dataUrlToImageDataMap(dataUrl) {
   const blob = await response.blob();
   return blobToImageDataMap(blob);
 }
-function createFallbackImageDataMap() {
+function createFallbackImageDataMap(isConnected = true) {
   const imageDataMap = {};
   ICON_SIZES.forEach((size) => {
     const canvas = createCanvas(size);
     const ctx = getCanvasContext(canvas);
-    ctx.fillStyle = "#577188";
+    ctx.fillStyle = isConnected ? "#577188" : "#8c959f";
     ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = "#ffffff";
     ctx.font = `${Math.floor(size * 0.7)}px Lato, Arial, sans-serif`;
@@ -400,6 +525,12 @@ async function blobToDataUrl(blob) {
   });
 }
 async function updateActionIconForProfile(profile, useFavicon) {
+  if (!isProfileConnected(profile)) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap(false) });
+    await chrome.action.setTitle({ title: "Clip To Discourse - connection required" });
+    return;
+  }
+  await chrome.action.setTitle({ title: "Clip To Discourse" });
   if (!useFavicon) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
     return;
@@ -428,79 +559,7 @@ async function updateActionIconForProfile(profile, useFavicon) {
   await setCachedDataUrl(profile.id, dataUrl);
 }
 
-// options/options.js
-var form = document.getElementById("settings-form");
-var statusEl = document.getElementById("status");
-var submitButton = form.querySelector("button[type=submit]");
-var testButton = document.getElementById("testConnection");
-var profileSelect = document.getElementById("profileSelect");
-var addProfileButton = document.getElementById("addProfile");
-var deleteProfileButton = document.getElementById("deleteProfile");
-var extensionVersion = document.getElementById("extensionVersion");
-var authTabButtons = Array.from(document.querySelectorAll(".auth-tab"));
-var authPanelAdmin = document.getElementById("authPanelAdmin");
-var authPanelUser = document.getElementById("authPanelUser");
-var checkUserApiSupportButton = document.getElementById("checkUserApiSupport");
-var connectUserApiButton = document.getElementById("connectUserApi");
-var revokeUserApiButton = document.getElementById("revokeUserApi");
-var userApiStatusEl = document.getElementById("userApiStatus");
-var userApiRedirectUrlEl = document.getElementById("userApiRedirectUrl");
-var fields = {
-  profileName: document.getElementById("profileName"),
-  useFaviconForIcon: document.getElementById("useFaviconForIcon"),
-  baseUrl: document.getElementById("baseUrl"),
-  authMethod: document.getElementById("authMethod"),
-  apiUsername: document.getElementById("apiUsername"),
-  apiKey: document.getElementById("apiKey"),
-  userApiKey: document.getElementById("userApiKey"),
-  userApiClientId: document.getElementById("userApiClientId"),
-  defaultClipStyle: document.getElementById("defaultClipStyle"),
-  defaultDestination: document.getElementById("defaultDestination"),
-  defaultCategoryId: document.getElementById("defaultCategoryId"),
-  defaultTopicId: document.getElementById("defaultTopicId"),
-  titleTemplate: document.getElementById("titleTemplate"),
-  titleUrlTemplate: document.getElementById("titleUrlTemplate"),
-  excerptTemplate: document.getElementById("excerptTemplate"),
-  fullTextTemplate: document.getElementById("fullTextTemplate"),
-  textSelectionTemplate: document.getElementById("textSelectionTemplate")
-};
-var errors = {
-  baseUrl: document.getElementById("baseUrlError"),
-  apiUsername: document.getElementById("apiUsernameError"),
-  apiKey: document.getElementById("apiKeyError"),
-  userApiKey: document.getElementById("userApiKeyError")
-};
-var profiles = [];
-var activeProfileId = "";
-var useFaviconForIcon = false;
-var USER_API_SCOPES = "read,write";
-var USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
-function createUserApiClientId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return `clip-to-discourse-${crypto.randomUUID()}`;
-  }
-  return `clip-to-discourse-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-function randomHex(length) {
-  const bytes = new Uint8Array(Math.ceil(length / 2));
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
-}
-function setUserApiStatus(message, isError = false) {
-  if (!userApiStatusEl) {
-    return;
-  }
-  userApiStatusEl.textContent = message;
-  userApiStatusEl.style.color = isError ? "#b42318" : "";
-}
-function ensureUserApiClientId() {
-  if (fields.userApiClientId.value.trim()) {
-    return fields.userApiClientId.value.trim();
-  }
-  const clientId = createUserApiClientId();
-  fields.userApiClientId.value = clientId;
-  return clientId;
-}
+// shared/user-api-crypto.js
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -524,11 +583,7 @@ function toPem(base64, label) {
 ${lines.join("\n")}
 -----END ${label}-----`;
 }
-function pickOaepHash(authApiVersion) {
-  const version = Number.parseInt(authApiVersion, 10);
-  return Number.isFinite(version) && version >= 4 ? "SHA-256" : "SHA-1";
-}
-async function generateUserApiKeyPair(hashAlgorithm) {
+async function generateUserApiKeyPair() {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error("Web Crypto API is unavailable in this browser context.");
   }
@@ -537,23 +592,170 @@ async function generateUserApiKeyPair(hashAlgorithm) {
       name: "RSA-OAEP",
       modulusLength: 2048,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: hashAlgorithm
+      hash: "SHA-1"
     },
     true,
     ["encrypt", "decrypt"]
   );
   const spki = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-  const publicKeyPem = toPem(arrayBufferToBase64(spki), "PUBLIC KEY");
-  return { publicKeyPem, privateKey: keyPair.privateKey };
+  return {
+    publicKeyPem: toPem(arrayBufferToBase64(spki), "PUBLIC KEY"),
+    publicKey: keyPair.publicKey,
+    privateKey: keyPair.privateKey
+  };
 }
 async function decryptUserApiPayload(payload, privateKey) {
   const encrypted = base64ToArrayBuffer(payload);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
-    privateKey,
-    encrypted
-  );
+  const decrypted = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, encrypted);
   return new TextDecoder().decode(decrypted);
+}
+
+// options/options.js
+var form = document.getElementById("settings-form");
+var statusEl = document.getElementById("status");
+var submitButton = form.querySelector("button[type=submit]");
+var testButton = document.getElementById("testConnection");
+var profileSelect = document.getElementById("profileSelect");
+var addProfileButton = document.getElementById("addProfile");
+var deleteProfileButton = document.getElementById("deleteProfile");
+var profileCreatePanel = document.getElementById("profileCreatePanel");
+var newProfileNameInput = document.getElementById("newProfileName");
+var newProfileNameError = document.getElementById("newProfileNameError");
+var createProfileButton = document.getElementById("createProfile");
+var cancelAddProfileButton = document.getElementById("cancelAddProfile");
+var profileDeletePanel = document.getElementById("profileDeletePanel");
+var profileDeleteName = document.getElementById("profileDeleteName");
+var confirmDeleteProfileButton = document.getElementById("confirmDeleteProfile");
+var cancelDeleteProfileButton = document.getElementById("cancelDeleteProfile");
+var extensionVersion = document.getElementById("extensionVersion");
+var authTabButtons = Array.from(document.querySelectorAll(".auth-tab"));
+var authPanelAdmin = document.getElementById("authPanelAdmin");
+var authPanelUser = document.getElementById("authPanelUser");
+var checkUserApiSupportButton = document.getElementById("checkUserApiSupport");
+var connectUserApiButton = document.getElementById("connectUserApi");
+var revokeUserApiButton = document.getElementById("revokeUserApi");
+var userApiStatusEl = document.getElementById("userApiStatus");
+var userApiRedirectUrlEl = document.getElementById("userApiRedirectUrl");
+var userApiConnectionIndicator = document.getElementById("userApiConnectionIndicator");
+var userApiConnectionState = document.getElementById("userApiConnectionState");
+var userApiDeviceCodePanel = document.getElementById("userApiDeviceCodePanel");
+var userApiDeviceCode = document.getElementById("userApiDeviceCode");
+var defaultCategoryStatus = document.getElementById("defaultCategoryStatus");
+var fields = {
+  useFaviconForIcon: document.getElementById("useFaviconForIcon"),
+  baseUrl: document.getElementById("baseUrl"),
+  authMethod: document.getElementById("authMethod"),
+  apiUsername: document.getElementById("apiUsername"),
+  apiKey: document.getElementById("apiKey"),
+  userApiKey: document.getElementById("userApiKey"),
+  userApiClientId: document.getElementById("userApiClientId"),
+  defaultClipStyle: document.getElementById("defaultClipStyle"),
+  defaultDestination: document.getElementById("defaultDestination"),
+  defaultCategoryId: document.getElementById("defaultCategoryId"),
+  defaultTopicId: document.getElementById("defaultTopicId"),
+  titleTemplate: document.getElementById("titleTemplate"),
+  titleUrlTemplate: document.getElementById("titleUrlTemplate"),
+  excerptTemplate: document.getElementById("excerptTemplate"),
+  fullTextTemplate: document.getElementById("fullTextTemplate"),
+  textSelectionTemplate: document.getElementById("textSelectionTemplate")
+};
+var errors = {
+  baseUrl: document.getElementById("baseUrlError"),
+  apiUsername: document.getElementById("apiUsernameError"),
+  apiKey: document.getElementById("apiKeyError")
+};
+var profiles = [];
+var activeProfileId = "";
+var useFaviconForIcon = false;
+var categoriesLoadedForProfileId = "";
+var USER_API_SCOPES = "read,write";
+var USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
+function createUserApiClientId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `clip-to-discourse-${crypto.randomUUID()}`;
+  }
+  return `clip-to-discourse-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+function randomHex(length) {
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
+}
+function setUserApiStatus(message, isError = false) {
+  if (!userApiStatusEl) {
+    return;
+  }
+  userApiStatusEl.textContent = message;
+  userApiStatusEl.style.color = isError ? "#b42318" : "";
+}
+function setUserApiDeviceCode(code = "") {
+  userApiDeviceCode.textContent = code;
+  userApiDeviceCodePanel.classList.toggle("hidden", !code);
+}
+function activeProfileCredentials() {
+  return {
+    baseUrl: fields.baseUrl.value.trim().replace(/\/+$/, ""),
+    authMethod: getActiveAuthMethod(),
+    apiUsername: fields.apiUsername.value.trim(),
+    apiKey: fields.apiKey.value.trim(),
+    userApiKey: fields.userApiKey.value.trim(),
+    userApiClientId: fields.userApiClientId.value.trim()
+  };
+}
+function setDefaultCategoryOptions(categories, selectedId = "") {
+  fields.defaultCategoryId.innerHTML = '<option value="">Select a category</option>';
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = String(category.id);
+    option.textContent = category.name;
+    fields.defaultCategoryId.appendChild(option);
+  });
+  if (selectedId && !categories.some((category) => String(category.id) === String(selectedId))) {
+    const option = document.createElement("option");
+    option.value = String(selectedId);
+    option.textContent = `Category ${selectedId}`;
+    fields.defaultCategoryId.appendChild(option);
+  }
+  fields.defaultCategoryId.value = selectedId;
+}
+async function loadDefaultCategories() {
+  const profile = activeProfileCredentials();
+  if (!profile.baseUrl || categoriesLoadedForProfileId === activeProfileId) {
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
+    defaultCategoryStatus.textContent = "Authorize this profile before loading categories.";
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY && (!profile.apiUsername || !profile.apiKey)) {
+    defaultCategoryStatus.textContent = "Enter the API username and key before loading categories.";
+    return;
+  }
+  fields.defaultCategoryId.disabled = true;
+  defaultCategoryStatus.textContent = "Loading categories...";
+  try {
+    await ensureHostPermission(profile.baseUrl);
+    const selectedId = fields.defaultCategoryId.value;
+    const categories = await listCategories(profile);
+    setDefaultCategoryOptions(categories, selectedId);
+    categoriesLoadedForProfileId = activeProfileId;
+    defaultCategoryStatus.textContent = categories.length ? `${categories.length} available categories loaded.` : "No categories are available to this account.";
+  } catch (error) {
+    defaultCategoryStatus.textContent = error.message || "Categories could not be loaded.";
+  } finally {
+    fields.defaultCategoryId.disabled = false;
+  }
+}
+function ensureUserApiClientId() {
+  if (fields.userApiClientId.value.trim()) {
+    return fields.userApiClientId.value.trim();
+  }
+  const clientId = createUserApiClientId();
+  fields.userApiClientId.value = clientId;
+  return clientId;
+}
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 function getActiveAuthMethod() {
   return fields.authMethod.value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
@@ -583,7 +785,11 @@ function refreshUserApiControls(disabled = false) {
   }
   checkUserApiSupportButton.disabled = false;
   connectUserApiButton.disabled = false;
-  revokeUserApiButton.disabled = !fields.userApiKey.value.trim();
+  const isAuthorized = Boolean(fields.userApiKey.value.trim());
+  revokeUserApiButton.disabled = !isAuthorized;
+  connectUserApiButton.textContent = isAuthorized ? "Authorize again" : "Authorize Clip To Discourse";
+  userApiConnectionIndicator.classList.toggle("connected", isAuthorized);
+  userApiConnectionState.textContent = isAuthorized ? "Authorized" : "Not authorized";
 }
 function setExtensionVersion() {
   if (!extensionVersion) {
@@ -600,7 +806,6 @@ function clearErrors() {
   errors.baseUrl.textContent = "";
   errors.apiUsername.textContent = "";
   errors.apiKey.textContent = "";
-  errors.userApiKey.textContent = "";
 }
 function validateBaseUrlField() {
   const baseUrl = fields.baseUrl.value.trim();
@@ -622,7 +827,7 @@ function validateBaseUrlField() {
 function getOriginPattern(baseUrl) {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
   const parsed = new URL(normalized);
-  return `${parsed.origin}/*`;
+  return `${parsed.protocol}//${parsed.hostname}/*`;
 }
 async function ensureHostPermission(baseUrl) {
   const originPattern = getOriginPattern(baseUrl);
@@ -630,7 +835,7 @@ async function ensureHostPermission(baseUrl) {
   if (alreadyGranted) return true;
   const granted = await chrome.permissions.request({ origins: [originPattern] });
   if (!granted) {
-    throw new Error("Host permission was not granted. Please allow access to your Discourse site.");
+    throw new Error(`Browser access to ${new URL(baseUrl).origin} was not granted. Authorize that site when Chrome asks so Clip To Discourse can connect directly to it.`);
   }
   return true;
 }
@@ -640,12 +845,7 @@ function validateFields() {
   if (!validateBaseUrlField()) {
     isValid = false;
   }
-  if (getActiveAuthMethod() === AUTH_METHODS.USER_API) {
-    if (!fields.userApiKey.value.trim()) {
-      errors.userApiKey.textContent = "User API Key is required.";
-      isValid = false;
-    }
-  } else {
+  if (getActiveAuthMethod() === AUTH_METHODS.ADMIN_API_KEY) {
     if (!fields.apiUsername.value.trim()) {
       errors.apiUsername.textContent = "API Username is required.";
       isValid = false;
@@ -671,16 +871,17 @@ function renderProfiles() {
   deleteProfileButton.disabled = profiles.length <= 1;
 }
 function fillProfileForm(profile) {
-  fields.profileName.value = profile.name || "";
   fields.baseUrl.value = profile.baseUrl || "";
-  setAuthMethod(profile.authMethod || AUTH_METHODS.ADMIN_API_KEY);
+  setAuthMethod(profile.authMethod || AUTH_METHODS.USER_API);
   fields.apiUsername.value = profile.apiUsername || "";
   fields.apiKey.value = profile.apiKey || "";
   fields.userApiKey.value = profile.userApiKey || "";
   fields.userApiClientId.value = profile.userApiClientId || createUserApiClientId();
   fields.defaultClipStyle.value = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   fields.defaultDestination.value = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
-  fields.defaultCategoryId.value = profile.defaultCategoryId || "";
+  categoriesLoadedForProfileId = "";
+  setDefaultCategoryOptions([], profile.defaultCategoryId || "");
+  defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
@@ -688,6 +889,7 @@ function fillProfileForm(profile) {
   fields.fullTextTemplate.value = profile.fullTextTemplate || "";
   fields.textSelectionTemplate.value = profile.textSelectionTemplate || "";
   setUserApiStatus("");
+  setUserApiDeviceCode();
   refreshUserApiControls();
 }
 async function loadSettings() {
@@ -722,7 +924,6 @@ async function handleSubmit(event) {
       fields.userApiClientId.value = createUserApiClientId();
     }
     await saveActiveProfile({
-      name: fields.profileName.value,
       baseUrl: fields.baseUrl.value,
       authMethod,
       apiUsername: fields.apiUsername.value,
@@ -758,6 +959,11 @@ async function handleTestConnection() {
   clearErrors();
   if (!validateFields()) {
     setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+  if (getActiveAuthMethod() === AUTH_METHODS.USER_API && !fields.userApiKey.value.trim()) {
+    setUserApiStatus("Authorize Clip To Discourse before testing the connection.", true);
+    setStatus("User API authorization is required.", true);
     return;
   }
   setButtonsDisabled(true);
@@ -809,8 +1015,10 @@ async function handleCheckUserApiSupport() {
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
-    const version = await checkUserApiVersion({ baseUrl });
-    setUserApiStatus(version ? `User API version: ${version}` : "User API endpoint is reachable.");
+    const capabilities = await checkUserApiVersion({ baseUrl });
+    const versionText = capabilities.version ? `User API version: ${capabilities.version}.` : "User API endpoint is reachable.";
+    const flowText = capabilities.supportsDeviceCode ? " Device authorization is supported." : " Redirect authorization will be used.";
+    setUserApiStatus(`${versionText}${flowText}`);
     setStatus("User API check successful.");
   } catch (error) {
     setUserApiStatus(error.message || "Failed to check User API support.", true);
@@ -822,6 +1030,7 @@ async function handleCheckUserApiSupport() {
 async function handleConnectUserApi() {
   clearErrors();
   setUserApiStatus("");
+  setUserApiDeviceCode();
   if (!validateBaseUrlField()) {
     setStatus("Fix the highlighted fields and try again.", true);
     return;
@@ -831,38 +1040,85 @@ async function handleConnectUserApi() {
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
-    const authApiVersion = await checkUserApiVersion({ baseUrl });
-    const hashAlgorithm = pickOaepHash(authApiVersion);
-    const redirectUrl = getUserApiRedirectUrl();
+    const capabilities = await checkUserApiVersion({ baseUrl });
     const clientId = ensureUserApiClientId();
     const nonce = randomHex(32);
-    const { publicKeyPem, privateKey } = await generateUserApiKeyPair(hashAlgorithm);
-    const params = new URLSearchParams({
-      auth_redirect: redirectUrl,
-      application_name: USER_API_APPLICATION_NAME,
-      client_id: clientId,
-      scopes: USER_API_SCOPES,
-      nonce,
-      public_key: publicKeyPem,
-      padding: "oaep"
-    });
-    if (authApiVersion) {
-      params.set("auth_api_version", authApiVersion);
+    const { publicKeyPem, privateKey } = await generateUserApiKeyPair();
+    let payload;
+    if (capabilities.supportsDeviceCode) {
+      const deviceRequest = await createUserApiDeviceRequest({
+        baseUrl,
+        applicationName: USER_API_APPLICATION_NAME,
+        clientId,
+        scopes: USER_API_SCOPES,
+        nonce,
+        publicKey: publicKeyPem
+      });
+      const authorizationUrl = deviceRequest.verification_uri_with_request || deviceRequest.verification_uri;
+      setUserApiDeviceCode(deviceRequest.user_code);
+      setUserApiStatus("Complete authorization in the Discourse window. This page will update automatically.");
+      window.open(authorizationUrl, "_blank", "noopener");
+      const deadline = Date.now() + (deviceRequest.expires_in || 600) * 1e3;
+      const interval = Math.max(deviceRequest.interval || 5, 1) * 1e3;
+      while (Date.now() < deadline) {
+        await wait(interval);
+        const result = await pollUserApiDeviceRequest({
+          baseUrl,
+          deviceCode: deviceRequest.device_code
+        });
+        if (result.status === "authorized") {
+          payload = result.payload;
+          break;
+        }
+        if (result.status === "access_denied") {
+          throw new Error("Authorization was denied in Discourse.");
+        }
+        if (result.status === "expired_token") {
+          throw new Error("Authorization expired. Try again.");
+        }
+        if (result.status !== "authorization_pending") {
+          throw new Error(`Discourse returned an unexpected authorization status: ${result.status}.`);
+        }
+      }
+      if (!payload) {
+        throw new Error("Authorization timed out. Try again.");
+      }
+    } else {
+      const redirectUrl = getUserApiRedirectUrl();
+      const params = new URLSearchParams({
+        auth_redirect: redirectUrl,
+        application_name: USER_API_APPLICATION_NAME,
+        client_id: clientId,
+        scopes: USER_API_SCOPES,
+        nonce,
+        public_key: publicKeyPem,
+        padding: "oaep"
+      });
+      if (capabilities.version) {
+        params.set("auth_api_version", capabilities.version);
+      }
+      setUserApiStatus("Waiting for authorization in browser...");
+      const redirectResult = await chrome.identity.launchWebAuthFlow({
+        url: `${baseUrl}/user-api-key/new?${params.toString()}`,
+        interactive: true
+      });
+      if (!redirectResult) {
+        throw new Error("Authorization did not return a callback URL.");
+      }
+      payload = new URL(redirectResult).searchParams.get("payload");
+      if (!payload) {
+        throw new Error("Authorization completed but no payload was returned.");
+      }
     }
-    const authUrl = `${baseUrl}/user-api-key/new?${params.toString()}`;
-    setUserApiStatus("Waiting for authorization in browser...");
-    const redirectResult = await chrome.identity.launchWebAuthFlow({
-      url: authUrl,
-      interactive: true
-    });
-    if (!redirectResult) {
-      throw new Error("Authorization did not return a callback URL.");
+    setUserApiStatus("Authorization approved. Decrypting the returned credential...");
+    let decrypted;
+    try {
+      decrypted = JSON.parse(await decryptUserApiPayload(payload, privateKey));
+    } catch (error) {
+      throw new Error(`Discourse approved access, but credential decryption failed: ${error.message}`, {
+        cause: error
+      });
     }
-    const payload = new URL(redirectResult).searchParams.get("payload");
-    if (!payload) {
-      throw new Error("Authorization completed but no payload was returned.");
-    }
-    const decrypted = JSON.parse(await decryptUserApiPayload(payload, privateKey));
     if (decrypted.nonce !== nonce) {
       throw new Error("Received an invalid authorization payload (nonce mismatch).");
     }
@@ -873,6 +1129,7 @@ async function handleConnectUserApi() {
     fields.userApiClientId.value = clientId;
     setAuthMethod(AUTH_METHODS.USER_API);
     refreshUserApiControls();
+    setUserApiDeviceCode();
     await saveActiveProfile({
       baseUrl,
       authMethod: AUTH_METHODS.USER_API,
@@ -897,15 +1154,19 @@ async function handleConnectUserApi() {
       setStatus("User API key saved, but verification failed.", true);
       return;
     }
-    const versionSuffix = authApiVersion ? ` (API v${authApiVersion})` : "";
+    const versionSuffix = capabilities.version ? ` (API v${capabilities.version})` : "";
     setUserApiStatus(
       username ? `Connected as @${username}${versionSuffix}.` : `Connected with User API key${versionSuffix}.`
     );
-    setStatus("User API key connected and saved.");
+    setStatus("Clip To Discourse is authorized and the credential is saved.");
   } catch (error) {
-    setUserApiStatus(error.message || "User API connection failed.", true);
-    setStatus(error.message || "User API connection failed.", true);
+    const message = error.message || "User API authorization failed before Discourse returned a credential. Check site support and try again.";
+    setUserApiStatus(message, true);
+    setStatus(message, true);
   } finally {
+    if (!fields.userApiKey.value.trim()) {
+      setUserApiDeviceCode();
+    }
     setButtonsDisabled(false);
   }
 }
@@ -918,11 +1179,11 @@ async function handleRevokeUserApi() {
   }
   const userApiKey = fields.userApiKey.value.trim();
   if (!userApiKey) {
-    errors.userApiKey.textContent = "User API Key is required.";
-    setStatus("Fix the highlighted fields and try again.", true);
+    setUserApiStatus("There is no User API authorization to revoke.", true);
+    setStatus("No User API authorization is stored.", true);
     return;
   }
-  const confirmed = window.confirm("Revoke this User API key now?");
+  const confirmed = window.confirm("Revoke Clip To Discourse authorization for this profile?");
   if (!confirmed) {
     return;
   }
@@ -945,8 +1206,8 @@ async function handleRevokeUserApi() {
       userApiClientId: fields.userApiClientId.value.trim()
     });
     await loadSettings();
-    setUserApiStatus("User API key revoked.");
-    setStatus("User API key revoked.");
+    setUserApiStatus("Authorization revoked.");
+    setStatus("Clip To Discourse authorization revoked.");
   } catch (error) {
     setUserApiStatus(error.message || "Failed to revoke User API key.", true);
     setStatus(error.message || "Failed to revoke User API key.", true);
@@ -966,6 +1227,8 @@ async function handleProfileChange() {
   if (!selectedId || selectedId === activeProfileId) {
     return;
   }
+  closeProfileCreatePanel();
+  closeProfileDeletePanel();
   setStatus("Switching profile...");
   await setActiveProfile(selectedId);
   await loadSettings();
@@ -975,48 +1238,102 @@ async function handleProfileChange() {
   );
   setStatus("");
 }
-async function handleAddProfile() {
-  const name = window.prompt("Profile name");
+function closeProfileCreatePanel() {
+  profileCreatePanel.classList.add("hidden");
+  addProfileButton.setAttribute("aria-expanded", "false");
+  newProfileNameInput.value = "";
+  newProfileNameError.textContent = "";
+}
+function closeProfileDeletePanel() {
+  profileDeletePanel.classList.add("hidden");
+  deleteProfileButton.setAttribute("aria-expanded", "false");
+}
+function handleAddProfile() {
+  closeProfileDeletePanel();
+  profileCreatePanel.classList.remove("hidden");
+  addProfileButton.setAttribute("aria-expanded", "true");
+  newProfileNameInput.focus();
+}
+async function handleCreateProfile() {
+  const name = newProfileNameInput.value.trim();
   if (!name) {
+    newProfileNameError.textContent = "Enter a name for the new profile.";
+    newProfileNameInput.focus();
     return;
   }
+  createProfileButton.disabled = true;
   setStatus("Adding profile...");
-  await addProfile({ name });
-  await loadSettings();
-  await updateActionIconForProfile(
-    profiles.find((profile) => profile.id === activeProfileId),
-    fields.useFaviconForIcon.checked
-  );
-  setStatus("");
+  try {
+    await addProfile({ name });
+    closeProfileCreatePanel();
+    await loadSettings();
+    await updateActionIconForProfile(
+      profiles.find((profile) => profile.id === activeProfileId),
+      fields.useFaviconForIcon.checked
+    );
+    setStatus(`Profile "${name}" created.`);
+  } catch (error) {
+    newProfileNameError.textContent = error.message || "The profile could not be created.";
+    setStatus(error.message || "The profile could not be created.", true);
+  } finally {
+    createProfileButton.disabled = false;
+  }
 }
-async function handleDeleteProfile() {
+function handleDeleteProfile() {
   if (profiles.length <= 1) {
     return;
   }
-  const confirmed = window.confirm("Delete this profile? This cannot be undone.");
-  if (!confirmed) {
-    return;
-  }
+  closeProfileCreatePanel();
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  profileDeleteName.textContent = activeProfile?.name || "this profile";
+  profileDeletePanel.classList.remove("hidden");
+  deleteProfileButton.setAttribute("aria-expanded", "true");
+  confirmDeleteProfileButton.focus();
+}
+async function handleConfirmDeleteProfile() {
+  confirmDeleteProfileButton.disabled = true;
   setStatus("Deleting profile...");
-  await deleteProfile(activeProfileId);
-  await loadSettings();
-  await updateActionIconForProfile(
-    profiles.find((profile) => profile.id === activeProfileId),
-    fields.useFaviconForIcon.checked
-  );
-  setStatus("");
+  try {
+    await deleteProfile(activeProfileId);
+    closeProfileDeletePanel();
+    await loadSettings();
+    await updateActionIconForProfile(
+      profiles.find((profile) => profile.id === activeProfileId),
+      fields.useFaviconForIcon.checked
+    );
+    setStatus("Profile deleted.");
+  } catch (error) {
+    setStatus(error.message || "The profile could not be deleted.", true);
+  } finally {
+    confirmDeleteProfileButton.disabled = false;
+  }
 }
 form.addEventListener("submit", handleSubmit);
 testButton.addEventListener("click", handleTestConnection);
 profileSelect.addEventListener("change", handleProfileChange);
 addProfileButton.addEventListener("click", handleAddProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
+createProfileButton.addEventListener("click", handleCreateProfile);
+cancelAddProfileButton.addEventListener("click", closeProfileCreatePanel);
+confirmDeleteProfileButton.addEventListener("click", handleConfirmDeleteProfile);
+cancelDeleteProfileButton.addEventListener("click", closeProfileDeletePanel);
+newProfileNameInput.addEventListener("input", () => {
+  newProfileNameError.textContent = "";
+});
+newProfileNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleCreateProfile();
+  } else if (event.key === "Escape") {
+    closeProfileCreatePanel();
+    addProfileButton.focus();
+  }
+});
 checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
-fields.userApiKey.addEventListener("input", () => {
-  refreshUserApiControls();
-});
+fields.defaultCategoryId.addEventListener("focus", loadDefaultCategories);
+fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
 });

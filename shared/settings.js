@@ -9,7 +9,7 @@ export const DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
-  authMethod: AUTH_METHODS.ADMIN_API_KEY,
+  authMethod: AUTH_METHODS.USER_API,
   apiUsername: "",
   apiKey: "",
   userApiKey: "",
@@ -28,6 +28,16 @@ export const DEFAULT_PROFILE = {
 export const DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
 };
+
+export function isProfileConnected(profile) {
+  if (!profile?.baseUrl) {
+    return false;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API) {
+    return Boolean(profile.userApiKey);
+  }
+  return Boolean(profile.apiUsername && profile.apiKey);
+}
 
 // Keys from older single-profile storage schema.
 const LEGACY_KEYS = [
@@ -62,8 +72,17 @@ function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeAuthMethod(value) {
-  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+function normalizeAuthMethod(profile) {
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY || profile.authMethod === AUTH_METHODS.USER_API) {
+    return profile.authMethod;
+  }
+  if (normalizeString(profile.userApiKey)) {
+    return AUTH_METHODS.USER_API;
+  }
+  if (normalizeString(profile.apiUsername) || normalizeString(profile.apiKey)) {
+    return AUTH_METHODS.ADMIN_API_KEY;
+  }
+  return DEFAULT_PROFILE.authMethod;
 }
 
 // Coerce a raw profile into a complete, valid profile object.
@@ -74,7 +93,7 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
-    authMethod: normalizeAuthMethod(profile.authMethod),
+    authMethod: normalizeAuthMethod(profile),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
     userApiKey: normalizeString(profile.userApiKey),
@@ -94,7 +113,6 @@ function normalizeProfile(profile) {
 // Create a new profile with a fresh id.
 function createProfile(overrides = {}) {
   return normalizeProfile({
-    ...DEFAULT_PROFILE,
     ...overrides,
     id: overrides.id || generateId()
   });
@@ -109,11 +127,12 @@ async function loadState() {
 
   if (Array.isArray(data.profiles) && data.profiles.length > 0) {
     const profiles = data.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
     const activeProfileId = profiles.some((profile) => profile.id === data.activeProfileId)
       ? data.activeProfileId
       : profiles[0].id;
 
-    if (activeProfileId !== data.activeProfileId || data.useFaviconForIcon === undefined) {
+    if (activeProfileId !== data.activeProfileId || data.useFaviconForIcon === undefined || authMethodsChanged) {
       await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
     }
 

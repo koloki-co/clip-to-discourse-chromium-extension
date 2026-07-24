@@ -2282,7 +2282,7 @@ var DEFAULT_PROFILE = {
   id: "",
   name: "Default",
   baseUrl: "",
-  authMethod: AUTH_METHODS.ADMIN_API_KEY,
+  authMethod: AUTH_METHODS.USER_API,
   apiUsername: "",
   apiKey: "",
   userApiKey: "",
@@ -2300,6 +2300,15 @@ var DEFAULT_PROFILE = {
 var DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false
 };
+function isProfileConnected(profile) {
+  if (!profile?.baseUrl) {
+    return false;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API) {
+    return Boolean(profile.userApiKey);
+  }
+  return Boolean(profile.apiUsername && profile.apiKey);
+}
 var LEGACY_KEYS = [
   "baseUrl",
   "apiUsername",
@@ -2326,8 +2335,17 @@ function normalizeBaseUrl(value) {
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
-function normalizeAuthMethod(value) {
-  return value === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
+function normalizeAuthMethod(profile) {
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY || profile.authMethod === AUTH_METHODS.USER_API) {
+    return profile.authMethod;
+  }
+  if (normalizeString(profile.userApiKey)) {
+    return AUTH_METHODS.USER_API;
+  }
+  if (normalizeString(profile.apiUsername) || normalizeString(profile.apiKey)) {
+    return AUTH_METHODS.ADMIN_API_KEY;
+  }
+  return DEFAULT_PROFILE.authMethod;
 }
 function normalizeProfile(profile) {
   return {
@@ -2336,7 +2354,7 @@ function normalizeProfile(profile) {
     id: profile.id || generateId(),
     name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
     baseUrl: normalizeBaseUrl(profile.baseUrl),
-    authMethod: normalizeAuthMethod(profile.authMethod),
+    authMethod: normalizeAuthMethod(profile),
     apiUsername: normalizeString(profile.apiUsername),
     apiKey: normalizeString(profile.apiKey),
     userApiKey: normalizeString(profile.userApiKey),
@@ -2354,7 +2372,6 @@ function normalizeProfile(profile) {
 }
 function createProfile(overrides = {}) {
   return normalizeProfile({
-    ...DEFAULT_PROFILE,
     ...overrides,
     id: overrides.id || generateId()
   });
@@ -2364,8 +2381,9 @@ async function loadState() {
   const useFaviconForIcon2 = typeof data.useFaviconForIcon === "boolean" ? data.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
   if (Array.isArray(data.profiles) && data.profiles.length > 0) {
     const profiles3 = data.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles3.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
     const activeProfileId3 = profiles3.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles3[0].id;
-    if (activeProfileId3 !== data.activeProfileId || data.useFaviconForIcon === void 0) {
+    if (activeProfileId3 !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged) {
       await chrome.storage.sync.set({ profiles: profiles3, activeProfileId: activeProfileId3, useFaviconForIcon: useFaviconForIcon2 });
     }
     return { profiles: profiles3, activeProfileId: activeProfileId3, useFaviconForIcon: useFaviconForIcon2 };
@@ -2447,6 +2465,32 @@ async function extractErrorMessage(response) {
   }
   return rawText || response.statusText;
 }
+function actionableDiscourseError(response, detail, context) {
+  const normalized = detail.toLowerCase();
+  let guidance;
+  if (normalized.includes("scope") || normalized.includes("not permitted")) {
+    guidance = "The available User API scopes are insufficient. Ask the site administrator to enable both read and write in 'allow user API key scopes', then authorize again.";
+  } else if (normalized.includes("unable to issue user api keys") || normalized.includes("trust level") || normalized.includes("allowed group")) {
+    guidance = "This account is not allowed to create User API keys. Ask the site administrator to enable User API keys and include your group in 'user API key allowed groups'.";
+  } else if (normalized.includes("redirect")) {
+    guidance = "The site rejected the authorization callback. Current sites should use device authorization; on older sites an administrator must allow the redirect URL shown in Authorization details.";
+  } else if (normalized.includes("expired") || response.status === 410) {
+    guidance = "The authorization or credential has expired. Start authorization again.";
+  } else if (response.status === 401) {
+    guidance = "Discourse rejected the stored credential. It may have been revoked or expired; authorize this profile again.";
+  } else if (response.status === 403) {
+    guidance = context === "posting" ? "Discourse accepted the credential but refused this action. Check that the account can post to the selected category or topic and that write scope is enabled." : "Discourse refused this authorization request. Check User API scopes, allowed groups, and the account's site permissions.";
+  } else if (response.status === 404) {
+    guidance = "The expected Discourse API endpoint was not found. Check the Base URL and confirm the site is a supported, current Discourse installation.";
+  } else if (response.status === 429) {
+    guidance = "Discourse is rate-limiting requests. Wait a few minutes before trying again.";
+  } else if (response.status >= 500) {
+    guidance = "The Discourse site encountered a server error. Retry later or ask the site administrator to inspect the server logs.";
+  } else {
+    guidance = "Discourse rejected the request. Check the Base URL, authentication method, account permissions, and selected destination.";
+  }
+  return `${guidance} Server response: ${detail || `HTTP ${response.status}`}`;
+}
 async function createPost({
   baseUrl,
   authMethod,
@@ -2466,13 +2510,43 @@ async function createPost({
   });
   if (!response.ok) {
     const errorMessage = await extractErrorMessage(response);
-    throw new Error(`Discourse error: ${errorMessage}`);
+    throw new Error(actionableDiscourseError(response, errorMessage, "posting"));
   }
   try {
     return await response.json();
   } catch {
     return null;
   }
+}
+async function listCategories({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId
+}) {
+  const response = await fetch(`${baseUrl}/site.json`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
+    }
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "category loading"));
+  }
+  const data = await response.json();
+  const categories = Array.isArray(data.categories) ? data.categories : data.category_list?.categories;
+  if (!Array.isArray(categories)) {
+    throw new Error("Discourse returned an unexpected category response. The site may need to be updated.");
+  }
+  const namesById = new Map(categories.map((category) => [category.id, category.name]));
+  return categories.filter((category) => Number.isInteger(category.id) && category.name).map((category) => ({
+    id: category.id,
+    name: category.parent_category_id && namesById.has(category.parent_category_id) ? `${namesById.get(category.parent_category_id)} / ${category.name}` : category.name
+  })).sort((left, right) => left.name.localeCompare(right.name));
 }
 
 // shared/favicon.js
@@ -2518,12 +2592,12 @@ async function dataUrlToImageDataMap(dataUrl) {
   const blob = await response.blob();
   return blobToImageDataMap(blob);
 }
-function createFallbackImageDataMap() {
+function createFallbackImageDataMap(isConnected = true) {
   const imageDataMap = {};
   ICON_SIZES.forEach((size) => {
     const canvas = createCanvas(size);
     const ctx = getCanvasContext(canvas);
-    ctx.fillStyle = "#577188";
+    ctx.fillStyle = isConnected ? "#577188" : "#8c959f";
     ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = "#ffffff";
     ctx.font = `${Math.floor(size * 0.7)}px Lato, Arial, sans-serif`;
@@ -2582,6 +2656,12 @@ async function blobToDataUrl(blob) {
   });
 }
 async function updateActionIconForProfile(profile, useFavicon) {
+  if (!isProfileConnected(profile)) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap(false) });
+    await chrome.action.setTitle({ title: "Clip To Discourse - connection required" });
+    return;
+  }
+  await chrome.action.setTitle({ title: "Clip To Discourse" });
   if (!useFavicon) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
     return;
@@ -3996,11 +4076,14 @@ var topicInput = document.getElementById("topicId");
 var submitButton = form.querySelector("button[type=submit]");
 var profileSelect = document.getElementById("profileSelect");
 var popupExtensionVersion = document.getElementById("popupExtensionVersion");
+var connectionRequired = document.getElementById("connection-required");
+var categoryStatus = document.getElementById("category-status");
 var currentProfile = null;
 var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
 var cachedPageInfo = null;
+var categoriesLoadedForProfileId = "";
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
     return;
@@ -4023,6 +4106,40 @@ function ensureValidId(value, label) {
     throw new Error(`${label} must be a positive number.`);
   }
   return numeric;
+}
+function setCategoryOptions(categories, selectedId = "") {
+  categoryInput.innerHTML = '<option value="">Select a category</option>';
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = String(category.id);
+    option.textContent = category.name;
+    categoryInput.appendChild(option);
+  });
+  if (selectedId && !categories.some((category) => String(category.id) === String(selectedId))) {
+    const option = document.createElement("option");
+    option.value = String(selectedId);
+    option.textContent = `Category ${selectedId}`;
+    categoryInput.appendChild(option);
+  }
+  categoryInput.value = selectedId;
+}
+async function loadCategories() {
+  if (!isProfileConnected(currentProfile) || categoriesLoadedForProfileId === currentProfile.id) {
+    return;
+  }
+  categoryInput.disabled = true;
+  categoryStatus.textContent = "Loading categories...";
+  try {
+    const selectedId = categoryInput.value || currentProfile.defaultCategoryId || "";
+    const categories = await listCategories(currentProfile);
+    setCategoryOptions(categories, selectedId);
+    categoriesLoadedForProfileId = currentProfile.id;
+    categoryStatus.textContent = categories.length ? `${categories.length} available categories loaded.` : "No categories are available to this account.";
+  } catch (error) {
+    categoryStatus.textContent = error.message || "Categories could not be loaded.";
+  } finally {
+    categoryInput.disabled = false;
+  }
 }
 function toggleDestinationFields(destination) {
   if (destination === DESTINATIONS.NEW_TOPIC) {
@@ -4080,7 +4197,7 @@ function validateSettings(settings) {
   }
   if (settings.authMethod === AUTH_METHODS.USER_API) {
     if (!settings.userApiKey) {
-      throw new Error("Missing User API Key. Update settings first.");
+      throw new Error("Clip To Discourse is not authorized for this profile. Authorize it in Settings first.");
     }
     return;
   }
@@ -4118,7 +4235,7 @@ function applyProfileDefaults(profile) {
   if (destinationInput) {
     destinationInput.checked = true;
   }
-  categoryInput.value = profile.defaultCategoryId || "";
+  setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
   toggleDestinationFields(defaultDestination);
 }
@@ -4224,15 +4341,26 @@ async function loadSettings() {
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
+  categoriesLoadedForProfileId = "";
+  setCategoryOptions([], currentProfile.defaultCategoryId || "");
   renderProfiles();
   applyProfileDefaults(currentProfile);
+  const connected = isProfileConnected(currentProfile);
+  connectionRequired.classList.toggle("hidden", connected);
+  form.classList.toggle("hidden", !connected);
+  return connected;
 }
 async function init() {
   setFormEnabled(false);
   setExtensionVersion();
   setStatus("Loading settings...");
-  await loadSettings();
+  const connected = await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  if (!connected) {
+    connectionRequired.querySelector(".connect-button")?.focus();
+    setStatus("");
+    return;
+  }
   try {
     const pageInfo = await getActiveTabInfo();
     if (pageInfo.selectionText && pageInfo.selectionText.trim().length > 0) {
@@ -4257,6 +4385,8 @@ async function init() {
   });
   form.addEventListener("submit", handleSubmit);
   profileSelect.addEventListener("change", handleProfileChange);
+  categoryInput.addEventListener("focus", loadCategories);
+  categoryInput.addEventListener("pointerdown", loadCategories);
   setFormEnabled(true);
   setStatus("");
 }

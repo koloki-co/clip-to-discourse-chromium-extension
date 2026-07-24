@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <main class="container">
+    <main class="settings-shell">
       <!-- Page header and description -->
       <header class="header">
         <div class="brand">
@@ -22,69 +22,123 @@
         </div>
       </header>
 
-      <form id="settings-form">
-        <!-- Profile management -->
-        <section class="section">
-          <h2>Profiles</h2>
-          <label>
-            Active Profile
-            <select id="profileSelect" name="profileSelect"></select>
-          </label>
-          <label>
-            Profile Name
-            <input id="profileName" name="profileName" type="text" placeholder="e.g. Personal" />
-          </label>
-          <div class="actions">
-            <button class="secondary" type="button" id="addProfile">Add Profile</button>
-            <button class="secondary" type="button" id="deleteProfile">Delete Profile</button>
-          </div>
-        </section>
+      <form id="settings-form" class="settings-layout">
+        <aside class="settings-sidebar">
+          <section class="sidebar-section">
+            <h2>Profiles</h2>
+            <label>
+              Active Profile
+              <select id="profileSelect" name="profileSelect"></select>
+            </label>
+            <div class="sidebar-actions">
+              <button class="secondary" type="button" id="addProfile" aria-expanded="false" aria-controls="profileCreatePanel">Add Profile</button>
+              <button class="secondary danger-button" type="button" id="deleteProfile" aria-expanded="false" aria-controls="profileDeletePanel">Delete Profile</button>
+            </div>
+            <div id="profileCreatePanel" class="profile-inline-panel hidden">
+              <label for="newProfileName">
+                New profile name
+                <input id="newProfileName" name="newProfileName" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Personal" />
+              </label>
+              <span id="newProfileNameError" class="error" role="alert"></span>
+              <div class="inline-panel-actions">
+                <button class="primary" type="button" id="createProfile">Create Profile</button>
+                <button class="text-button" type="button" id="cancelAddProfile">Cancel</button>
+              </div>
+            </div>
+            <div id="profileDeletePanel" class="profile-inline-panel profile-delete-panel hidden">
+              <p>Delete <strong id="profileDeleteName"></strong>?</p>
+              <p class="sidebar-hint">Its connection credentials and defaults will be removed. This cannot be undone.</p>
+              <div class="inline-panel-actions">
+                <button class="primary danger-primary" type="button" id="confirmDeleteProfile">Delete Profile</button>
+                <button class="text-button" type="button" id="cancelDeleteProfile">Cancel</button>
+              </div>
+            </div>
+          </section>
 
-        <!-- Toolbar icon appearance -->
-        <section class="section">
-          <h2>Appearance</h2>
-          <label class="checkbox">
-            <input id="useFaviconForIcon" name="useFaviconForIcon" type="checkbox" />
-            Use destination site favicon for the toolbar icon
-          </label>
-        </section>
+          <section class="sidebar-section">
+            <h2>Global Settings</h2>
+            <label class="checkbox">
+              <input id="useFaviconForIcon" name="useFaviconForIcon" type="checkbox" />
+              Use destination site favicon for the toolbar icon
+            </label>
+            <p class="sidebar-hint">This preference applies to every profile.</p>
+          </section>
 
-        <!-- Connection credentials -->
-        <section class="section">
+          <footer class="meta-footer" aria-label="Extension info">
+            <p>Clip To Discourse &copy; Koloki Ltd.</p>
+            <p>Version <span id="extensionVersion">-</span></p>
+            <p class="meta-links">
+              <a href="https://chromewebstore.google.com/detail/clip-to-discourse/copdhiejkkdblhdcdjapcoalldkondhi" target="_blank" rel="noreferrer">Chrome Web Store</a>
+              <span aria-hidden="true"> | </span>
+              <a href="https://github.com/koloki-co/clip-to-discourse-chromium-extension" target="_blank" rel="noreferrer">GitHub</a>
+            </p>
+          </footer>
+        </aside>
+
+        <div class="profile-workspace">
+
+        <section class="section workspace-section">
           <h2>Connection</h2>
           <label>
             Discourse BaseURL
             <input id="baseUrl" name="baseUrl" type="url" placeholder="https://forum.example.com" required />
             <span id="baseUrlError" class="error"></span>
           </label>
-          <input id="authMethod" name="authMethod" type="hidden" value="admin_api_key" />
+          <input id="authMethod" name="authMethod" type="hidden" value="user_api" />
 
           <div class="auth-tabs" role="tablist" aria-label="Authentication methods">
             <button
-              id="authTabAdmin"
+              id="authTabUser"
               class="auth-tab active"
               type="button"
               role="tab"
               aria-selected="true"
+              aria-controls="authPanelUser"
+              data-auth-method="user_api"
+            >
+              User API <span class="recommended-label">Recommended</span>
+            </button>
+            <button
+              id="authTabAdmin"
+              class="auth-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
               aria-controls="authPanelAdmin"
               data-auth-method="admin_api_key"
             >
               Admin API Key
             </button>
-            <button
-              id="authTabUser"
-              class="auth-tab"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              aria-controls="authPanelUser"
-              data-auth-method="user_api"
-            >
-              User API
-            </button>
           </div>
 
-          <div id="authPanelAdmin" class="auth-panel" role="tabpanel" aria-labelledby="authTabAdmin">
+          <div id="authPanelUser" class="auth-panel" role="tabpanel" aria-labelledby="authTabUser">
+            <p class="auth-intro"><strong>Connect as yourself.</strong> Discourse will open in your browser so you can approve read and write access for Clip To Discourse.</p>
+            <p class="auth-notice">Your Discourse site must enable User API keys and permit your account's group to authorize them. If authorization is unavailable, ask the site administrator or use an administrator-provided API key.</p>
+            <div class="user-api-connection" aria-live="polite">
+              <span id="userApiConnectionIndicator" class="connection-indicator" aria-hidden="true"></span>
+              <span id="userApiConnectionState">Not authorized</span>
+            </div>
+            <input id="userApiKey" name="userApiKey" type="hidden" />
+            <input id="userApiClientId" name="userApiClientId" type="hidden" />
+            <div id="userApiDeviceCodePanel" class="device-code-panel hidden" aria-live="assertive">
+              <span class="device-code-label">Enter this code in Discourse</span>
+              <strong id="userApiDeviceCode" class="device-code"></strong>
+            </div>
+            <div class="actions auth-actions">
+              <button class="primary" type="button" id="connectUserApi">Authorize Clip To Discourse</button>
+              <button class="secondary" type="button" id="revokeUserApi">Revoke authorization</button>
+              <button class="text-button" type="button" id="checkUserApiSupport">Check site support</button>
+            </div>
+            <p id="userApiStatus" class="hint status-inline" role="status"></p>
+            <details class="auth-details">
+              <summary>Authorization details</summary>
+              <span class="hint">The extension requests read and write User API scopes. The private key used during authorization remains in memory and is not stored.</span>
+              <span class="hint">Current Discourse sites use device authorization and do not require an allowlisted redirect. Older sites fall back to this redirect URL: <code id="userApiRedirectUrl">-</code></span>
+            </details>
+          </div>
+
+          <div id="authPanelAdmin" class="auth-panel hidden" role="tabpanel" aria-labelledby="authTabAdmin">
+            <p class="auth-intro"><strong>Connect with a key created by a site administrator.</strong> Use this fallback when User API authorization is unavailable or disabled.</p>
             <label>
               Discourse API Username
               <input id="apiUsername" name="apiUsername" type="text" placeholder="clipbot" />
@@ -97,31 +151,9 @@
               <span class="hint">Use a user-scoped API key with Granular scope: Topics read (for test), write, update.</span>
             </label>
           </div>
-
-          <div id="authPanelUser" class="auth-panel hidden" role="tabpanel" aria-labelledby="authTabUser">
-            <label>
-              User API Key
-              <input id="userApiKey" name="userApiKey" type="password" placeholder="Paste your User API key" />
-              <span id="userApiKeyError" class="error"></span>
-            </label>
-            <label>
-              User API Client ID
-              <input id="userApiClientId" name="userApiClientId" type="text" placeholder="clip-to-discourse-..." />
-              <span class="hint">Used as the optional User-Api-Client-Id header for key tracking.</span>
-            </label>
-            <div class="actions auth-actions">
-              <button class="secondary" type="button" id="checkUserApiSupport">Check User API support</button>
-              <button class="primary" type="button" id="connectUserApi">Connect User API</button>
-              <button class="secondary" type="button" id="revokeUserApi">Revoke key</button>
-            </div>
-            <p id="userApiStatus" class="hint status-inline" role="status"></p>
-            <span class="hint">Auth redirect URL to allow in Discourse: <code id="userApiRedirectUrl">-</code></span>
-            <span class="hint">Connect uses OAuth in your browser and requests read/write scopes.</span>
-          </div>
         </section>
 
-        <!-- Default clip behavior -->
-        <section class="section">
+        <section class="section workspace-section">
           <h2>Defaults</h2>
           <label>
             Default Clip Style
@@ -141,72 +173,59 @@
           </label>
           <div class="grid">
             <label>
-              Default Category ID
-              <input id="defaultCategoryId" name="defaultCategoryId" type="number" min="1" placeholder="4" />
+              Default Category
+              <select id="defaultCategoryId" name="defaultCategoryId">
+                <option value="">Select a category</option>
+              </select>
+              <span id="defaultCategoryStatus" class="hint" role="status">Categories load when this field is opened.</span>
             </label>
             <label>
               Default Topic ID
               <input id="defaultTopicId" name="defaultTopicId" type="number" min="1" placeholder="e.g. 345" />
             </label>
           </div>
-          <h2>Templates</h2>
+          <h2 class="subsection-heading">Templates</h2>
           <p class="hint">Post body text is truncated at 50,000 characters before sending to Discourse.</p>
-          <label>
-            Title (used for New Topic clipping only)
-            <input id="titleTemplate" name="titleTemplate" type="text" placeholder="Clip: {{title}}" />
-            <span class="hint">Required: {{title}}. Optional: {{date}}, {{datetime}}.</span>
-          </label>
-          <label>
-            Title + URL Template
-            <textarea id="titleUrlTemplate" name="titleUrlTemplate" rows="4" placeholder="### {{title}}&#10;{{url}}"></textarea>
-            <span class="hint">Defaults to the built-in template when left blank.</span>
-            <span class="hint">Use {{title}}, {{url}}, {{date}}, {{datetime}}, {{text-selection}}, {{text-selection-markdown}}.</span>
-          </label>
-          <label>
-            Title + URL + Excerpt Template
-            <textarea id="excerptTemplate" name="excerptTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{excerpt}}&#10;&#10;{{url}}"></textarea>
-            <span class="hint">Defaults to the built-in template when left blank.</span>
-            <span class="hint">Use {{excerpt}} (Markdown) or {{excerpt-plain}}, plus Title + URL placeholders.</span>
-          </label>
-          <label>
-            Full Page Text Template
-            <textarea id="fullTextTemplate" name="fullTextTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;---&#10;&#10;{{full-text}}&#10;&#10;---&#10;&#10;{{url}}"></textarea>
-            <span class="hint">Defaults to the built-in template when left blank.</span>
-            <span class="hint">Use {{full-text}} (Markdown), {{full-text-plain}}, {{full-text-markdown}}, plus Title + URL placeholders.</span>
-          </label>
-          <label>
-            Text Selection Template
-            <textarea id="textSelectionTemplate" name="textSelectionTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{text-selection-markdown}}&#10;&#10;{{url}}"></textarea>
-            <span class="hint">Defaults to the built-in template when left blank.</span>
-            <span class="hint">Use {{text-selection-markdown}} or {{text-selection}}, plus Title + URL placeholders.</span>
-          </label>
+          <div class="template-grid">
+            <label class="title-template-field">
+              Title (used for New Topic clipping only)
+              <input id="titleTemplate" name="titleTemplate" type="text" placeholder="Clip: {{title}}" />
+              <span class="hint">Required: {{title}}. Optional: {{date}}, {{datetime}}.</span>
+            </label>
+            <label>
+              Title + URL Template
+              <textarea id="titleUrlTemplate" name="titleUrlTemplate" rows="4" placeholder="### {{title}}&#10;{{url}}"></textarea>
+              <span class="hint">Defaults to the built-in template when left blank.</span>
+              <span class="hint">Use {{title}}, {{url}}, {{date}}, {{datetime}}, {{text-selection}}, {{text-selection-markdown}}.</span>
+            </label>
+            <label>
+              Title + URL + Excerpt Template
+              <textarea id="excerptTemplate" name="excerptTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{excerpt}}&#10;&#10;{{url}}"></textarea>
+              <span class="hint">Defaults to the built-in template when left blank.</span>
+              <span class="hint">Use {{excerpt}} (Markdown) or {{excerpt-plain}}, plus Title + URL placeholders.</span>
+            </label>
+            <label>
+              Full Page Text Template
+              <textarea id="fullTextTemplate" name="fullTextTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;---&#10;&#10;{{full-text}}&#10;&#10;---&#10;&#10;{{url}}"></textarea>
+              <span class="hint">Defaults to the built-in template when left blank.</span>
+              <span class="hint">Use {{full-text}} (Markdown), {{full-text-plain}}, {{full-text-markdown}}, plus Title + URL placeholders.</span>
+            </label>
+            <label>
+              Text Selection Template
+              <textarea id="textSelectionTemplate" name="textSelectionTemplate" rows="6" placeholder="### {{title}}&#10;{{url}}&#10;&#10;{{text-selection-markdown}}&#10;&#10;{{url}}"></textarea>
+              <span class="hint">Defaults to the built-in template when left blank.</span>
+              <span class="hint">Use {{text-selection-markdown}} or {{text-selection}}, plus Title + URL placeholders.</span>
+            </label>
+          </div>
         </section>
 
-        <div class="actions">
+        <div class="actions workspace-actions">
           <button class="secondary" type="button" id="testConnection">Test Connection</button>
           <button class="primary" type="submit">Save Settings</button>
         </div>
         <p id="status" class="status" role="status"></p>
+        </div>
       </form>
-
-      <footer class="meta-footer" aria-label="Extension info">
-        <p>Clip To Discourse &copy; Koloki Ltd. Version: <span id="extensionVersion">-</span></p>
-        <p class="meta-links">
-          <a
-            href="https://chromewebstore.google.com/detail/clip-to-discourse/copdhiejkkdblhdcdjapcoalldkondhi"
-            target="_blank"
-            rel="noreferrer"
-            >Chrome Web Store</a
-          >
-          <span aria-hidden="true"> | </span>
-          <a
-            href="https://github.com/koloki-co/clip-to-discourse-chromium-extension"
-            target="_blank"
-            rel="noreferrer"
-            >GitHub</a
-          >
-        </p>
-      </footer>
     </main>
 
     <script type="module" src="options.bundle.js"></script>

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { isProfileConnected } from "./settings.js";
+
 const CACHE_KEY = "faviconCache";
 const ICON_SIZES = [16, 32];
 
@@ -56,12 +58,12 @@ async function dataUrlToImageDataMap(dataUrl) {
 }
 
 // Build a simple fallback icon when no favicon is available.
-function createFallbackImageDataMap() {
+function createFallbackImageDataMap(isConnected = true) {
   const imageDataMap = {};
   ICON_SIZES.forEach((size) => {
     const canvas = createCanvas(size);
     const ctx = getCanvasContext(canvas);
-    ctx.fillStyle = "#577188";
+    ctx.fillStyle = isConnected ? "#577188" : "#8c959f";
     ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = "#ffffff";
     ctx.font = `${Math.floor(size * 0.7)}px Lato, Arial, sans-serif`;
@@ -131,6 +133,13 @@ async function blobToDataUrl(blob) {
 
 // Update the action icon using a profile favicon or fallback.
 export async function updateActionIconForProfile(profile, useFavicon) {
+  if (!isProfileConnected(profile)) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap(false) });
+    await chrome.action.setTitle({ title: "Clip To Discourse - connection required" });
+    return;
+  }
+
+  await chrome.action.setTitle({ title: "Clip To Discourse" });
   if (!useFavicon) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
     return;

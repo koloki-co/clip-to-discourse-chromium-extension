@@ -8,12 +8,14 @@ Thanks for helping improve Clip to Discourse! This guide covers local setup, tes
 ## Prerequisites
 
 - Node.js 20+ and npm.
+- Playwright Chromium, installed once with `npx playwright install chromium`.
 
 ## Local setup
 
-- Install dependencies: `npm install`
-- Run lint: `npm run lint`
-- Run tests: `npm test`
+- Install dependencies: `npm ci`
+- Run lint: `s/lint`
+- Run unit and Playwright extension tests: `s/test`
+- Run the complete build: `s/build`
 - Package for the Chrome Web Store: `npm run package`
 
 ## Extension development
@@ -21,6 +23,10 @@ Thanks for helping improve Clip to Discourse! This guide covers local setup, tes
 1. Open `chrome://extensions` and enable Developer mode.
 2. Click "Load unpacked" and select this repository folder.
 3. Make changes, then click "Reload" for the extension.
+
+## Browser Extension Tests
+
+`npm run test:e2e` bundles and loads the unpacked extension into a temporary persistent Chromium profile. Tests use loopback fixture servers and dummy credentials; non-loopback HTTP traffic is blocked. Because headless Chromium cannot accept extension host-access prompts, a temporary manifest copy pregrants only the mock API host while preserving and checking the production manifest's optional-access contract.
 
 ## Versioning and releases
 

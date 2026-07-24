@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
+# SPDX-License-Identifier: GPL-3.0-only
+# Run the test suite once.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+npm test
+exec npm run test:e2e -- "$@"

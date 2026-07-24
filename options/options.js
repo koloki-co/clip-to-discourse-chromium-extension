@@ -10,8 +10,19 @@ import {
   saveGlobalSettings
 } from "../shared/settings.js";
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
-import { checkUserApiVersion, revokeUserApiKey, testConnection } from "../shared/discourse.js";
+import {
+  checkUserApiVersion,
+  createUserApiDeviceRequest,
+  listCategories,
+  pollUserApiDeviceRequest,
+  revokeUserApiKey,
+  testConnection
+} from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import {
+  decryptUserApiPayload,
+  generateUserApiKeyPair
+} from "../shared/user-api-crypto.js";
 
 // Options page controller for managing profiles and defaults.
 const form = document.getElementById("settings-form");
@@ -21,6 +32,15 @@ const testButton = document.getElementById("testConnection");
 const profileSelect = document.getElementById("profileSelect");
 const addProfileButton = document.getElementById("addProfile");
 const deleteProfileButton = document.getElementById("deleteProfile");
+const profileCreatePanel = document.getElementById("profileCreatePanel");
+const newProfileNameInput = document.getElementById("newProfileName");
+const newProfileNameError = document.getElementById("newProfileNameError");
+const createProfileButton = document.getElementById("createProfile");
+const cancelAddProfileButton = document.getElementById("cancelAddProfile");
+const profileDeletePanel = document.getElementById("profileDeletePanel");
+const profileDeleteName = document.getElementById("profileDeleteName");
+const confirmDeleteProfileButton = document.getElementById("confirmDeleteProfile");
+const cancelDeleteProfileButton = document.getElementById("cancelDeleteProfile");
 const extensionVersion = document.getElementById("extensionVersion");
 const authTabButtons = Array.from(document.querySelectorAll(".auth-tab"));
 const authPanelAdmin = document.getElementById("authPanelAdmin");
@@ -30,10 +50,14 @@ const connectUserApiButton = document.getElementById("connectUserApi");
 const revokeUserApiButton = document.getElementById("revokeUserApi");
 const userApiStatusEl = document.getElementById("userApiStatus");
 const userApiRedirectUrlEl = document.getElementById("userApiRedirectUrl");
+const userApiConnectionIndicator = document.getElementById("userApiConnectionIndicator");
+const userApiConnectionState = document.getElementById("userApiConnectionState");
+const userApiDeviceCodePanel = document.getElementById("userApiDeviceCodePanel");
+const userApiDeviceCode = document.getElementById("userApiDeviceCode");
+const defaultCategoryStatus = document.getElementById("defaultCategoryStatus");
 
 // Cache field references to simplify validation and save logic.
 const fields = {
-  profileName: document.getElementById("profileName"),
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
   baseUrl: document.getElementById("baseUrl"),
   authMethod: document.getElementById("authMethod"),
@@ -56,13 +80,13 @@ const fields = {
 const errors = {
   baseUrl: document.getElementById("baseUrlError"),
   apiUsername: document.getElementById("apiUsernameError"),
-  apiKey: document.getElementById("apiKeyError"),
-  userApiKey: document.getElementById("userApiKeyError")
+  apiKey: document.getElementById("apiKeyError")
 };
 
 let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
+let categoriesLoadedForProfileId = "";
 
 const USER_API_SCOPES = "read,write";
 const USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
@@ -88,6 +112,71 @@ function setUserApiStatus(message, isError = false) {
   userApiStatusEl.style.color = isError ? "#b42318" : "";
 }
 
+function setUserApiDeviceCode(code = "") {
+  userApiDeviceCode.textContent = code;
+  userApiDeviceCodePanel.classList.toggle("hidden", !code);
+}
+
+function activeProfileCredentials() {
+  return {
+    baseUrl: fields.baseUrl.value.trim().replace(/\/+$/, ""),
+    authMethod: getActiveAuthMethod(),
+    apiUsername: fields.apiUsername.value.trim(),
+    apiKey: fields.apiKey.value.trim(),
+    userApiKey: fields.userApiKey.value.trim(),
+    userApiClientId: fields.userApiClientId.value.trim()
+  };
+}
+
+function setDefaultCategoryOptions(categories, selectedId = "") {
+  fields.defaultCategoryId.innerHTML = '<option value="">Select a category</option>';
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = String(category.id);
+    option.textContent = category.name;
+    fields.defaultCategoryId.appendChild(option);
+  });
+  if (selectedId && !categories.some((category) => String(category.id) === String(selectedId))) {
+    const option = document.createElement("option");
+    option.value = String(selectedId);
+    option.textContent = `Category ${selectedId}`;
+    fields.defaultCategoryId.appendChild(option);
+  }
+  fields.defaultCategoryId.value = selectedId;
+}
+
+async function loadDefaultCategories() {
+  const profile = activeProfileCredentials();
+  if (!profile.baseUrl || categoriesLoadedForProfileId === activeProfileId) {
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
+    defaultCategoryStatus.textContent = "Authorize this profile before loading categories.";
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY && (!profile.apiUsername || !profile.apiKey)) {
+    defaultCategoryStatus.textContent = "Enter the API username and key before loading categories.";
+    return;
+  }
+
+  fields.defaultCategoryId.disabled = true;
+  defaultCategoryStatus.textContent = "Loading categories...";
+  try {
+    await ensureHostPermission(profile.baseUrl);
+    const selectedId = fields.defaultCategoryId.value;
+    const categories = await listCategories(profile);
+    setDefaultCategoryOptions(categories, selectedId);
+    categoriesLoadedForProfileId = activeProfileId;
+    defaultCategoryStatus.textContent = categories.length
+      ? `${categories.length} available categories loaded.`
+      : "No categories are available to this account.";
+  } catch (error) {
+    defaultCategoryStatus.textContent = error.message || "Categories could not be loaded.";
+  } finally {
+    fields.defaultCategoryId.disabled = false;
+  }
+}
+
 function ensureUserApiClientId() {
   if (fields.userApiClientId.value.trim()) {
     return fields.userApiClientId.value.trim();
@@ -97,68 +186,8 @@ function ensureUserApiClientId() {
   return clientId;
 }
 
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64) {
-  const normalized = base64.replace(/\s+/g, "");
-  const binary = atob(normalized);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function toPem(base64, label) {
-  const lines = base64.match(/.{1,64}/g) || [];
-  return `-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----`;
-}
-
-// Discourse picks the OAEP hash from auth_api_version: >= 4 uses SHA-256,
-// older versions use SHA-1. We keep the keypair and the chosen hash together
-// so decryption uses the same algorithm.
-function pickOaepHash(authApiVersion) {
-  const version = Number.parseInt(authApiVersion, 10);
-  return Number.isFinite(version) && version >= 4 ? "SHA-256" : "SHA-1";
-}
-
-async function generateUserApiKeyPair(hashAlgorithm) {
-  if (typeof crypto === "undefined" || !crypto.subtle) {
-    throw new Error("Web Crypto API is unavailable in this browser context.");
-  }
-
-  const keyPair = await crypto.subtle.generateKey(
-    {
-      name: "RSA-OAEP",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: hashAlgorithm
-    },
-    true,
-    ["encrypt", "decrypt"]
-  );
-
-  const spki = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-  const publicKeyPem = toPem(arrayBufferToBase64(spki), "PUBLIC KEY");
-
-  return { publicKeyPem, privateKey: keyPair.privateKey };
-}
-
-async function decryptUserApiPayload(payload, privateKey) {
-  const encrypted = base64ToArrayBuffer(payload);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
-    privateKey,
-    encrypted
-  );
-  return new TextDecoder().decode(decrypted);
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function getActiveAuthMethod() {
@@ -199,7 +228,13 @@ function refreshUserApiControls(disabled = false) {
 
   checkUserApiSupportButton.disabled = false;
   connectUserApiButton.disabled = false;
-  revokeUserApiButton.disabled = !fields.userApiKey.value.trim();
+  const isAuthorized = Boolean(fields.userApiKey.value.trim());
+  revokeUserApiButton.disabled = !isAuthorized;
+  connectUserApiButton.textContent = isAuthorized
+    ? "Authorize again"
+    : "Authorize Clip To Discourse";
+  userApiConnectionIndicator.classList.toggle("connected", isAuthorized);
+  userApiConnectionState.textContent = isAuthorized ? "Authorized" : "Not authorized";
 }
 
 function setExtensionVersion() {
@@ -222,7 +257,6 @@ function clearErrors() {
   errors.baseUrl.textContent = "";
   errors.apiUsername.textContent = "";
   errors.apiKey.textContent = "";
-  errors.userApiKey.textContent = "";
 }
 
 function validateBaseUrlField() {
@@ -249,7 +283,7 @@ function validateBaseUrlField() {
 function getOriginPattern(baseUrl) {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
   const parsed = new URL(normalized);
-  return `${parsed.origin}/*`;
+  return `${parsed.protocol}//${parsed.hostname}/*`;
 }
 
 // Ensure the extension has permission to call the Discourse instance.
@@ -259,7 +293,7 @@ async function ensureHostPermission(baseUrl) {
   if (alreadyGranted) return true;
   const granted = await chrome.permissions.request({ origins: [originPattern] });
   if (!granted) {
-    throw new Error("Host permission was not granted. Please allow access to your Discourse site.");
+    throw new Error(`Browser access to ${new URL(baseUrl).origin} was not granted. Authorize that site when Chrome asks so Clip To Discourse can connect directly to it.`);
   }
   return true;
 }
@@ -272,12 +306,7 @@ function validateFields() {
     isValid = false;
   }
 
-  if (getActiveAuthMethod() === AUTH_METHODS.USER_API) {
-    if (!fields.userApiKey.value.trim()) {
-      errors.userApiKey.textContent = "User API Key is required.";
-      isValid = false;
-    }
-  } else {
+  if (getActiveAuthMethod() === AUTH_METHODS.ADMIN_API_KEY) {
     if (!fields.apiUsername.value.trim()) {
       errors.apiUsername.textContent = "API Username is required.";
       isValid = false;
@@ -309,16 +338,17 @@ function renderProfiles() {
 
 // Apply the active profile into the form fields.
 function fillProfileForm(profile) {
-  fields.profileName.value = profile.name || "";
   fields.baseUrl.value = profile.baseUrl || "";
-  setAuthMethod(profile.authMethod || AUTH_METHODS.ADMIN_API_KEY);
+  setAuthMethod(profile.authMethod || AUTH_METHODS.USER_API);
   fields.apiUsername.value = profile.apiUsername || "";
   fields.apiKey.value = profile.apiKey || "";
   fields.userApiKey.value = profile.userApiKey || "";
   fields.userApiClientId.value = profile.userApiClientId || createUserApiClientId();
   fields.defaultClipStyle.value = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   fields.defaultDestination.value = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
-  fields.defaultCategoryId.value = profile.defaultCategoryId || "";
+  categoriesLoadedForProfileId = "";
+  setDefaultCategoryOptions([], profile.defaultCategoryId || "");
+  defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
@@ -326,6 +356,7 @@ function fillProfileForm(profile) {
   fields.fullTextTemplate.value = profile.fullTextTemplate || "";
   fields.textSelectionTemplate.value = profile.textSelectionTemplate || "";
   setUserApiStatus("");
+  setUserApiDeviceCode();
   refreshUserApiControls();
 }
 
@@ -370,7 +401,6 @@ async function handleSubmit(event) {
     }
 
     await saveActiveProfile({
-      name: fields.profileName.value,
       baseUrl: fields.baseUrl.value,
       authMethod,
       apiUsername: fields.apiUsername.value,
@@ -410,6 +440,12 @@ async function handleTestConnection() {
   clearErrors();
   if (!validateFields()) {
     setStatus("Fix the highlighted fields and try again.", true);
+    return;
+  }
+
+  if (getActiveAuthMethod() === AUTH_METHODS.USER_API && !fields.userApiKey.value.trim()) {
+    setUserApiStatus("Authorize Clip To Discourse before testing the connection.", true);
+    setStatus("User API authorization is required.", true);
     return;
   }
 
@@ -472,8 +508,12 @@ async function handleCheckUserApiSupport() {
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
-    const version = await checkUserApiVersion({ baseUrl });
-    setUserApiStatus(version ? `User API version: ${version}` : "User API endpoint is reachable.");
+    const capabilities = await checkUserApiVersion({ baseUrl });
+    const versionText = capabilities.version ? `User API version: ${capabilities.version}.` : "User API endpoint is reachable.";
+    const flowText = capabilities.supportsDeviceCode
+      ? " Device authorization is supported."
+      : " Redirect authorization will be used.";
+    setUserApiStatus(`${versionText}${flowText}`);
     setStatus("User API check successful.");
   } catch (error) {
     setUserApiStatus(error.message || "Failed to check User API support.", true);
@@ -486,6 +526,7 @@ async function handleCheckUserApiSupport() {
 async function handleConnectUserApi() {
   clearErrors();
   setUserApiStatus("");
+  setUserApiDeviceCode();
 
   if (!validateBaseUrlField()) {
     setStatus("Fix the highlighted fields and try again.", true);
@@ -499,44 +540,89 @@ async function handleConnectUserApi() {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
 
-    const authApiVersion = await checkUserApiVersion({ baseUrl });
-    const hashAlgorithm = pickOaepHash(authApiVersion);
-    const redirectUrl = getUserApiRedirectUrl();
+    const capabilities = await checkUserApiVersion({ baseUrl });
     const clientId = ensureUserApiClientId();
     const nonce = randomHex(32);
-    const { publicKeyPem, privateKey } = await generateUserApiKeyPair(hashAlgorithm);
+    const { publicKeyPem, privateKey } = await generateUserApiKeyPair();
+    let payload;
 
-    const params = new URLSearchParams({
-      auth_redirect: redirectUrl,
-      application_name: USER_API_APPLICATION_NAME,
-      client_id: clientId,
-      scopes: USER_API_SCOPES,
-      nonce,
-      public_key: publicKeyPem,
-      padding: "oaep"
-    });
-    if (authApiVersion) {
-      params.set("auth_api_version", authApiVersion);
-    }
+    if (capabilities.supportsDeviceCode) {
+      const deviceRequest = await createUserApiDeviceRequest({
+        baseUrl,
+        applicationName: USER_API_APPLICATION_NAME,
+        clientId,
+        scopes: USER_API_SCOPES,
+        nonce,
+        publicKey: publicKeyPem
+      });
+      const authorizationUrl = deviceRequest.verification_uri_with_request || deviceRequest.verification_uri;
+      setUserApiDeviceCode(deviceRequest.user_code);
+      setUserApiStatus("Complete authorization in the Discourse window. This page will update automatically.");
+      window.open(authorizationUrl, "_blank", "noopener");
 
-    const authUrl = `${baseUrl}/user-api-key/new?${params.toString()}`;
-    setUserApiStatus("Waiting for authorization in browser...");
-
-    const redirectResult = await chrome.identity.launchWebAuthFlow({
-      url: authUrl,
-      interactive: true
-    });
-
-    if (!redirectResult) {
-      throw new Error("Authorization did not return a callback URL.");
-    }
-
-    const payload = new URL(redirectResult).searchParams.get("payload");
+      const deadline = Date.now() + ((deviceRequest.expires_in || 600) * 1000);
+      const interval = Math.max(deviceRequest.interval || 5, 1) * 1000;
+      while (Date.now() < deadline) {
+        await wait(interval);
+        const result = await pollUserApiDeviceRequest({
+          baseUrl,
+          deviceCode: deviceRequest.device_code
+        });
+        if (result.status === "authorized") {
+          payload = result.payload;
+          break;
+        }
+        if (result.status === "access_denied") {
+          throw new Error("Authorization was denied in Discourse.");
+        }
+        if (result.status === "expired_token") {
+          throw new Error("Authorization expired. Try again.");
+        }
+        if (result.status !== "authorization_pending") {
+          throw new Error(`Discourse returned an unexpected authorization status: ${result.status}.`);
+        }
+      }
     if (!payload) {
-      throw new Error("Authorization completed but no payload was returned.");
+      throw new Error("Authorization timed out. Try again.");
+      }
+    } else {
+      const redirectUrl = getUserApiRedirectUrl();
+      const params = new URLSearchParams({
+        auth_redirect: redirectUrl,
+        application_name: USER_API_APPLICATION_NAME,
+        client_id: clientId,
+        scopes: USER_API_SCOPES,
+        nonce,
+        public_key: publicKeyPem,
+        padding: "oaep"
+      });
+      if (capabilities.version) {
+        params.set("auth_api_version", capabilities.version);
+      }
+
+      setUserApiStatus("Waiting for authorization in browser...");
+      const redirectResult = await chrome.identity.launchWebAuthFlow({
+        url: `${baseUrl}/user-api-key/new?${params.toString()}`,
+        interactive: true
+      });
+      if (!redirectResult) {
+        throw new Error("Authorization did not return a callback URL.");
+      }
+      payload = new URL(redirectResult).searchParams.get("payload");
+      if (!payload) {
+        throw new Error("Authorization completed but no payload was returned.");
+      }
     }
 
-    const decrypted = JSON.parse(await decryptUserApiPayload(payload, privateKey));
+    setUserApiStatus("Authorization approved. Decrypting the returned credential...");
+    let decrypted;
+    try {
+      decrypted = JSON.parse(await decryptUserApiPayload(payload, privateKey));
+    } catch (error) {
+      throw new Error(`Discourse approved access, but credential decryption failed: ${error.message}`, {
+        cause: error
+      });
+    }
     if (decrypted.nonce !== nonce) {
       throw new Error("Received an invalid authorization payload (nonce mismatch).");
     }
@@ -548,6 +634,7 @@ async function handleConnectUserApi() {
     fields.userApiClientId.value = clientId;
     setAuthMethod(AUTH_METHODS.USER_API);
     refreshUserApiControls();
+    setUserApiDeviceCode();
 
     await saveActiveProfile({
       baseUrl,
@@ -576,17 +663,21 @@ async function handleConnectUserApi() {
       return;
     }
 
-    const versionSuffix = authApiVersion ? ` (API v${authApiVersion})` : "";
+    const versionSuffix = capabilities.version ? ` (API v${capabilities.version})` : "";
     setUserApiStatus(
       username
         ? `Connected as @${username}${versionSuffix}.`
         : `Connected with User API key${versionSuffix}.`
     );
-    setStatus("User API key connected and saved.");
+    setStatus("Clip To Discourse is authorized and the credential is saved.");
   } catch (error) {
-    setUserApiStatus(error.message || "User API connection failed.", true);
-    setStatus(error.message || "User API connection failed.", true);
+    const message = error.message || "User API authorization failed before Discourse returned a credential. Check site support and try again.";
+    setUserApiStatus(message, true);
+    setStatus(message, true);
   } finally {
+    if (!fields.userApiKey.value.trim()) {
+      setUserApiDeviceCode();
+    }
     setButtonsDisabled(false);
   }
 }
@@ -602,12 +693,12 @@ async function handleRevokeUserApi() {
 
   const userApiKey = fields.userApiKey.value.trim();
   if (!userApiKey) {
-    errors.userApiKey.textContent = "User API Key is required.";
-    setStatus("Fix the highlighted fields and try again.", true);
+    setUserApiStatus("There is no User API authorization to revoke.", true);
+    setStatus("No User API authorization is stored.", true);
     return;
   }
 
-  const confirmed = window.confirm("Revoke this User API key now?");
+  const confirmed = window.confirm("Revoke Clip To Discourse authorization for this profile?");
   if (!confirmed) {
     return;
   }
@@ -635,8 +726,8 @@ async function handleRevokeUserApi() {
     });
 
     await loadSettings();
-    setUserApiStatus("User API key revoked.");
-    setStatus("User API key revoked.");
+    setUserApiStatus("Authorization revoked.");
+    setStatus("Clip To Discourse authorization revoked.");
   } catch (error) {
     setUserApiStatus(error.message || "Failed to revoke User API key.", true);
     setStatus(error.message || "Failed to revoke User API key.", true);
@@ -659,6 +750,8 @@ async function handleProfileChange() {
   if (!selectedId || selectedId === activeProfileId) {
     return;
   }
+  closeProfileCreatePanel();
+  closeProfileDeletePanel();
   setStatus("Switching profile...");
   await setActiveProfile(selectedId);
   await loadSettings();
@@ -669,39 +762,83 @@ async function handleProfileChange() {
   setStatus("");
 }
 
-// Add a new profile with a prompt to collect a name.
-async function handleAddProfile() {
-  const name = window.prompt("Profile name");
-  if (!name) {
-    return;
-  }
-  setStatus("Adding profile...");
-  await addProfile({ name });
-  await loadSettings();
-  await updateActionIconForProfile(
-    profiles.find((profile) => profile.id === activeProfileId),
-    fields.useFaviconForIcon.checked
-  );
-  setStatus("");
+function closeProfileCreatePanel() {
+  profileCreatePanel.classList.add("hidden");
+  addProfileButton.setAttribute("aria-expanded", "false");
+  newProfileNameInput.value = "";
+  newProfileNameError.textContent = "";
 }
 
-// Delete the active profile and fall back to another one.
-async function handleDeleteProfile() {
+function closeProfileDeletePanel() {
+  profileDeletePanel.classList.add("hidden");
+  deleteProfileButton.setAttribute("aria-expanded", "false");
+}
+
+function handleAddProfile() {
+  closeProfileDeletePanel();
+  profileCreatePanel.classList.remove("hidden");
+  addProfileButton.setAttribute("aria-expanded", "true");
+  newProfileNameInput.focus();
+}
+
+async function handleCreateProfile() {
+  const name = newProfileNameInput.value.trim();
+  if (!name) {
+    newProfileNameError.textContent = "Enter a name for the new profile.";
+    newProfileNameInput.focus();
+    return;
+  }
+
+  createProfileButton.disabled = true;
+  setStatus("Adding profile...");
+  try {
+    await addProfile({ name });
+    closeProfileCreatePanel();
+    await loadSettings();
+    await updateActionIconForProfile(
+      profiles.find((profile) => profile.id === activeProfileId),
+      fields.useFaviconForIcon.checked
+    );
+    setStatus(`Profile "${name}" created.`);
+  } catch (error) {
+    newProfileNameError.textContent = error.message || "The profile could not be created.";
+    setStatus(error.message || "The profile could not be created.", true);
+  } finally {
+    createProfileButton.disabled = false;
+  }
+}
+
+function handleDeleteProfile() {
   if (profiles.length <= 1) {
     return;
   }
-  const confirmed = window.confirm("Delete this profile? This cannot be undone.");
-  if (!confirmed) {
-    return;
-  }
+
+  closeProfileCreatePanel();
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  profileDeleteName.textContent = activeProfile?.name || "this profile";
+  profileDeletePanel.classList.remove("hidden");
+  deleteProfileButton.setAttribute("aria-expanded", "true");
+  confirmDeleteProfileButton.focus();
+}
+
+// Delete the active profile and fall back to another one.
+async function handleConfirmDeleteProfile() {
+  confirmDeleteProfileButton.disabled = true;
   setStatus("Deleting profile...");
-  await deleteProfile(activeProfileId);
-  await loadSettings();
-  await updateActionIconForProfile(
-    profiles.find((profile) => profile.id === activeProfileId),
-    fields.useFaviconForIcon.checked
-  );
-  setStatus("");
+  try {
+    await deleteProfile(activeProfileId);
+    closeProfileDeletePanel();
+    await loadSettings();
+    await updateActionIconForProfile(
+      profiles.find((profile) => profile.id === activeProfileId),
+      fields.useFaviconForIcon.checked
+    );
+    setStatus("Profile deleted.");
+  } catch (error) {
+    setStatus(error.message || "The profile could not be deleted.", true);
+  } finally {
+    confirmDeleteProfileButton.disabled = false;
+  }
 }
 
 // Wire up form actions after the DOM is ready.
@@ -710,12 +847,27 @@ testButton.addEventListener("click", handleTestConnection);
 profileSelect.addEventListener("change", handleProfileChange);
 addProfileButton.addEventListener("click", handleAddProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
+createProfileButton.addEventListener("click", handleCreateProfile);
+cancelAddProfileButton.addEventListener("click", closeProfileCreatePanel);
+confirmDeleteProfileButton.addEventListener("click", handleConfirmDeleteProfile);
+cancelDeleteProfileButton.addEventListener("click", closeProfileDeletePanel);
+newProfileNameInput.addEventListener("input", () => {
+  newProfileNameError.textContent = "";
+});
+newProfileNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleCreateProfile();
+  } else if (event.key === "Escape") {
+    closeProfileCreatePanel();
+    addProfileButton.focus();
+  }
+});
 checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
-fields.userApiKey.addEventListener("input", () => {
-  refreshUserApiControls();
-});
+fields.defaultCategoryId.addEventListener("focus", loadDefaultCategories);
+fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
 });

@@ -1,3 +1,305 @@
+// shared/constants.js
+var CLIP_STYLES = {
+  TITLE_URL: "title_url",
+  EXCERPT: "excerpt",
+  FULL_TEXT: "full_text",
+  TEXT_SELECTION: "text_selection"
+};
+var DESTINATIONS = {
+  NEW_TOPIC: "new_topic",
+  APPEND_TOPIC: "append_topic"
+};
+var AUTH_METHODS = {
+  ADMIN_API_KEY: "admin_api_key",
+  USER_API: "user_api"
+};
+
+// shared/markdown.js
+var DEFAULT_CLIP_TEMPLATES = {
+  titleUrl: "### {{title}}\n{{url}}\n",
+  excerpt: "### {{title}}\n{{url}}\n\n{{excerpt}}\n\n{{url}}",
+  fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
+  textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
+};
+
+// shared/settings.js
+var DEFAULT_PROFILE = {
+  id: "",
+  name: "Default",
+  baseUrl: "",
+  authMethod: AUTH_METHODS.USER_API,
+  apiUsername: "",
+  apiKey: "",
+  userApiKey: "",
+  userApiClientId: "",
+  defaultClipStyle: CLIP_STYLES.TITLE_URL,
+  defaultDestination: DESTINATIONS.NEW_TOPIC,
+  defaultCategoryId: "",
+  defaultTopicId: "",
+  titleTemplate: "Clip: {{title}}",
+  titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
+  excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
+  fullTextTemplate: DEFAULT_CLIP_TEMPLATES.fullText,
+  textSelectionTemplate: DEFAULT_CLIP_TEMPLATES.textSelection
+};
+var DEFAULT_GLOBAL_SETTINGS = {
+  useFaviconForIcon: false
+};
+function isProfileConnected(profile) {
+  if (!profile?.baseUrl) {
+    return false;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API) {
+    return Boolean(profile.userApiKey);
+  }
+  return Boolean(profile.apiUsername && profile.apiKey);
+}
+var LEGACY_KEYS = [
+  "baseUrl",
+  "apiUsername",
+  "apiKey",
+  "defaultClipStyle",
+  "defaultDestination",
+  "defaultCategoryId",
+  "defaultTopicId",
+  "titleTemplate"
+];
+function generateId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `profile_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+function normalizeBaseUrl(value) {
+  if (!value) {
+    return "";
+  }
+  const trimmed = value.trim();
+  return trimmed.replace(/\/+$/, "");
+}
+function normalizeString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function normalizeAuthMethod(profile) {
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY || profile.authMethod === AUTH_METHODS.USER_API) {
+    return profile.authMethod;
+  }
+  if (normalizeString(profile.userApiKey)) {
+    return AUTH_METHODS.USER_API;
+  }
+  if (normalizeString(profile.apiUsername) || normalizeString(profile.apiKey)) {
+    return AUTH_METHODS.ADMIN_API_KEY;
+  }
+  return DEFAULT_PROFILE.authMethod;
+}
+function normalizeProfile(profile) {
+  return {
+    ...DEFAULT_PROFILE,
+    ...profile,
+    id: profile.id || generateId(),
+    name: normalizeString(profile.name) || DEFAULT_PROFILE.name,
+    baseUrl: normalizeBaseUrl(profile.baseUrl),
+    authMethod: normalizeAuthMethod(profile),
+    apiUsername: normalizeString(profile.apiUsername),
+    apiKey: normalizeString(profile.apiKey),
+    userApiKey: normalizeString(profile.userApiKey),
+    userApiClientId: normalizeString(profile.userApiClientId),
+    defaultClipStyle: profile.defaultClipStyle || DEFAULT_PROFILE.defaultClipStyle,
+    defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
+    defaultCategoryId: normalizeString(profile.defaultCategoryId),
+    defaultTopicId: normalizeString(profile.defaultTopicId),
+    titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
+    titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
+    excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
+    fullTextTemplate: normalizeString(profile.fullTextTemplate) || DEFAULT_PROFILE.fullTextTemplate,
+    textSelectionTemplate: normalizeString(profile.textSelectionTemplate) || DEFAULT_PROFILE.textSelectionTemplate
+  };
+}
+function createProfile(overrides = {}) {
+  return normalizeProfile({
+    ...overrides,
+    id: overrides.id || generateId()
+  });
+}
+async function loadState() {
+  const data = await chrome.storage.sync.get(null);
+  const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean" ? data.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
+  if (Array.isArray(data.profiles) && data.profiles.length > 0) {
+    const profiles2 = data.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles2.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
+    const activeProfileId2 = profiles2.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles2[0].id;
+    if (activeProfileId2 !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged) {
+      await chrome.storage.sync.set({ profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon });
+    }
+    return { profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon };
+  }
+  const legacyProfile = createProfile({
+    name: "Default",
+    baseUrl: data.baseUrl,
+    apiUsername: data.apiUsername,
+    apiKey: data.apiKey,
+    defaultClipStyle: data.defaultClipStyle,
+    defaultDestination: data.defaultDestination,
+    defaultCategoryId: data.defaultCategoryId,
+    defaultTopicId: data.defaultTopicId,
+    titleTemplate: data.titleTemplate
+  });
+  const profiles = [legacyProfile];
+  const activeProfileId = legacyProfile.id;
+  await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
+  await chrome.storage.sync.remove(LEGACY_KEYS);
+  return { profiles, activeProfileId, useFaviconForIcon };
+}
+async function getSettingsState() {
+  const state = await loadState();
+  const activeProfile = state.profiles.find((profile) => profile.id === state.activeProfileId);
+  return {
+    ...state,
+    activeProfile
+  };
+}
+
+// shared/favicon.js
+var CACHE_KEY = "faviconCache";
+var ICON_SIZES = [16, 32];
+function createCanvas(size) {
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(size, size);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  return canvas;
+}
+function getCanvasContext(canvas) {
+  return canvas.getContext("2d");
+}
+async function loadImageFromBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+async function blobToImageDataMap(blob) {
+  const img = await loadImageFromBlob(blob);
+  const imageDataMap = {};
+  ICON_SIZES.forEach((size) => {
+    const canvas = createCanvas(size);
+    const ctx = getCanvasContext(canvas);
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(img, 0, 0, size, size);
+    imageDataMap[size] = ctx.getImageData(0, 0, size, size);
+  });
+  return imageDataMap;
+}
+async function dataUrlToImageDataMap(dataUrl) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return blobToImageDataMap(blob);
+}
+function createFallbackImageDataMap(isConnected = true) {
+  const imageDataMap = {};
+  ICON_SIZES.forEach((size) => {
+    const canvas = createCanvas(size);
+    const ctx = getCanvasContext(canvas);
+    ctx.fillStyle = isConnected ? "#577188" : "#8c959f";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${Math.floor(size * 0.7)}px Lato, Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("C", size / 2, size / 2 + 1);
+    imageDataMap[size] = ctx.getImageData(0, 0, size, size);
+  });
+  return imageDataMap;
+}
+async function getCachedDataUrl(profileId) {
+  const data = await chrome.storage.local.get(CACHE_KEY);
+  const cache = data[CACHE_KEY] || {};
+  return cache[profileId];
+}
+async function setCachedDataUrl(profileId, dataUrl) {
+  const data = await chrome.storage.local.get(CACHE_KEY);
+  const cache = data[CACHE_KEY] || {};
+  cache[profileId] = dataUrl;
+  await chrome.storage.local.set({ [CACHE_KEY]: cache });
+}
+async function fetchFaviconBlob(baseUrl) {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  const faviconUrl = `${normalized}/favicon.ico`;
+  try {
+    const response = await fetch(faviconUrl);
+    if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
+      return await response.blob();
+    }
+  } catch {
+  }
+  try {
+    const response = await fetch(normalized);
+    if (!response.ok) return null;
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const iconLink = doc.querySelector("link[rel~='icon']");
+    if (!iconLink) return null;
+    const href = iconLink.getAttribute("href");
+    if (!href) return null;
+    const iconUrl = new URL(href, normalized).toString();
+    const iconResponse = await fetch(iconUrl);
+    if (!iconResponse.ok) return null;
+    return await iconResponse.blob();
+  } catch {
+    return null;
+  }
+}
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read favicon data."));
+    reader.readAsDataURL(blob);
+  });
+}
+async function updateActionIconForProfile(profile, useFavicon) {
+  if (!isProfileConnected(profile)) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap(false) });
+    await chrome.action.setTitle({ title: "Clip To Discourse - connection required" });
+    return;
+  }
+  await chrome.action.setTitle({ title: "Clip To Discourse" });
+  if (!useFavicon) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
+    return;
+  }
+  if (!profile?.baseUrl) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
+    return;
+  }
+  const cachedDataUrl = await getCachedDataUrl(profile.id);
+  if (cachedDataUrl) {
+    try {
+      const imageData2 = await dataUrlToImageDataMap(cachedDataUrl);
+      await chrome.action.setIcon({ imageData: imageData2 });
+      return;
+    } catch {
+    }
+  }
+  const blob = await fetchFaviconBlob(profile.baseUrl);
+  if (!blob) {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
+    return;
+  }
+  const imageData = await blobToImageDataMap(blob);
+  await chrome.action.setIcon({ imageData });
+  const dataUrl = await blobToDataUrl(blob);
+  await setCachedDataUrl(profile.id, dataUrl);
+}
+
 // background.js
 var MENU_CLIP_PAGE = "clip-page";
 var MENU_CLIP_SELECTION = "clip-selection";
@@ -14,6 +316,10 @@ async function createContextMenus() {
     contexts: ["selection"]
   });
 }
+async function refreshActionIcon() {
+  const state = await getSettingsState();
+  await updateActionIconForProfile(state.activeProfile, state.useFaviconForIcon);
+}
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) {
     return;
@@ -26,5 +332,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 chrome.runtime.onInstalled.addListener(async () => {
   await createContextMenus();
+  await refreshActionIcon();
+});
+chrome.runtime.onStartup.addListener(refreshActionIcon);
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && (changes.profiles || changes.activeProfileId || changes.useFaviconForIcon)) {
+    refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
+  }
 });
 createContextMenus();
+refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));

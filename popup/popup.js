@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
-import { getSettingsState, setActiveProfile } from "../shared/settings.js";
+import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
 import { buildPayload } from "../shared/payload.js";
-import { createPost } from "../shared/discourse.js";
+import { createPost, listCategories } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { buildExcerpt, htmlToMarkdown, htmlToMarkdownFullPage, normalizeText } from "../shared/extract.js";
 
@@ -19,6 +19,8 @@ const topicInput = document.getElementById("topicId");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
 const popupExtensionVersion = document.getElementById("popupExtensionVersion");
+const connectionRequired = document.getElementById("connection-required");
+const categoryStatus = document.getElementById("category-status");
 
 // Local UI state mirrors settings/profile selection.
 let currentProfile = null;
@@ -29,6 +31,7 @@ let useFaviconForIcon = false;
 // the page state is stable for the lifetime of the popup, and re-running the
 // scripting injection on submit was duplicating work.
 let cachedPageInfo = null;
+let categoriesLoadedForProfileId = "";
 
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
@@ -58,6 +61,45 @@ function ensureValidId(value, label) {
     throw new Error(`${label} must be a positive number.`);
   }
   return numeric;
+}
+
+function setCategoryOptions(categories, selectedId = "") {
+  categoryInput.innerHTML = '<option value="">Select a category</option>';
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = String(category.id);
+    option.textContent = category.name;
+    categoryInput.appendChild(option);
+  });
+  if (selectedId && !categories.some((category) => String(category.id) === String(selectedId))) {
+    const option = document.createElement("option");
+    option.value = String(selectedId);
+    option.textContent = `Category ${selectedId}`;
+    categoryInput.appendChild(option);
+  }
+  categoryInput.value = selectedId;
+}
+
+async function loadCategories() {
+  if (!isProfileConnected(currentProfile) || categoriesLoadedForProfileId === currentProfile.id) {
+    return;
+  }
+
+  categoryInput.disabled = true;
+  categoryStatus.textContent = "Loading categories...";
+  try {
+    const selectedId = categoryInput.value || currentProfile.defaultCategoryId || "";
+    const categories = await listCategories(currentProfile);
+    setCategoryOptions(categories, selectedId);
+    categoriesLoadedForProfileId = currentProfile.id;
+    categoryStatus.textContent = categories.length
+      ? `${categories.length} available categories loaded.`
+      : "No categories are available to this account.";
+  } catch (error) {
+    categoryStatus.textContent = error.message || "Categories could not be loaded.";
+  } finally {
+    categoryInput.disabled = false;
+  }
 }
 
 // Swap destination-specific fields based on destination radio.
@@ -126,7 +168,7 @@ function validateSettings(settings) {
 
   if (settings.authMethod === AUTH_METHODS.USER_API) {
     if (!settings.userApiKey) {
-      throw new Error("Missing User API Key. Update settings first.");
+      throw new Error("Clip To Discourse is not authorized for this profile. Authorize it in Settings first.");
     }
     return;
   }
@@ -173,7 +215,7 @@ function applyProfileDefaults(profile) {
     destinationInput.checked = true;
   }
 
-  categoryInput.value = profile.defaultCategoryId || "";
+  setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
 
   toggleDestinationFields(defaultDestination);
@@ -295,8 +337,14 @@ async function loadSettings() {
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
+  categoriesLoadedForProfileId = "";
+  setCategoryOptions([], currentProfile.defaultCategoryId || "");
   renderProfiles();
   applyProfileDefaults(currentProfile);
+  const connected = isProfileConnected(currentProfile);
+  connectionRequired.classList.toggle("hidden", connected);
+  form.classList.toggle("hidden", !connected);
+  return connected;
 }
 
 // Wire up the popup once settings are available.
@@ -304,8 +352,14 @@ async function init() {
   setFormEnabled(false);
   setExtensionVersion();
   setStatus("Loading settings...");
-  await loadSettings();
+  const connected = await loadSettings();
   await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+
+  if (!connected) {
+    connectionRequired.querySelector(".connect-button")?.focus();
+    setStatus("");
+    return;
+  }
 
   // Check for selected text and show indicator
   try {
@@ -337,6 +391,8 @@ async function init() {
 
   form.addEventListener("submit", handleSubmit);
   profileSelect.addEventListener("change", handleProfileChange);
+  categoryInput.addEventListener("focus", loadCategories);
+  categoryInput.addEventListener("pointerdown", loadCategories);
   setFormEnabled(true);
   setStatus("");
 }

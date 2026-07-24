@@ -110,6 +110,57 @@ h2 {
   flex: 1;
 }
 
+.connection-required {
+  margin: 14px 0 18px;
+  padding: 16px;
+  border: 2px solid var(--accent);
+  background: #eef2f5;
+}
+
+.connection-required-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.connection-required h2 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.25;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.connection-required p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.connect-button {
+  display: block;
+  padding: 11px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.connect-button:focus-visible,
+.settings-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Form sections and controls. */
 .section {
   margin-bottom: 14px;
@@ -151,6 +202,15 @@ h2 {
   border-radius: 4px;
   font-size: 14px;
   background: #ffffff;
+}
+
+.field-status {
+  display: block;
+  min-height: 15px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 /* Primary action button. */

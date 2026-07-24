@@ -1,15 +1,15 @@
 <!-- SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Clip to Discourse Chromium Extension
+# Clip To Discourse Chromium Extension
 
 ## Overview
 
-Clip to Disourse is a Chromium browser extension that allows a user to clip web content into their own Discourse instance, turning Discourse into a personal knowledge base and Evernote-style archive. It works with any Discourse forum where the user can create an API key. No data is sent to any third-party servers; all content is posted directly from the user’s browser to their Discourse instance.
+Clip to Discourse is a Chromium browser extension that allows a user to clip web content into their own Discourse instance, turning Discourse into a personal knowledge base and Evernote-style archive. It works with any Discourse forum where the user can create an API key. No data is sent to any third-party servers; all content is posted directly from the user's browser to their Discourse instance.
 
 
 
-### Separation of concerns
+### Separation Of Concerns
 
 - Frequent choices (clip style, destination) live in the popup
 - Less frequently changed settings (API key, base URL, username) live in a settings page
@@ -60,8 +60,10 @@ Defaults:
 
 Dropdown or radio buttons:
 
-- Create new topic - requires Category ID
+- Create new topic - requires a category selected by name, stored and sent as its Category ID
 - Append to existing topic - requires Topic ID
+
+When connected, category fields load the visible category tree from Discourse on first interaction and display names rather than requiring users to discover numeric IDs. The selected category ID remains the stored and transmitted value.
 
 The popup must dynamically show/hide:
 
@@ -95,14 +97,16 @@ or
 #### 4.2.1 Required settings
 
 - Discourse BaseURL e.g. https://forum.example.com, stored without trailing slash
-- API Username - the account that will own the posts in Discourse e.g. 'clipbot' or user’s own account
-- Discourse API Key stored in chrome.storage.sync
+- Authentication method:
+   - User API authorization through Discourse's device authorization flow, with the encrypted credential returned by polling and stored in `chrome.storage.sync`; this is the preferred user-facing path and does not require an allowlisted callback URL
+   - Redirect-based `/user-api-key/new` authorization as a compatibility fallback for older Discourse sites that do not advertise device authorization
+   - Administrator-generated single-user API key and API username, entered manually as a fallback
 
 #### 4.2.2 Optional settings
 
 - Default clip style
 - Default destination mode
-- Default Category ID / Topic ID
+- Default category / Topic ID
 - Title template for new topics, e.g. Clip: {{title}} or Clip {{date}}: {{title}}
 
 #### 4.2.3 Multiple profiles
@@ -122,6 +126,11 @@ or
 - Convert HTML to Markdown with Turndown + GFM tables/strikethrough.
 - Apply get-md inspired cleanup defaults: aggressive noise removal, heading normalization, code block normalization, relative URL resolution, and post-processing to normalize spacing.
 - Bundle these dependencies into the extension at build time (no runtime CDN imports).
+
+#### User API credential encryption
+
+- Request RSA-OAEP padding for User API authorization.
+- Use SHA-1 as the OAEP digest because Discourse's OpenSSL implementation uses `PKCS1_OAEP_PADDING` with its default digest; the User API protocol version does not select a different OAEP digest.
 
 #### Title + URL
 

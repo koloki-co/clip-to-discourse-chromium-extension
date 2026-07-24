@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { updateActionIconForProfile } from "./shared/favicon.js";
+import { getSettingsState } from "./shared/settings.js";
+
 // Background service worker for basic extension functionality.
 // The main clipping functionality is handled by the popup UI.
 
@@ -28,6 +31,11 @@ async function createContextMenus() {
   });
 }
 
+async function refreshActionIcon() {
+  const state = await getSettingsState();
+  await updateActionIconForProfile(state.activeProfile, state.useFaviconForIcon);
+}
+
 // Handle context menu clicks by opening the popup
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) {
@@ -49,7 +57,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Initialize context menus when extension is installed or updated
 chrome.runtime.onInstalled.addListener(async () => {
   await createContextMenus();
+  await refreshActionIcon();
+});
+
+chrome.runtime.onStartup.addListener(refreshActionIcon);
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && (changes.profiles || changes.activeProfileId || changes.useFaviconForIcon)) {
+    refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
+  }
 });
 
 // Recreate context menus when extension starts
 createContextMenus();
+refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));

@@ -31,6 +31,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 - Customizable templates for titles and clip body using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{full-text}}`, `{{text-selection}}`
 - Optional favicon-based toolbar icon to match your Discourse instance
 - Default clip style and destination mode per profile
+- Lazy-loaded category selectors showing the categories available to the connected account
 
 **Security & Privacy:**
 - No data collection - all clipping happens directly between your browser and your Discourse instance
@@ -42,8 +43,8 @@ This Chromium extension allows users to quickly create new topics or replies on 
 
 1. Download the extension from the Chrome Web Store
 2. Click the extension icon and go to Settings
-3. Create a user-scoped API key from your Discourse admin UI with a **Granular** scope that allows **Topics: read (for connection test only), write, and update**. Avoid admin or global keys.
-4. Enter your Discourse Base URL, API Username, and API Key in the settings page
+3. Enter your Discourse Base URL in Settings, select **User API**, and click **Authorize Clip To Discourse**. Sign in to Discourse, enter the displayed device code if requested, and approve access. Current Discourse sites do not require an administrator to configure a callback URL.
+4. If User API authorization is unavailable on your site, an administrator can instead provide a single-user, granular API key for the **Admin API Key** tab. Avoid global keys.
 5. Set your Profile's default clip style and destination mode
 6. Start clipping content to your Discourse forum!
 7. **Tip**: Pin the extension to your toolbar for easy access
@@ -53,11 +54,10 @@ This Chromium extension allows users to quickly create new topics or replies on 
 Create multiple profiles to manage different Discourse instances or post as different users. Each profile includes:
 
 - **Discourse Base URL**: The root URL of your Discourse instance (e.g. `https://meta.discourse.org`)
-- **Discourse API Username**: The username associated with the API key
-- **Discourse API Key**: Admin API key or user-scoped API key with granular permissions
+- **Authentication**: Prefer browser-based User API authorization; alternatively enter an administrator-generated single-user API key and its username
 - **Default Clip Style**: Choose between "Title + URL", "Excerpt", or "Full Page Text"
 - **Default Destination Mode**: Create new topics or append to existing topics
-- **Default Category/Topic**: Pre-fill category ID for new topics or topic ID for replies
+- **Default Category/Topic**: Choose a visible Discourse category for new topics or enter a topic ID for replies
 - **Custom Templates**: Personalize how your clips appear using template placeholders
 
 ## Templates
@@ -78,25 +78,28 @@ Customize your clip appearance using template placeholders:
 Example title template: `Clip {{date}}: {{title}}`
 Example body template: `### {{title}}\n{{url}}\n\n{{excerpt}}`
 
-### Development
+## Development
 
 - Clone the repository to your local machine.
-- Install dependencies with `npm install`.
+- Install dependencies with `npm ci`.
 - **Run `npm run dev` to start the bundler in watch mode** - this will automatically rebuild when you make code changes.
 - Load the extension from file locally via `chrome://extensions`, enable Developer mode, and choose "Load unpacked" with this repo folder.
 - Open the extension popup, use the Settings link to configure your Discourse Base URL, API Username, and API Key.
 - After the bundler rebuilds your changes, return to `chrome://extensions` and click "Reload" for the extension to pick up the changes.
-- Run `npm run lint` to check code style, `npm test` to run tests, and `npm run version:check` to confirm versions.
+- Run `s/lint` to check code style, `s/test` to run tests, and `s/build` for the complete validation and bundle build.
 - Create a Chrome Web Store upload zip with `npm run package`.
 - Bump versions and generate release notes with `npm run release` (dry run: `npm run release:dry`).
 
 **Available npm scripts:**
 - `npm run dev` - Start bundler in watch mode (recommended for development)
 - `npm run bundle` - Build once without watching
-- `npm run test` - Run tests once
+- `npm run test` - Run unit tests once
+- `npm run test:e2e` - Run Playwright tests against the unpacked extension in Chromium
 - `npm run test:watch` - Run tests in watch mode
 - `npm run build` - Full build with lint, test, bundle, and version check
 - `npm run package` - Create release zip file
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow, [spec/README.md](spec/README.md) for product decisions, [spec/roadmap.md](spec/roadmap.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## License
 

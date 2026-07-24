@@ -96,6 +96,23 @@ describe("Chrome Storage Configuration", () => {
       expect(profile.defaultDestination).toBe(DEFAULT_PROFILE.defaultDestination);
     });
 
+    it("preserves Admin API credentials in profiles created before auth methods", async () => {
+      mockStorage.profiles = [{
+        id: "legacy-admin-profile",
+        name: "Legacy Admin",
+        baseUrl: "https://forum.example.com",
+        apiUsername: "legacy-user",
+        apiKey: "legacy-key"
+      }];
+      mockStorage.activeProfileId = "legacy-admin-profile";
+      mockStorage.useFaviconForIcon = false;
+
+      const state = await getSettingsState();
+
+      expect(state.activeProfile.authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
+      expect(mockStorage.profiles[0].authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
+    });
+
     it("returns active profile", async () => {
       mockStorage.profiles = [{
         id: "profile-1",
@@ -273,6 +290,7 @@ describe("Chrome Storage Configuration", () => {
       expect(state.profiles[0].baseUrl).toBe("https://legacy.example.com");
       expect(state.profiles[0].apiUsername).toBe("legacyuser");
       expect(state.profiles[0].apiKey).toBe("legacykey");
+      expect(state.profiles[0].authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
       expect(state.profiles[0].defaultClipStyle).toBe(CLIP_STYLES.EXCERPT);
     });
 
@@ -335,7 +353,7 @@ describe("Chrome Storage Configuration", () => {
 
   describe("Default Values", () => {
     it("uses correct default auth method", () => {
-      expect(DEFAULT_PROFILE.authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
+      expect(DEFAULT_PROFILE.authMethod).toBe(AUTH_METHODS.USER_API);
     });
 
     it("uses correct default clip style", () => {

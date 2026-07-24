@@ -68,8 +68,9 @@ describe("Popup UI", () => {
                 </label>
 
                 <div id="category-field" class="field">
-                  <label for="categoryId">Category ID</label>
-                  <input id="categoryId" name="categoryId" type="number" min="1" placeholder="e.g. 12" />
+                  <label for="categoryId">Category</label>
+                  <select id="categoryId" name="categoryId"><option value="">Select a category</option></select>
+                  <span id="category-status" role="status"></span>
                 </div>
                 <div id="topic-field" class="field hidden">
                   <label for="topicId">Topic ID</label>
@@ -217,8 +218,11 @@ describe("Popup UI", () => {
   });
 
   describe("Form Input", () => {
-    it("accepts category ID input", () => {
+    it("accepts a category selection", () => {
       const categoryInput = document.querySelector("#categoryId");
+      const option = document.createElement("option");
+      option.value = "42";
+      categoryInput.appendChild(option);
       changeInput(categoryInput, "42");
       
       expect(categoryInput.value).toBe("42");
@@ -231,10 +235,9 @@ describe("Popup UI", () => {
       expect(topicInput.value).toBe("123");
     });
 
-    it("enforces numeric input for category ID", () => {
+    it("uses a category dropdown", () => {
       const categoryInput = document.querySelector("#categoryId");
-      expect(categoryInput.type).toBe("number");
-      expect(categoryInput.min).toBe("1");
+      expect(categoryInput.tagName).toBe("SELECT");
     });
 
     it("enforces numeric input for topic ID", () => {
@@ -287,17 +290,18 @@ describe("Popup UI", () => {
       expect(inputs.length).toBeGreaterThan(0);
     });
 
-    it("category input accepts valid numbers", () => {
+    it("category selector accepts an available category", () => {
       const categoryInput = document.querySelector("#categoryId");
+      const option = document.createElement("option");
+      option.value = "5";
+      categoryInput.appendChild(option);
       categoryInput.value = "5";
-      expect(categoryInput.checkValidity()).toBe(true);
+      expect(categoryInput.value).toBe("5");
     });
 
-    it("category input rejects negative numbers", () => {
+    it("category selector starts with a prompt", () => {
       const categoryInput = document.querySelector("#categoryId");
-      categoryInput.value = "-1";
-      // Note: checkValidity respects the min attribute
-      expect(categoryInput.min).toBe("1");
+      expect(categoryInput.options[0].textContent).toBe("Select a category");
     });
   });
 

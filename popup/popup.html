@@ -22,18 +22,25 @@
         <a class="settings-link" href="../options/options.html" target="_blank" rel="noreferrer">Settings</a>
       </header>
 
+      <section id="connection-required" class="connection-required hidden" aria-labelledby="connection-required-title">
+        <span class="connection-required-kicker">Setup required</span>
+        <h2 id="connection-required-title">Connect a Discourse account to start clipping</h2>
+        <p>Authorize your account with User API, or enter an administrator-provided API key.</p>
+        <a class="connect-button" href="../options/options.html" target="_blank">Open connection settings</a>
+      </section>
+
       <!-- Selection indicator -->
       <div id="selection-indicator" class="selection-indicator hidden" role="status">
         <span class="selection-icon">📝</span>
         <span id="selection-info" class="selection-info"></span>
       </div>
 
-      <form id="clip-form">
+      <form id="clip-form" class="hidden">
         <!-- Profile selection -->
         <section class="section">
           <h2>Profile</h2>
           <label class="field">
-            <select id="profileSelect" name="profileSelect"></select>
+            <select id="profileSelect" name="profileSelect" aria-label="Profile"></select>
           </label>
         </section>
         <!-- Clip style choices -->
@@ -70,8 +77,11 @@
           </label>
 
           <div id="category-field" class="field">
-            <label for="categoryId">Category ID</label>
-            <input id="categoryId" name="categoryId" type="number" min="1" placeholder="e.g. 12" />
+            <label for="categoryId">Category</label>
+            <select id="categoryId" name="categoryId">
+              <option value="">Select a category</option>
+            </select>
+            <span id="category-status" class="field-status" role="status"></span>
           </div>
           <div id="topic-field" class="field hidden">
             <label for="topicId">Topic ID</label>
