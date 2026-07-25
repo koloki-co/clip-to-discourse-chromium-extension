@@ -124,6 +124,27 @@ describe("integration", () => {
     expect(options.headers["Api-Key"]).toBeUndefined();
   });
 
+  it("treats a 2xx response without a JSON body as success", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createPost({
+      baseUrl: "https://forum.example.com",
+      apiUsername: "user",
+      apiKey: "key",
+      payload: { title: "Clip: Example", raw: "body" }
+    });
+
+    expect(result).toEqual({});
+    expect(result.topic_id).toBeUndefined();
+  });
+
   it("checks user api capabilities with HEAD request", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,

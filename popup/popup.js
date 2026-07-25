@@ -300,8 +300,8 @@ async function handleSubmit(event) {
       payload
     });
 
-    const topicIdResult = response.topic_id || response.id;
-    const slug = response.topic_slug;
+    const topicIdResult = response?.topic_id || response?.id;
+    const slug = response?.topic_slug;
     if (topicIdResult && slug) {
       const link = `${currentProfile.baseUrl}/t/${slug}/${topicIdResult}`;
       setStatus("Clipped successfully. Open the topic from your Discourse instance.");

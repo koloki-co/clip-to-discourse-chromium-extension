@@ -2513,9 +2513,9 @@ async function createPost({
     throw new Error(actionableDiscourseError(response, errorMessage, "posting"));
   }
   try {
-    return await response.json();
+    return await response.json() ?? {};
   } catch {
-    return null;
+    return {};
   }
 }
 async function listCategories({
@@ -4308,8 +4308,8 @@ async function handleSubmit(event) {
       userApiClientId: currentProfile.userApiClientId,
       payload
     });
-    const topicIdResult = response.topic_id || response.id;
-    const slug = response.topic_slug;
+    const topicIdResult = response?.topic_id || response?.id;
+    const slug = response?.topic_slug;
     if (topicIdResult && slug) {
       const link = `${currentProfile.baseUrl}/t/${slug}/${topicIdResult}`;
       setStatus("Clipped successfully. Open the topic from your Discourse instance.");

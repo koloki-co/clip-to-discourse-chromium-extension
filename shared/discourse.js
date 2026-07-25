@@ -108,10 +108,12 @@ export async function createPost({
     throw new Error(actionableDiscourseError(response, errorMessage, "posting"));
   }
 
+  // A 2xx response means the post was created even if the body is not JSON;
+  // returning an empty object keeps callers from treating success as failure.
   try {
-    return await response.json();
+    return (await response.json()) ?? {};
   } catch {
-    return null;
+    return {};
   }
 }
 
