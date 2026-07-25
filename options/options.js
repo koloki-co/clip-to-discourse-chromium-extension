@@ -569,13 +569,20 @@ async function handleConnectUserApi() {
       window.open(authorizationUrl, "_blank", "noopener");
 
       const deadline = Date.now() + ((deviceRequest.expires_in || 600) * 1000);
-      const interval = Math.max(deviceRequest.interval || 5, 1) * 1000;
+      let interval = Math.max(deviceRequest.interval || 5, 1) * 1000;
       while (Date.now() < deadline) {
         await wait(interval);
-        const result = await pollUserApiDeviceRequest({
-          baseUrl,
-          deviceCode: deviceRequest.device_code
-        });
+        let result;
+        try {
+          result = await pollUserApiDeviceRequest({
+            baseUrl,
+            deviceCode: deviceRequest.device_code
+          });
+        } catch {
+          // Transient network or server errors should not abort the whole
+          // authorization; keep polling until the device code expires.
+          continue;
+        }
         if (result.status === "authorized") {
           payload = result.payload;
           break;
@@ -585,6 +592,10 @@ async function handleConnectUserApi() {
         }
         if (result.status === "expired_token") {
           throw new Error("Authorization expired. Try again.");
+        }
+        if (result.status === "slow_down") {
+          interval = Math.min(interval * 2, 30000);
+          continue;
         }
         if (result.status !== "authorization_pending") {
           throw new Error(`Discourse returned an unexpected authorization status: ${result.status}.`);
