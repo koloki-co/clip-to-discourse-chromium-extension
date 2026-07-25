@@ -2597,15 +2597,7 @@ function getCanvasContext(canvas) {
   return canvas.getContext("2d");
 }
 async function loadImageFromBlob(blob) {
-  const url = URL.createObjectURL(blob);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return img;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  return createImageBitmap(blob);
 }
 async function blobToImageDataMap(blob) {
   const img = await loadImageFromBlob(blob);
@@ -2665,12 +2657,11 @@ async function fetchFaviconBlob(baseUrl) {
     const response = await fetch(normalized);
     if (!response.ok) return null;
     const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const iconLink = doc.querySelector("link[rel~='icon']");
-    if (!iconLink) return null;
-    const href = iconLink.getAttribute("href");
-    if (!href) return null;
+    const match = html.match(/<link[^>]*rel=["'][^"']*\bicon\b[^"']*["'][^>]*>/i);
+    if (!match) return null;
+    const hrefMatch = match[0].match(/href=["']([^"']+)["']/i);
+    if (!hrefMatch) return null;
+    const href = hrefMatch[1];
     const iconUrl = new URL(href, normalized).toString();
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
@@ -2680,12 +2671,15 @@ async function fetchFaviconBlob(baseUrl) {
   }
 }
 async function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Failed to read favicon data."));
-    reader.readAsDataURL(blob);
-  });
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  }
+  const base64 = btoa(binary);
+  const mimeType = blob.type || "image/png";
+  return `data:${mimeType};base64,${base64}`;
 }
 async function updateActionIconForProfile(profile, useFavicon) {
   if (!isProfileConnected(profile)) {

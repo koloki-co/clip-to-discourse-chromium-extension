@@ -21,17 +21,11 @@ function getCanvasContext(canvas) {
   return canvas.getContext("2d");
 }
 
-// Decode an image blob into an Image for canvas drawing.
+// Decode an image blob into a bitmap for canvas drawing.
+// Uses createImageBitmap (available in service workers and documents)
+// instead of new Image() which is document-only.
 async function loadImageFromBlob(blob) {
-  const url = URL.createObjectURL(blob);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return img;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  return createImageBitmap(blob);
 }
 
 // Render the image blob into icon-sized ImageData objects.
@@ -90,6 +84,8 @@ async function setCachedDataUrl(profileId, dataUrl) {
 }
 
 // Attempt /favicon.ico first, then fall back to parsing the homepage.
+// Uses a regex to find the icon link instead of DOMParser, which is not
+// available in service workers.
 async function fetchFaviconBlob(baseUrl) {
   const normalized = baseUrl.replace(/\/+$/, "");
   const faviconUrl = `${normalized}/favicon.ico`;
@@ -106,12 +102,11 @@ async function fetchFaviconBlob(baseUrl) {
     const response = await fetch(normalized);
     if (!response.ok) return null;
     const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const iconLink = doc.querySelector("link[rel~='icon']");
-    if (!iconLink) return null;
-    const href = iconLink.getAttribute("href");
-    if (!href) return null;
+    const match = html.match(/<link[^>]*rel=["'][^"']*\bicon\b[^"']*["'][^>]*>/i);
+    if (!match) return null;
+    const hrefMatch = match[0].match(/href=["']([^"']+)["']/i);
+    if (!hrefMatch) return null;
+    const href = hrefMatch[1];
     const iconUrl = new URL(href, normalized).toString();
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
@@ -122,13 +117,18 @@ async function fetchFaviconBlob(baseUrl) {
 }
 
 // Convert a blob into a data URL for caching.
+// Uses arrayBuffer + btoa (both available in service workers) instead of
+// FileReader (document-only).
 async function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Failed to read favicon data."));
-    reader.readAsDataURL(blob);
-  });
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  const base64 = btoa(binary);
+  const mimeType = blob.type || "image/png";
+  return `data:${mimeType};base64,${base64}`;
 }
 
 // Update the action icon using a profile favicon or fallback.
