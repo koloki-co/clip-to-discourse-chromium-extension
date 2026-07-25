@@ -24,11 +24,11 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
 #### Medium Severity
 - [ ] **R61 - Rework profile storage to avoid the `chrome.storage.sync` per-item quota** (8,192 bytes for the single `profiles` item, easily exceeded by a few profiles or long custom templates), for example per-profile keys or `storage.local`, coordinated with R55.
-- [ ] **R62 - Fix favicon toolbar icon rendering in the MV3 service worker** where `new Image()` and `DOMParser` do not exist, using `createImageBitmap` so background icon refreshes work (`shared/favicon.js`, `background.js`).
+- [x] **R62 - Fix favicon toolbar icon rendering in the MV3 service worker** where `new Image()` and `DOMParser` do not exist, using `createImageBitmap` so background icon refreshes work (`shared/favicon.js`, `background.js`).
 - [ ] **R63 - Decide and document credential storage and transport policy** covering plaintext API keys in synced storage and whether to warn on or reject `http://` base URLs.
-- [ ] **R64 - Make device-authorization polling resilient** to transient HTTP failures and the RFC 8628 `slow_down` status instead of aborting the whole authorization (`options/options.js`, `shared/discourse.js`).
-- [ ] **R65 - Handle undefined script-injection results in the popup** with a clear error message instead of a `TypeError` when the injected extractor throws in the page (`popup/popup.js`).
-- [ ] **R66 - Fix category loading permission prompts in the options page** so `chrome.permissions.request` is only called from real user gestures (not Tab focus) and concurrent focus/pointerdown triggers cannot start duplicate fetches or permission prompts (`options/options.js`).
+- [x] **R64 - Make device-authorization polling resilient** to transient HTTP failures and the RFC 8628 `slow_down` status instead of aborting the whole authorization (`options/options.js`, `shared/discourse.js`).
+- [x] **R65 - Handle undefined script-injection results in the popup** with a clear error message instead of a `TypeError` when the injected extractor throws in the page (`popup/popup.js`).
+- [x] **R66 - Fix category loading permission prompts in the options page** so `chrome.permissions.request` is only called from real user gestures (not Tab focus) and concurrent focus/pointerdown triggers cannot start duplicate fetches or permission prompts (`options/options.js`).
 
 ### Testing And Quality Assurance
 
