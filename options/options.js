@@ -145,9 +145,14 @@ function setDefaultCategoryOptions(categories, selectedId = "") {
   fields.defaultCategoryId.value = selectedId;
 }
 
+let categoriesLoading = false;
+
 async function loadDefaultCategories() {
   const profile = activeProfileCredentials();
   if (!profile.baseUrl || categoriesLoadedForProfileId === activeProfileId) {
+    return;
+  }
+  if (categoriesLoading) {
     return;
   }
   if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
@@ -159,6 +164,7 @@ async function loadDefaultCategories() {
     return;
   }
 
+  categoriesLoading = true;
   fields.defaultCategoryId.disabled = true;
   defaultCategoryStatus.textContent = "Loading categories...";
   try {
@@ -174,6 +180,7 @@ async function loadDefaultCategories() {
     defaultCategoryStatus.textContent = error.message || "Categories could not be loaded.";
   } finally {
     fields.defaultCategoryId.disabled = false;
+    categoriesLoading = false;
   }
 }
 
@@ -886,7 +893,6 @@ newProfileNameInput.addEventListener("keydown", (event) => {
 checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
-fields.defaultCategoryId.addEventListener("focus", loadDefaultCategories);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
