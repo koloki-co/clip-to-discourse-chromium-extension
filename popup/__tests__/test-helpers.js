@@ -29,6 +29,8 @@ export function createStorageMock(initialData = {}) {
         keys.forEach((key) => {
           result[key] = initialData[key];
         });
+      } else if (keys === null || keys === undefined) {
+        Object.assign(result, initialData);
       } else if (typeof keys === "object") {
         Object.keys(keys).forEach((key) => {
           result[key] = initialData[key] !== undefined ? initialData[key] : keys[key];

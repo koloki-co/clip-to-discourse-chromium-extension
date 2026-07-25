@@ -85,18 +85,26 @@ async function loadCategories() {
     return;
   }
 
+  // Capture the requesting profile so a response that arrives after a
+  // profile switch cannot populate the new profile's form with the old
+  // site's categories or mark them as loaded for the new profile.
+  const requestProfile = currentProfile;
   categoryInput.disabled = true;
   categoryStatus.textContent = "Loading categories...";
   try {
-    const selectedId = categoryInput.value || currentProfile.defaultCategoryId || "";
-    const categories = await listCategories(currentProfile);
-    setCategoryOptions(categories, selectedId);
-    categoriesLoadedForProfileId = currentProfile.id;
-    categoryStatus.textContent = categories.length
-      ? `${categories.length} available categories loaded.`
-      : "No categories are available to this account.";
+    const selectedId = categoryInput.value || requestProfile.defaultCategoryId || "";
+    const categories = await listCategories(requestProfile);
+    if (currentProfile?.id === requestProfile.id) {
+      setCategoryOptions(categories, selectedId);
+      categoriesLoadedForProfileId = requestProfile.id;
+      categoryStatus.textContent = categories.length
+        ? `${categories.length} available categories loaded.`
+        : "No categories are available to this account.";
+    }
   } catch (error) {
-    categoryStatus.textContent = error.message || "Categories could not be loaded.";
+    if (currentProfile?.id === requestProfile.id) {
+      categoryStatus.textContent = error.message || "Categories could not be loaded.";
+    }
   } finally {
     categoryInput.disabled = false;
   }
@@ -338,6 +346,7 @@ async function loadSettings() {
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
   categoriesLoadedForProfileId = "";
+  categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
   renderProfiles();
   applyProfileDefaults(currentProfile);
