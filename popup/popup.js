@@ -311,10 +311,15 @@ async function handleSubmit(event) {
     const topicIdResult = response?.topic_id || response?.id;
     const slug = response?.topic_slug;
     if (topicIdResult && slug) {
-      const link = `${currentProfile.baseUrl}/t/${slug}/${topicIdResult}`;
-      setStatus("Clipped successfully. Open the topic from your Discourse instance.");
-      statusEl.style.color = "";
-      statusEl.innerHTML = `Clipped successfully. <a href='${link}' target='_blank' rel='noreferrer'>Open topic</a>.`;
+      // The slug comes from the server response; build the link with DOM
+      // APIs so it cannot inject markup into the extension page.
+      setStatus("Clipped successfully. ");
+      const link = document.createElement("a");
+      link.href = `${currentProfile.baseUrl}/t/${encodeURIComponent(String(slug))}/${encodeURIComponent(String(topicIdResult))}`;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = "Open topic";
+      statusEl.append(link, ".");
     } else {
       setStatus("Clipped successfully.");
     }

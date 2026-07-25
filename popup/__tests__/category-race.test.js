@@ -1,15 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { JSDOM } from "jsdom";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../../shared/constants.js";
-import { setupChromeMock, cleanupChromeMock } from "./test-helpers.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { mountPopup, unmountPopup, until } from "./test-helpers.js";
 
 function makeProfile(id, name, baseUrl) {
   return {
@@ -27,33 +21,11 @@ function makeProfile(id, name, baseUrl) {
   };
 }
 
-async function until(predicate, timeoutMs = 2000) {
-  const start = Date.now();
-  while (!predicate()) {
-    if (Date.now() - start > timeoutMs) {
-      throw new Error("Timed out waiting for condition.");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
-
 describe("popup category loading across profile switches", () => {
-  let dom;
-  let window;
-  let fetchMock;
-  let pendingFetches;
+  let mounted;
 
   beforeEach(async () => {
-    vi.resetModules();
-
-    const html = readFileSync(join(__dirname, "../popup.html"), "utf-8");
-    dom = new JSDOM(html, { url: "chrome-extension://test/popup/popup.html" });
-    window = dom.window;
-    globalThis.window = window;
-    globalThis.document = window.document;
-    globalThis.Event = window.Event;
-
-    setupChromeMock({
+    mounted = await mountPopup({
       storage: {
         profiles: [
           makeProfile("profile-1", "Site One", "https://forum1.example.com"),
@@ -63,38 +35,14 @@ describe("popup category loading across profile switches", () => {
         useFaviconForIcon: false
       }
     });
-
-    // JSDOM has no canvas support, so keep icon updates out of the picture.
-    vi.doMock("../../shared/favicon.js", () => ({
-      updateActionIconForProfile: vi.fn(async () => {})
-    }));
-
-    pendingFetches = [];
-    fetchMock = vi.fn((url) => new Promise((resolve) => {
-      pendingFetches.push({ url, resolve });
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    await import("../popup.js");
-    await until(() => {
-      const statusEl = window.document.getElementById("status");
-      const profileSelect = window.document.getElementById("profileSelect");
-      return statusEl.textContent === "" && profileSelect.options.length === 2;
-    });
   });
 
   afterEach(() => {
-    cleanupChromeMock();
-    vi.unstubAllGlobals();
-    vi.doUnmock("../../shared/favicon.js");
-    dom.window.close();
-    delete globalThis.window;
-    delete globalThis.document;
-    delete globalThis.Event;
-    vi.restoreAllMocks();
+    unmountPopup(mounted);
   });
 
   it("discards category results that arrive after a profile switch", async () => {
+    const { window, fetchMock, pendingFetches } = mounted;
     const categoryInput = window.document.getElementById("categoryId");
     const profileSelect = window.document.getElementById("profileSelect");
     const statusEl = window.document.getElementById("status");
