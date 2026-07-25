@@ -237,22 +237,39 @@ export async function setActiveProfile(profileId) {
   });
 }
 
+// Write a merged profile update. Must be called under the lock.
+async function writeProfileUpdate(state, profileId, partial) {
+  const updatedProfiles = state.profiles.map((profile) => {
+    if (profile.id !== profileId) {
+      return profile;
+    }
+    return normalizeProfile({
+      ...profile,
+      ...partial,
+      id: profile.id
+    });
+  });
+
+  await chrome.storage.sync.set({ profiles: updatedProfiles });
+}
+
 // Merge changes into the active profile in storage.
 export async function saveActiveProfile(partial) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
-    const updatedProfiles = state.profiles.map((profile) => {
-      if (profile.id !== state.activeProfileId) {
-        return profile;
-      }
-      return normalizeProfile({
-        ...profile,
-        ...partial,
-        id: profile.id
-      });
-    });
+    await writeProfileUpdate(state, state.activeProfileId, partial);
+  });
+}
 
-    await chrome.storage.sync.set({ profiles: updatedProfiles });
+// Merge changes into a specific profile, so long-running flows can save to
+// the profile they started on even if the active profile changed meanwhile.
+export async function saveProfile(profileId, partial) {
+  await withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    if (!state.profiles.some((profile) => profile.id === profileId)) {
+      throw new Error("Profile no longer exists.");
+    }
+    await writeProfileUpdate(state, profileId, partial);
   });
 }
 

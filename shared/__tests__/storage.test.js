@@ -6,6 +6,7 @@ import {
   getSettingsState,
   setActiveProfile,
   saveActiveProfile,
+  saveProfile,
   addProfile,
   deleteProfile,
   DEFAULT_PROFILE
@@ -244,6 +245,35 @@ describe("Chrome Storage Configuration", () => {
       });
 
       expect(mockStorage.profiles[0].baseUrl).toBe("https://forum.example.com");
+    });
+  });
+
+  describe("saveProfile", () => {
+    beforeEach(() => {
+      mockStorage.profiles = [
+        { id: "profile-1", name: "Profile 1", baseUrl: "https://forum1.example.com" },
+        { id: "profile-2", name: "Profile 2", baseUrl: "https://forum2.example.com" }
+      ];
+      mockStorage.activeProfileId = "profile-1";
+    });
+
+    it("saves to the flow's profile even after the active profile changed", async () => {
+      // A device-authorization flow started on profile-1; the user switched
+      // to profile-2 before the credential arrived.
+      await setActiveProfile("profile-2");
+
+      await saveProfile("profile-1", { userApiKey: "key-for-profile-1" });
+
+      const profile1 = mockStorage.profiles.find((profile) => profile.id === "profile-1");
+      const profile2 = mockStorage.profiles.find((profile) => profile.id === "profile-2");
+      expect(profile1.userApiKey).toBe("key-for-profile-1");
+      expect(profile2.userApiKey).toBeFalsy();
+    });
+
+    it("rejects when the target profile no longer exists", async () => {
+      await expect(saveProfile("deleted-profile", { userApiKey: "orphan-key" }))
+        .rejects.toThrow("Profile no longer exists.");
+      expect(mockStorage.profiles.every((profile) => !profile.userApiKey)).toBe(true);
     });
   });
 

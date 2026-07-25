@@ -202,20 +202,26 @@ async function setActiveProfile(profileId) {
     await chrome.storage.sync.set({ activeProfileId: profileId });
   });
 }
-async function saveActiveProfile(partial) {
+async function writeProfileUpdate(state, profileId, partial) {
+  const updatedProfiles = state.profiles.map((profile) => {
+    if (profile.id !== profileId) {
+      return profile;
+    }
+    return normalizeProfile({
+      ...profile,
+      ...partial,
+      id: profile.id
+    });
+  });
+  await chrome.storage.sync.set({ profiles: updatedProfiles });
+}
+async function saveProfile(profileId, partial) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
-    const updatedProfiles = state.profiles.map((profile) => {
-      if (profile.id !== state.activeProfileId) {
-        return profile;
-      }
-      return normalizeProfile({
-        ...profile,
-        ...partial,
-        id: profile.id
-      });
-    });
-    await chrome.storage.sync.set({ profiles: updatedProfiles });
+    if (!state.profiles.some((profile) => profile.id === profileId)) {
+      throw new Error("Profile no longer exists.");
+    }
+    await writeProfileUpdate(state, profileId, partial);
   });
 }
 async function addProfile(partial = {}) {
@@ -944,6 +950,10 @@ function setButtonsDisabled(disabled) {
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
+  profileSelect.disabled = disabled;
+  authTabButtons.forEach((button) => {
+    button.disabled = disabled;
+  });
   refreshUserApiControls(disabled);
 }
 async function handleSubmit(event) {
@@ -955,13 +965,14 @@ async function handleSubmit(event) {
   }
   setButtonsDisabled(true);
   setStatus("Saving...");
+  const targetProfileId = activeProfileId;
   try {
     await ensureHostPermission(fields.baseUrl.value);
     const authMethod = getActiveAuthMethod();
     if (authMethod === AUTH_METHODS.USER_API && !fields.userApiClientId.value.trim()) {
       fields.userApiClientId.value = createUserApiClientId();
     }
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl: fields.baseUrl.value,
       authMethod,
       apiUsername: fields.apiUsername.value,
@@ -1075,6 +1086,7 @@ async function handleConnectUserApi() {
   }
   setButtonsDisabled(true);
   setUserApiStatus("Preparing secure login...");
+  const targetProfileId = activeProfileId;
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
@@ -1168,7 +1180,7 @@ async function handleConnectUserApi() {
     setAuthMethod(AUTH_METHODS.USER_API);
     refreshUserApiControls();
     setUserApiDeviceCode();
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl,
       authMethod: AUTH_METHODS.USER_API,
       userApiKey: decrypted.key,
@@ -1227,6 +1239,7 @@ async function handleRevokeUserApi() {
   }
   setButtonsDisabled(true);
   setUserApiStatus("Revoking key...");
+  const targetProfileId = activeProfileId;
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
@@ -1237,7 +1250,7 @@ async function handleRevokeUserApi() {
     });
     fields.userApiKey.value = "";
     setAuthMethod(AUTH_METHODS.ADMIN_API_KEY);
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl,
       authMethod: AUTH_METHODS.ADMIN_API_KEY,
       userApiKey: "",

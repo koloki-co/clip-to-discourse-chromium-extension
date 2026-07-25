@@ -3,7 +3,7 @@
 
 import {
   getSettingsState,
-  saveActiveProfile,
+  saveProfile,
   addProfile,
   deleteProfile,
   setActiveProfile,
@@ -376,6 +376,12 @@ function setButtonsDisabled(disabled) {
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
+  // Switching profile or auth method mid-operation would make a slow flow
+  // (device authorization, permission prompt) save into the wrong profile.
+  profileSelect.disabled = disabled;
+  authTabButtons.forEach((button) => {
+    button.disabled = disabled;
+  });
   refreshUserApiControls(disabled);
 }
 
@@ -392,6 +398,7 @@ async function handleSubmit(event) {
   setButtonsDisabled(true);
   setStatus("Saving...");
 
+  const targetProfileId = activeProfileId;
   try {
     await ensureHostPermission(fields.baseUrl.value);
 
@@ -400,7 +407,7 @@ async function handleSubmit(event) {
       fields.userApiClientId.value = createUserApiClientId();
     }
 
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl: fields.baseUrl.value,
       authMethod,
       apiUsername: fields.apiUsername.value,
@@ -536,6 +543,7 @@ async function handleConnectUserApi() {
   setButtonsDisabled(true);
   setUserApiStatus("Preparing secure login...");
 
+  const targetProfileId = activeProfileId;
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
@@ -636,7 +644,7 @@ async function handleConnectUserApi() {
     refreshUserApiControls();
     setUserApiDeviceCode();
 
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl,
       authMethod: AUTH_METHODS.USER_API,
       userApiKey: decrypted.key,
@@ -706,6 +714,7 @@ async function handleRevokeUserApi() {
   setButtonsDisabled(true);
   setUserApiStatus("Revoking key...");
 
+  const targetProfileId = activeProfileId;
   try {
     const baseUrl = fields.baseUrl.value.trim().replace(/\/+$/, "");
     await ensureHostPermission(baseUrl);
@@ -718,7 +727,7 @@ async function handleRevokeUserApi() {
 
     fields.userApiKey.value = "";
     setAuthMethod(AUTH_METHODS.ADMIN_API_KEY);
-    await saveActiveProfile({
+    await saveProfile(targetProfileId, {
       baseUrl,
       authMethod: AUTH_METHODS.ADMIN_API_KEY,
       userApiKey: "",
