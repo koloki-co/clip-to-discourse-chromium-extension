@@ -11,6 +11,25 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
 ## Active Development
 
+### Bug Fixes From The July 2026 Code Review
+
+#### High Severity
+- [ ] **R54 - Handle non-JSON success responses when posting** so a 2xx response without a JSON body is reported as success instead of throwing on `response.topic_id` and inviting duplicate posts (`shared/discourse.js`, `popup/popup.js`).
+- [ ] **R55 - Make profile storage writes race-safe** so concurrent writers (popup, options page, background device-authorization poll, remote sync) cannot erase each other's changes, including freshly issued User API keys; also stop `loadState()` writing back the whole profiles array during ordinary reads (`shared/settings.js`).
+- [ ] **R56 - Lock profile switching during long-running options flows** by capturing the target profile ID when an operation starts and verifying it before saving, and disabling the profile selector while device authorization or permission prompts are pending, so credentials cannot be saved into the wrong profile (`options/options.js`).
+- [ ] **R57 - Guard the popup against stale category loads** so a category fetch that completes after a profile switch cannot populate the other site's categories or mark them as loaded for the new profile (`popup/popup.js`).
+- [ ] **R58 - Fix markdown escaping for code spans, fences, and link destinations** using backtick-count-based delimiters instead of backslash escapes and escaping parentheses, quotes, and newlines in URLs and titles, so page content cannot break out of code blocks or fabricate misleading links in the generated post (`shared/extract.js`).
+- [ ] **R59 - Build the popup success message with DOM APIs instead of `innerHTML`** so server-returned data such as `topic_slug` cannot inject markup into the extension page (`popup/popup.js`).
+- [ ] **R60 - Run only the extraction pipeline needed for the chosen clip style** and degrade gracefully when a pipeline throws, so one pathological page cannot freeze or fail unrelated clip styles (`popup/popup.js`).
+
+#### Medium Severity
+- [ ] **R61 - Rework profile storage to avoid the `chrome.storage.sync` per-item quota** (8,192 bytes for the single `profiles` item, easily exceeded by a few profiles or long custom templates), for example per-profile keys or `storage.local`, coordinated with R55.
+- [ ] **R62 - Fix favicon toolbar icon rendering in the MV3 service worker** where `new Image()` and `DOMParser` do not exist, using `createImageBitmap` so background icon refreshes work (`shared/favicon.js`, `background.js`).
+- [ ] **R63 - Decide and document credential storage and transport policy** covering plaintext API keys in synced storage and whether to warn on or reject `http://` base URLs.
+- [ ] **R64 - Make device-authorization polling resilient** to transient HTTP failures and the RFC 8628 `slow_down` status instead of aborting the whole authorization (`options/options.js`, `shared/discourse.js`).
+- [ ] **R65 - Handle undefined script-injection results in the popup** with a clear error message instead of a `TypeError` when the injected extractor throws in the page (`popup/popup.js`).
+- [ ] **R66 - Fix category loading permission prompts in the options page** so `chrome.permissions.request` is only called from real user gestures (not Tab focus) and concurrent focus/pointerdown triggers cannot start duplicate fetches or permission prompts (`options/options.js`).
+
 ### Testing And Quality Assurance
 
 #### Coverage And Regression
