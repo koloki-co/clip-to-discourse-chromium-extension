@@ -3505,8 +3505,47 @@ function collapseWhitespace2(text) {
 function escapeLinkText(text) {
   return text.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
 }
-function escapeCode(text) {
-  return text.replace(/`/g, "\\`");
+function codeSpan(text) {
+  const content = text.replace(/\n/g, " ");
+  const runs = content.match(/`+/g) || [];
+  const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const delimiter = "`".repeat(longest + 1);
+  const padded = content.startsWith("`") || content.endsWith("`") ? ` ${content} ` : content;
+  return `${delimiter}${padded}${delimiter}`;
+}
+function codeFence(content, language = "") {
+  const runs = content.match(/`{3,}/g) || [];
+  const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `
+${fence}${language}
+${content}
+${fence}
+`;
+}
+function escapeLinkDestination2(url) {
+  return url.replace(/[\s()<>"]/g, (char) => {
+    const codes = {
+      " ": "%20",
+      "	": "%09",
+      "\n": "%0A",
+      "\r": "%0D",
+      "(": "%28",
+      ")": "%29",
+      "<": "%3C",
+      ">": "%3E",
+      '"': "%22"
+    };
+    return codes[char] || "";
+  });
+}
+function isSafeLinkDestination(url) {
+  try {
+    const parsed = new URL(url, "https://relative.invalid/");
+    return ["http:", "https:", "ftp:", "mailto:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 }
 function isBlockTag(tag) {
   return [
@@ -3551,31 +3590,27 @@ function nodeToMarkdown(node, listDepth = 0) {
     return `*${renderChildren(node, listDepth)}*`;
   }
   if (tag === "code") {
-    return `\`${escapeCode(node.textContent || "")}\``;
+    return codeSpan(node.textContent || "");
   }
   if (tag === "pre") {
     const text = node.textContent || "";
-    return `
-\`\`\`
-${text.trim()}
-\`\`\`
-`;
+    return codeFence(text.trim());
   }
   if (tag === "a") {
     const href = node.getAttribute("href") || "";
     const text = renderChildren(node, listDepth) || href;
-    if (!href) {
+    if (!href || !isSafeLinkDestination(href)) {
       return text;
     }
-    return `[${escapeLinkText(text)}](${href})`;
+    return `[${escapeLinkText(text)}](${escapeLinkDestination2(href)})`;
   }
   if (tag === "img") {
     const alt = node.getAttribute("alt") || "";
     const src = node.getAttribute("src") || "";
-    if (!src) {
+    if (!src || !isSafeLinkDestination(src)) {
       return "";
     }
-    return `![${escapeLinkText(alt)}](${src})`;
+    return `![${escapeLinkText(alt)}](${escapeLinkDestination2(src)})`;
   }
   if (tag.startsWith("h") && tag.length === 2) {
     const level = Number(tag[1]);
@@ -3674,24 +3709,33 @@ function createTurndownService() {
       const langMatch = className.match(/language-(\w+)|lang-(\w+)/);
       const language = langMatch?.[1] || langMatch?.[2] || "";
       const codeContent = code.textContent || "";
-      return `
-\`\`\`${language}
-${codeContent}
-\`\`\`
-`;
+      return codeFence(codeContent, language);
     }
   });
   turndown.addRule("images", {
     filter: "img",
     replacement: (_content, node) => {
-      const alt = node.getAttribute("alt") || "Image";
+      const alt = escapeLinkText(node.getAttribute("alt") || "Image");
       const src = node.getAttribute("src") || node.getAttribute("data-src") || "";
       const title = node.getAttribute("title") || "";
-      if (!src) return "";
+      if (!src || !isSafeLinkDestination(src)) return "";
+      const destination = escapeLinkDestination2(src);
       if (title) {
-        return `![${alt}](${src} "${title}")`;
+        const safeTitle = title.replace(/\n/g, " ").replace(/"/g, '\\"');
+        return `![${alt}](${destination} "${safeTitle}")`;
       }
-      return `![${alt}](${src})`;
+      return `![${alt}](${destination})`;
+    }
+  });
+  turndown.addRule("links", {
+    filter: (node) => node.nodeName === "A" && node.getAttribute("href"),
+    replacement: (content, node) => {
+      const href = node.getAttribute("href");
+      const text = content.trim() || href;
+      if (!isSafeLinkDestination(href)) {
+        return text;
+      }
+      return `[${text}](${escapeLinkDestination2(href)})`;
     }
   });
   turndown.addRule("blockquotes", {

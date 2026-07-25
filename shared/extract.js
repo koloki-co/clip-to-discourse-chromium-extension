@@ -31,8 +31,54 @@ function escapeLinkText(text) {
   return text.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
 }
 
-function escapeCode(text) {
-  return text.replace(/`/g, "\\`");
+// Backslash escapes do not work inside markdown code spans, so the delimiter
+// must be a backtick run longer than any run in the content (CommonMark).
+function codeSpan(text) {
+  const content = text.replace(/\n/g, " ");
+  const runs = content.match(/`+/g) || [];
+  const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const delimiter = "`".repeat(longest + 1);
+  const padded = content.startsWith("`") || content.endsWith("`") ? ` ${content} ` : content;
+  return `${delimiter}${padded}${delimiter}`;
+}
+
+// A fenced block's fence must be longer than any backtick run in the content,
+// otherwise page content containing ``` closes the fence early and injects
+// arbitrary markdown into the post.
+function codeFence(content, language = "") {
+  const runs = content.match(/`{3,}/g) || [];
+  const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `\n${fence}${language}\n${content}\n${fence}\n`;
+}
+
+// Percent-encode characters that would break out of an inline markdown link
+// destination; percent-encoding keeps the URL semantically identical.
+function escapeLinkDestination(url) {
+  return url.replace(/[\s()<>"]/g, (char) => {
+    const codes = {
+      " ": "%20",
+      "\t": "%09",
+      "\n": "%0A",
+      "\r": "%0D",
+      "(": "%28",
+      ")": "%29",
+      "<": "%3C",
+      ">": "%3E",
+      "\"": "%22"
+    };
+    return codes[char] || "";
+  });
+}
+
+// Reject script-scheme destinations; page content controls these attributes.
+function isSafeLinkDestination(url) {
+  try {
+    const parsed = new URL(url, "https://relative.invalid/");
+    return ["http:", "https:", "ftp:", "mailto:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 }
 
 function isBlockTag(tag) {
@@ -86,30 +132,30 @@ function nodeToMarkdown(node, listDepth = 0) {
   }
 
   if (tag === "code") {
-    return `\`${escapeCode(node.textContent || "")}\``;
+    return codeSpan(node.textContent || "");
   }
 
   if (tag === "pre") {
     const text = node.textContent || "";
-    return `\n\`\`\`\n${text.trim()}\n\`\`\`\n`;
+    return codeFence(text.trim());
   }
 
   if (tag === "a") {
     const href = node.getAttribute("href") || "";
     const text = renderChildren(node, listDepth) || href;
-    if (!href) {
+    if (!href || !isSafeLinkDestination(href)) {
       return text;
     }
-    return `[${escapeLinkText(text)}](${href})`;
+    return `[${escapeLinkText(text)}](${escapeLinkDestination(href)})`;
   }
 
   if (tag === "img") {
     const alt = node.getAttribute("alt") || "";
     const src = node.getAttribute("src") || "";
-    if (!src) {
+    if (!src || !isSafeLinkDestination(src)) {
       return "";
     }
-    return `![${escapeLinkText(alt)}](${src})`;
+    return `![${escapeLinkText(alt)}](${escapeLinkDestination(src)})`;
   }
 
   if (tag.startsWith("h") && tag.length === 2) {
@@ -213,21 +259,35 @@ function createTurndownService() {
       const langMatch = className.match(/language-(\w+)|lang-(\w+)/);
       const language = langMatch?.[1] || langMatch?.[2] || "";
       const codeContent = code.textContent || "";
-      return `\n\`\`\`${language}\n${codeContent}\n\`\`\`\n`;
+      return codeFence(codeContent, language);
     }
   });
 
   turndown.addRule("images", {
     filter: "img",
     replacement: (_content, node) => {
-      const alt = node.getAttribute("alt") || "Image";
+      const alt = escapeLinkText(node.getAttribute("alt") || "Image");
       const src = node.getAttribute("src") || node.getAttribute("data-src") || "";
       const title = node.getAttribute("title") || "";
-      if (!src) return "";
+      if (!src || !isSafeLinkDestination(src)) return "";
+      const destination = escapeLinkDestination(src);
       if (title) {
-        return `![${alt}](${src} "${title}")`;
+        const safeTitle = title.replace(/\n/g, " ").replace(/"/g, "\\\"");
+        return `![${alt}](${destination} "${safeTitle}")`;
       }
-      return `![${alt}](${src})`;
+      return `![${alt}](${destination})`;
+    }
+  });
+
+  turndown.addRule("links", {
+    filter: (node) => node.nodeName === "A" && node.getAttribute("href"),
+    replacement: (content, node) => {
+      const href = node.getAttribute("href");
+      const text = content.trim() || href;
+      if (!isSafeLinkDestination(href)) {
+        return text;
+      }
+      return `[${text}](${escapeLinkDestination(href)})`;
     }
   });
 

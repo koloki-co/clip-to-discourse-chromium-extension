@@ -22,6 +22,36 @@ describe("extract", () => {
       expect(htmlToMarkdown(input)).toBe("## Title\n\nHello **world**.");
     });
 
+    it("keeps backticks inside code spans instead of breaking out", () => {
+      const input = "<p>Run <code>`](https://phish.example)[click</code> now.</p>";
+      const output = htmlToMarkdown(input);
+      expect(output).toContain("`` `](https://phish.example)[click ``");
+      expect(output).not.toContain("\\`");
+    });
+
+    it("lengthens fences when preformatted content contains a fence", () => {
+      const input = "<pre>safe\n```\n[injected](https://phish.example)\n```</pre>";
+      const output = htmlToMarkdown(input);
+      expect(output).toContain("````");
+      expect((output.match(/````/g) || []).length).toBe(2);
+    });
+
+    it("escapes parentheses in link destinations", () => {
+      const input = "<p><a href=\"https://real.example/a)b\">Read</a> more.</p>";
+      const output = htmlToMarkdown(input);
+      expect(output).toContain("[Read](https://real.example/a%29b)");
+    });
+
+    it("drops script-scheme links but keeps their text", () => {
+      const input = "<p><a href=\"javascript:alert(1)\">Click</a></p>";
+      expect(htmlToMarkdown(input)).toBe("Click");
+    });
+
+    it("drops script-scheme image sources entirely", () => {
+      const input = "<p><img src=\"javascript:alert(1)\" alt=\"x\">after</p>";
+      expect(htmlToMarkdown(input)).toBe("after");
+    });
+
     it("extracts full page content with Readability defaults", () => {
       const input = `
         <html>
