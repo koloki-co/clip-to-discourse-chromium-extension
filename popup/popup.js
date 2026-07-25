@@ -132,7 +132,7 @@ async function fetchActiveTabInfo() {
   if (!tab || !tab.id) {
     throw new Error("No active tab found.");
   }
-  const [{ result }] = await chrome.scripting.executeScript({
+  const [injectionResult] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
       const ogTitle = document
@@ -158,7 +158,10 @@ async function fetchActiveTabInfo() {
       return { title, url, fullText, pageText, fullHtml, pageHtml, selectionText, selectionHtml };
     }
   });
-  return result;
+  if (!injectionResult?.result) {
+    throw new Error("Could not read the page content. The tab may be a privileged page (chrome://, about:) or the page may have blocked content access.");
+  }
+  return injectionResult.result;
 }
 
 async function getActiveTabInfo() {
