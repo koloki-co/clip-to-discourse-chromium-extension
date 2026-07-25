@@ -118,8 +118,26 @@ function createProfile(overrides = {}) {
   });
 }
 
-// Load settings and migrate legacy single-profile data if needed.
-async function loadState() {
+// Chrome storage has no transactions, so every read-modify-write on the
+// profiles array must be serialized across the popup, options page, and
+// service worker. All extension contexts share one origin, so a Web Lock
+// gives cross-context mutual exclusion; the promise queue fallback covers
+// environments without navigator.locks and still serializes within a context.
+const PROFILES_LOCK = "clip-to-discourse-profiles";
+let fallbackQueue = Promise.resolve();
+
+function withProfilesLock(task) {
+  if (typeof navigator !== "undefined" && navigator.locks?.request) {
+    return navigator.locks.request(PROFILES_LOCK, task);
+  }
+  const run = fallbackQueue.then(task, task);
+  fallbackQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+// Read and normalize stored state without writing. Reports whether a
+// migration or repair write is needed so callers can take the lock first.
+async function readState() {
   const data = await chrome.storage.sync.get(null);
   const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean"
     ? data.useFaviconForIcon
@@ -131,24 +149,43 @@ async function loadState() {
     const activeProfileId = profiles.some((profile) => profile.id === data.activeProfileId)
       ? data.activeProfileId
       : profiles[0].id;
+    const needsRepair = activeProfileId !== data.activeProfileId
+      || data.useFaviconForIcon === undefined
+      || authMethodsChanged;
 
-    if (activeProfileId !== data.activeProfileId || data.useFaviconForIcon === undefined || authMethodsChanged) {
-      await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
+    return { legacyData: null, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+  }
+
+  return { legacyData: data, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+}
+
+// Re-read and persist migrations or repairs. Must be called under the lock so
+// the write cannot clobber a concurrent update from another context.
+async function loadStateLocked() {
+  const state = await readState();
+  const { useFaviconForIcon } = state;
+
+  if (state.profiles) {
+    if (state.needsRepair) {
+      await chrome.storage.sync.set({
+        profiles: state.profiles,
+        activeProfileId: state.activeProfileId,
+        useFaviconForIcon
+      });
     }
-
-    return { profiles, activeProfileId, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
   }
 
   const legacyProfile = createProfile({
     name: "Default",
-    baseUrl: data.baseUrl,
-    apiUsername: data.apiUsername,
-    apiKey: data.apiKey,
-    defaultClipStyle: data.defaultClipStyle,
-    defaultDestination: data.defaultDestination,
-    defaultCategoryId: data.defaultCategoryId,
-    defaultTopicId: data.defaultTopicId,
-    titleTemplate: data.titleTemplate
+    baseUrl: state.legacyData.baseUrl,
+    apiUsername: state.legacyData.apiUsername,
+    apiKey: state.legacyData.apiKey,
+    defaultClipStyle: state.legacyData.defaultClipStyle,
+    defaultDestination: state.legacyData.defaultDestination,
+    defaultCategoryId: state.legacyData.defaultCategoryId,
+    defaultTopicId: state.legacyData.defaultTopicId,
+    titleTemplate: state.legacyData.titleTemplate
   });
 
   const profiles = [legacyProfile];
@@ -158,6 +195,16 @@ async function loadState() {
   await chrome.storage.sync.remove(LEGACY_KEYS);
 
   return { profiles, activeProfileId, useFaviconForIcon };
+}
+
+// Load settings; ordinary reads never write, and migration or repair happens
+// under the lock only when needed.
+async function loadState() {
+  const state = await readState();
+  if (state.profiles && !state.needsRepair) {
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon };
+  }
+  return withProfilesLock(loadStateLocked);
 }
 
 // Return full settings state with the active profile expanded.
@@ -180,50 +227,58 @@ export async function saveGlobalSettings(partial) {
 
 // Persist active profile id only if it exists.
 export async function setActiveProfile(profileId) {
-  const state = await loadState();
-  const exists = state.profiles.some((profile) => profile.id === profileId);
-  if (!exists) {
-    throw new Error("Selected profile does not exist.");
-  }
-  await chrome.storage.sync.set({ activeProfileId: profileId });
+  await withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    const exists = state.profiles.some((profile) => profile.id === profileId);
+    if (!exists) {
+      throw new Error("Selected profile does not exist.");
+    }
+    await chrome.storage.sync.set({ activeProfileId: profileId });
+  });
 }
 
 // Merge changes into the active profile in storage.
 export async function saveActiveProfile(partial) {
-  const state = await loadState();
-  const updatedProfiles = state.profiles.map((profile) => {
-    if (profile.id !== state.activeProfileId) {
-      return profile;
-    }
-    return normalizeProfile({
-      ...profile,
-      ...partial,
-      id: profile.id
+  await withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    const updatedProfiles = state.profiles.map((profile) => {
+      if (profile.id !== state.activeProfileId) {
+        return profile;
+      }
+      return normalizeProfile({
+        ...profile,
+        ...partial,
+        id: profile.id
+      });
     });
-  });
 
-  await chrome.storage.sync.set({ profiles: updatedProfiles });
+    await chrome.storage.sync.set({ profiles: updatedProfiles });
+  });
 }
 
 // Add a new profile and make it active.
 export async function addProfile(partial = {}) {
-  const state = await loadState();
-  const profile = createProfile(partial);
-  const profiles = [...state.profiles, profile];
-  await chrome.storage.sync.set({ profiles, activeProfileId: profile.id });
-  return profile;
+  return withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    const profile = createProfile(partial);
+    const profiles = [...state.profiles, profile];
+    await chrome.storage.sync.set({ profiles, activeProfileId: profile.id });
+    return profile;
+  });
 }
 
 // Remove a profile, ensuring at least one remains active.
 export async function deleteProfile(profileId) {
-  const state = await loadState();
-  if (state.profiles.length <= 1) {
-    throw new Error("At least one profile is required.");
-  }
-  const profiles = state.profiles.filter((profile) => profile.id !== profileId);
-  const activeProfileId = profiles.some((profile) => profile.id === state.activeProfileId)
-    ? state.activeProfileId
-    : profiles[0].id;
+  await withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    if (state.profiles.length <= 1) {
+      throw new Error("At least one profile is required.");
+    }
+    const profiles = state.profiles.filter((profile) => profile.id !== profileId);
+    const activeProfileId = profiles.some((profile) => profile.id === state.activeProfileId)
+      ? state.activeProfileId
+      : profiles[0].id;
 
-  await chrome.storage.sync.set({ profiles, activeProfileId });
+    await chrome.storage.sync.set({ profiles, activeProfileId });
+  });
 }

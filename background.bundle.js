@@ -121,34 +121,64 @@ function createProfile(overrides = {}) {
     id: overrides.id || generateId()
   });
 }
-async function loadState() {
+var PROFILES_LOCK = "clip-to-discourse-profiles";
+var fallbackQueue = Promise.resolve();
+function withProfilesLock(task) {
+  if (typeof navigator !== "undefined" && navigator.locks?.request) {
+    return navigator.locks.request(PROFILES_LOCK, task);
+  }
+  const run = fallbackQueue.then(task, task);
+  fallbackQueue = run.then(() => void 0, () => void 0);
+  return run;
+}
+async function readState() {
   const data = await chrome.storage.sync.get(null);
   const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean" ? data.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
   if (Array.isArray(data.profiles) && data.profiles.length > 0) {
-    const profiles2 = data.profiles.map(normalizeProfile);
-    const authMethodsChanged = profiles2.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
-    const activeProfileId2 = profiles2.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles2[0].id;
-    if (activeProfileId2 !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged) {
-      await chrome.storage.sync.set({ profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon });
+    const profiles = data.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
+    const activeProfileId = profiles.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles[0].id;
+    const needsRepair = activeProfileId !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged;
+    return { legacyData: null, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+  }
+  return { legacyData: data, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+}
+async function loadStateLocked() {
+  const state = await readState();
+  const { useFaviconForIcon } = state;
+  if (state.profiles) {
+    if (state.needsRepair) {
+      await chrome.storage.sync.set({
+        profiles: state.profiles,
+        activeProfileId: state.activeProfileId,
+        useFaviconForIcon
+      });
     }
-    return { profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
   }
   const legacyProfile = createProfile({
     name: "Default",
-    baseUrl: data.baseUrl,
-    apiUsername: data.apiUsername,
-    apiKey: data.apiKey,
-    defaultClipStyle: data.defaultClipStyle,
-    defaultDestination: data.defaultDestination,
-    defaultCategoryId: data.defaultCategoryId,
-    defaultTopicId: data.defaultTopicId,
-    titleTemplate: data.titleTemplate
+    baseUrl: state.legacyData.baseUrl,
+    apiUsername: state.legacyData.apiUsername,
+    apiKey: state.legacyData.apiKey,
+    defaultClipStyle: state.legacyData.defaultClipStyle,
+    defaultDestination: state.legacyData.defaultDestination,
+    defaultCategoryId: state.legacyData.defaultCategoryId,
+    defaultTopicId: state.legacyData.defaultTopicId,
+    titleTemplate: state.legacyData.titleTemplate
   });
   const profiles = [legacyProfile];
   const activeProfileId = legacyProfile.id;
   await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
   await chrome.storage.sync.remove(LEGACY_KEYS);
   return { profiles, activeProfileId, useFaviconForIcon };
+}
+async function loadState() {
+  const state = await readState();
+  if (state.profiles && !state.needsRepair) {
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon };
+  }
+  return withProfilesLock(loadStateLocked);
 }
 async function getSettingsState() {
   const state = await loadState();

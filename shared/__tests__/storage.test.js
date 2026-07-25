@@ -336,7 +336,7 @@ describe("Chrome Storage Configuration", () => {
       expect(chrome.storage.sync.set).toHaveBeenCalled();
     });
 
-    it("handles concurrent profile updates", async () => {
+    it("keeps both profiles when two adds run concurrently", async () => {
       const profile1 = { name: "Profile 1", baseUrl: "https://forum1.example.com" };
       const profile2 = { name: "Profile 2", baseUrl: "https://forum2.example.com" };
 
@@ -345,9 +345,21 @@ describe("Chrome Storage Configuration", () => {
         addProfile(profile2)
       ]);
 
-      // Due to race conditions in concurrent operations, we expect at least 2 profiles
-      // (the race may cause one to overwrite the other's state)
-      expect(mockStorage.profiles.length).toBeGreaterThanOrEqual(2);
+      expect(mockStorage.profiles).toHaveLength(3); // default + both new profiles
+      const names = mockStorage.profiles.map((profile) => profile.name);
+      expect(names).toContain("Profile 1");
+      expect(names).toContain("Profile 2");
+    });
+
+    it("does not lose a saved credential when another write runs concurrently", async () => {
+      await Promise.all([
+        saveActiveProfile({ userApiKey: "freshly-issued-key" }),
+        addProfile({ name: "Second", baseUrl: "https://forum2.example.com" })
+      ]);
+
+      const defaultProfile = mockStorage.profiles.find((profile) => profile.id === "default");
+      expect(defaultProfile.userApiKey).toBe("freshly-issued-key");
+      expect(mockStorage.profiles.map((profile) => profile.name)).toContain("Second");
     });
   });
 
