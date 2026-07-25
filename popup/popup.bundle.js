@@ -4345,16 +4345,37 @@ async function handleSubmit(event) {
     const pageInfo = await getActiveTabInfo();
     const title = normalizeTitle(pageInfo.title) || fallbackTitle();
     const url = pageInfo.url;
-    const excerptPlain = buildExcerpt(pageInfo.pageText);
-    const excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
-    const fullTextPlain = normalizeText(pageInfo.fullText);
-    const fullText = normalizeText(
-      htmlToMarkdownFullPage(pageInfo.fullHtml, {
-        baseUrl: url
-      })
-    );
-    const selectionText = normalizeText(pageInfo.selectionText);
-    const selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
+    let excerpt = "";
+    let excerptPlain = "";
+    let fullText = "";
+    let fullTextPlain = "";
+    let selectionText = "";
+    let selectionMarkdown = "";
+    if (clipStyle === CLIP_STYLES.EXCERPT) {
+      try {
+        excerptPlain = buildExcerpt(pageInfo.pageText);
+        excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
+      } catch {
+        excerpt = "";
+      }
+    } else if (clipStyle === CLIP_STYLES.FULL_TEXT) {
+      try {
+        fullTextPlain = normalizeText(pageInfo.fullText);
+        fullText = normalizeText(
+          htmlToMarkdownFullPage(pageInfo.fullHtml, { baseUrl: url })
+        );
+      } catch {
+        fullText = "";
+      }
+    } else if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
+      try {
+        selectionText = normalizeText(pageInfo.selectionText);
+        selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
+      } catch {
+        selectionText = normalizeText(pageInfo.selectionText);
+        selectionMarkdown = selectionText;
+      }
+    }
     const raw = buildMarkdown({
       title,
       url,

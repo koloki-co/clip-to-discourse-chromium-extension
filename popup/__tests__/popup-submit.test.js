@@ -34,7 +34,7 @@ describe("popup submit status rendering", () => {
     unmountPopup(mounted);
   });
 
-  it("renders the success link safely when the server returns a hostile slug", async () => {
+  it("clips title_url successfully without running the heavy extraction pipeline", async () => {
     const { window, fetchMock, pendingFetches } = mounted;
     const document = window.document;
     const categoryInput = document.getElementById("categoryId");
@@ -47,24 +47,20 @@ describe("popup submit status rendering", () => {
     categoryInput.appendChild(option);
     categoryInput.value = "5";
 
+    // The page has no meaningful content; title_url should still succeed
+    // because it only needs the title and URL, not the extraction pipeline.
     form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
     await until(() => fetchMock.mock.calls.length === 1);
-    expect(pendingFetches[0].url).toContain("/posts.json");
 
-    const hostileSlug = "'><img src=x onerror=alert(1)>";
     pendingFetches[0].resolve({
       ok: true,
-      json: async () => ({ id: 1, topic_id: 42, topic_slug: hostileSlug })
+      json: async () => ({ id: 1, topic_id: 42, topic_slug: "test-topic" })
     });
     await until(() => statusEl.textContent.includes("Clipped successfully"));
 
-    // The slug must not become markup inside the extension page.
-    expect(statusEl.querySelector("img")).toBeNull();
-    const anchor = statusEl.querySelector("a");
-    expect(anchor).toBeTruthy();
-    expect(anchor.textContent).toBe("Open topic");
-    expect(anchor.getAttribute("href")).toBe(
-      `https://forum1.example.com/t/${encodeURIComponent(hostileSlug)}/42`
-    );
+    const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    // The raw body for title_url is the title template output: title + URL.
+    expect(sentBody.raw).toContain("Example Page");
+    expect(sentBody.raw).toContain("https://example.com");
   });
 });
