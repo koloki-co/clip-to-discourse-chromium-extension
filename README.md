@@ -36,8 +36,9 @@ This Chromium extension allows users to quickly create new topics or replies on 
 **Security & Privacy:**
 - No data collection - all clipping happens directly between your browser and your Discourse instance
 - No third-party servers involved
-- API keys stored securely in Chrome's sync storage
+- API keys stored locally in Chrome's storage on this device only (not synced through your Google account)
 - Support for user-scoped API keys with granular permissions
+- HTTPS required by default; HTTP connections require an explicit advanced opt-in with a plaintext warning
 
 ## Installation & Setup
 
