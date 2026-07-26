@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "./constants.js";
+import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS, THEMES } from "./constants.js";
 import { DEFAULT_CLIP_TEMPLATES } from "./markdown.js";
+import { normalizeTheme } from "./theme.js";
 
 // Default per-profile settings used for normalization and migrations.
 export const DEFAULT_PROFILE = {
@@ -27,7 +28,8 @@ export const DEFAULT_PROFILE = {
 
 export const DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false,
-  allowHttp: false
+  allowHttp: false,
+  theme: THEMES.SYSTEM
 };
 
 export function isProfileConnected(profile) {
@@ -141,7 +143,7 @@ function withProfilesLock(task) {
 //
 // Profiles and activeProfileId live in chrome.storage.local (keeps
 // credentials on this device only, avoids the 8 KB sync per-item quota).
-// useFaviconForIcon stays in chrome.storage.sync (small, non-sensitive).
+// Global preferences stay in chrome.storage.sync (small, non-sensitive).
 async function readState() {
   const localData = await chrome.storage.local.get(null);
   const syncData = await chrome.storage.sync.get(null);
@@ -151,6 +153,7 @@ async function readState() {
   const allowHttp = typeof syncData.allowHttp === "boolean"
     ? syncData.allowHttp
     : DEFAULT_GLOBAL_SETTINGS.allowHttp;
+  const theme = normalizeTheme(syncData.theme);
 
   // Profiles already in local storage (normal post-migration state).
   if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
@@ -161,9 +164,10 @@ async function readState() {
       : profiles[0].id;
     const needsRepair = activeProfileId !== localData.activeProfileId
       || syncData.useFaviconForIcon === undefined
+      || syncData.theme !== theme
       || authMethodsChanged;
 
-    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair };
+    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, theme, needsRepair };
   }
 
   // Migration needed: profiles still in sync (pre-R61 layout).
@@ -172,18 +176,29 @@ async function readState() {
     const activeProfileId = profiles.some((profile) => profile.id === syncData.activeProfileId)
       ? syncData.activeProfileId
       : profiles[0].id;
-    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair: true };
+    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, theme, needsRepair: true };
   }
 
   // Legacy single-profile keys in sync (pre-multi-profile layout).
-  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, allowHttp, needsRepair: true };
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, allowHttp, theme, needsRepair: true };
+}
+
+function getGlobalSettingsRepairs(syncData, useFaviconForIcon, theme) {
+  const updates = {};
+  if (syncData.useFaviconForIcon === undefined) {
+    updates.useFaviconForIcon = useFaviconForIcon;
+  }
+  if (syncData.theme !== theme) {
+    updates.theme = theme;
+  }
+  return updates;
 }
 
 // Re-read and persist migrations or repairs. Must be called under the lock so
 // the write cannot clobber a concurrent update from another context.
 async function loadStateLocked() {
   const state = await readState();
-  const { useFaviconForIcon, allowHttp } = state;
+  const { useFaviconForIcon, allowHttp, theme } = state;
 
   if (state.source === "local") {
     if (state.needsRepair) {
@@ -191,11 +206,12 @@ async function loadStateLocked() {
         profiles: state.profiles,
         activeProfileId: state.activeProfileId
       });
-      if (state.syncData.useFaviconForIcon === undefined) {
-        await chrome.storage.sync.set({ useFaviconForIcon });
+      const globalRepairs = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon, theme);
+      if (Object.keys(globalRepairs).length > 0) {
+        await chrome.storage.sync.set(globalRepairs);
       }
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp, theme };
   }
 
   if (state.source === "sync-migrate") {
@@ -205,10 +221,11 @@ async function loadStateLocked() {
       activeProfileId: state.activeProfileId
     });
     await chrome.storage.sync.remove(["profiles", "activeProfileId"]);
-    if (state.syncData.useFaviconForIcon === undefined) {
-      await chrome.storage.sync.set({ useFaviconForIcon });
+    const globalRepairs = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon, theme);
+    if (Object.keys(globalRepairs).length > 0) {
+      await chrome.storage.sync.set(globalRepairs);
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp, theme };
   }
 
   // Legacy single-profile migration: build from old sync keys into local.
@@ -229,9 +246,12 @@ async function loadStateLocked() {
 
   await chrome.storage.local.set({ profiles, activeProfileId });
   await chrome.storage.sync.remove(LEGACY_KEYS);
-  await chrome.storage.sync.set({ useFaviconForIcon });
+  const globalRepairs = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon, theme);
+  if (Object.keys(globalRepairs).length > 0) {
+    await chrome.storage.sync.set(globalRepairs);
+  }
 
-  return { profiles, activeProfileId, useFaviconForIcon, allowHttp };
+  return { profiles, activeProfileId, useFaviconForIcon, allowHttp, theme };
 }
 
 // Load settings; ordinary reads never write, and migration or repair happens
@@ -239,7 +259,7 @@ async function loadStateLocked() {
 async function loadState() {
   const state = await readState();
   if (state.profiles && !state.needsRepair) {
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp, theme: state.theme };
   }
   return withProfilesLock(loadStateLocked);
 }
@@ -262,6 +282,9 @@ export async function saveGlobalSettings(partial) {
   }
   if (typeof partial.allowHttp === "boolean") {
     updates.allowHttp = partial.allowHttp;
+  }
+  if (typeof partial.theme === "string") {
+    updates.theme = normalizeTheme(partial.theme);
   }
   if (Object.keys(updates).length > 0) {
     await chrome.storage.sync.set(updates);

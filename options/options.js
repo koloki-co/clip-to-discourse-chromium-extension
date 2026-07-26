@@ -23,6 +23,7 @@ import {
   decryptUserApiPayload,
   generateUserApiKeyPair
 } from "../shared/user-api-crypto.js";
+import { applyTheme } from "../shared/theme.js";
 
 // Options page controller for managing profiles and defaults.
 const form = document.getElementById("settings-form");
@@ -61,6 +62,7 @@ const allowHttpToggle = document.querySelector(".allow-http-toggle");
 // Cache field references to simplify validation and save logic.
 const fields = {
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
+  theme: document.getElementById("theme"),
   baseUrl: document.getElementById("baseUrl"),
   allowHttp: document.getElementById("allowHttp"),
   authMethod: document.getElementById("authMethod"),
@@ -112,7 +114,7 @@ function setUserApiStatus(message, isError = false) {
     return;
   }
   userApiStatusEl.textContent = message;
-  userApiStatusEl.style.color = isError ? "#b42318" : "";
+  userApiStatusEl.classList.toggle("is-error", isError);
 }
 
 function setUserApiDeviceCode(code = "") {
@@ -260,7 +262,7 @@ function setExtensionVersion() {
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
-  statusEl.style.color = isError ? "#b42318" : "";
+  statusEl.classList.toggle("is-error", isError);
 }
 
 function clearErrors() {
@@ -400,6 +402,8 @@ async function loadSettings() {
   profiles = state.profiles || [];
   activeProfileId = state.activeProfileId;
   useFaviconForIcon = state.useFaviconForIcon;
+  fields.theme.value = state.theme;
+  applyTheme(state.theme);
   if (fields.allowHttp) {
     fields.allowHttp.checked = state.allowHttp || false;
   }
@@ -414,6 +418,7 @@ function setButtonsDisabled(disabled) {
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
+  fields.theme.disabled = disabled;
   // Switching profile or auth method mid-operation would make a slow flow
   // (device authorization, permission prompt) save into the wrong profile.
   profileSelect.disabled = disabled;
@@ -465,7 +470,8 @@ async function handleSubmit(event) {
 
     await saveGlobalSettings({
       useFaviconForIcon: fields.useFaviconForIcon.checked,
-      allowHttp: fields.allowHttp?.checked || false
+      allowHttp: fields.allowHttp?.checked || false,
+      theme: fields.theme.value
     });
 
     await loadSettings();
@@ -478,6 +484,16 @@ async function handleSubmit(event) {
     setStatus(error.message || "Failed to save settings.", true);
   } finally {
     setButtonsDisabled(false);
+  }
+}
+
+async function handleThemeChange() {
+  const theme = fields.theme.value;
+  applyTheme(theme);
+  try {
+    await saveGlobalSettings({ theme });
+  } catch (error) {
+    setStatus(error.message || "Failed to save theme preference.", true);
   }
 }
 
@@ -930,6 +946,7 @@ fields.baseUrl.addEventListener("input", refreshHttpWarning);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", refreshHttpWarning);
 }
+fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
 });

@@ -9,9 +9,10 @@ import {
   saveProfile,
   addProfile,
   deleteProfile,
+  saveGlobalSettings,
   DEFAULT_PROFILE
 } from "../../shared/settings.js";
-import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../../shared/constants.js";
+import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS, THEMES } from "../../shared/constants.js";
 
 describe("Chrome Storage Configuration", () => {
   let mockSync;
@@ -137,6 +138,36 @@ describe("Chrome Storage Configuration", () => {
 
       expect(state.activeProfile.id).toBe("profile-2");
       expect(state.activeProfile.baseUrl).toBe("https://forum2.example.com");
+    });
+
+    it("defaults a missing theme to System and repairs sync storage", async () => {
+      mockLocal.profiles = [{ id: "profile-1", name: "Profile 1" }];
+      mockLocal.activeProfileId = "profile-1";
+
+      const state = await getSettingsState();
+
+      expect(state.theme).toBe(THEMES.SYSTEM);
+      expect(mockSync.theme).toBe(THEMES.SYSTEM);
+    });
+
+    it("normalizes an invalid stored theme to System", async () => {
+      mockLocal.profiles = [{ id: "profile-1", name: "Profile 1" }];
+      mockLocal.activeProfileId = "profile-1";
+      mockSync.theme = "sepia";
+
+      const state = await getSettingsState();
+
+      expect(state.theme).toBe(THEMES.SYSTEM);
+      expect(mockSync.theme).toBe(THEMES.SYSTEM);
+    });
+  });
+
+  describe("saveGlobalSettings", () => {
+    it("persists the theme in sync storage only", async () => {
+      await saveGlobalSettings({ theme: THEMES.DARK });
+
+      expect(mockSync.theme).toBe(THEMES.DARK);
+      expect(mockLocal.theme).toBeUndefined();
     });
   });
 

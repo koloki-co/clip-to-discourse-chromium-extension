@@ -110,7 +110,7 @@ export const test = base.extend({
         popupUrl: `chrome-extension://${extensionId}/popup/popup.html`,
         async setStorage(state) {
           await serviceWorker.evaluate(async (nextState) => {
-            const { allowHttp, useFaviconForIcon, ...localState } = nextState;
+            const { allowHttp, theme, useFaviconForIcon, ...localState } = nextState;
             await chrome.storage.local.set(localState);
             const globalState = {};
             if (typeof useFaviconForIcon === "boolean") {
@@ -118,6 +118,9 @@ export const test = base.extend({
             }
             if (typeof allowHttp === "boolean") {
               globalState.allowHttp = allowHttp;
+            }
+            if (typeof theme === "string") {
+              globalState.theme = theme;
             }
             if (Object.keys(globalState).length > 0) {
               await chrome.storage.sync.set(globalState);

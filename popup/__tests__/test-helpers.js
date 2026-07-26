@@ -113,10 +113,16 @@ export function setupChromeMock({
 } = {}) {
   const syncStore = {};
   const localStore = {};
-  const { useFaviconForIcon, ...localData } = storage;
+  const { allowHttp, theme, useFaviconForIcon, ...localData } = storage;
   Object.assign(localStore, localData);
   if (useFaviconForIcon !== undefined) {
     syncStore.useFaviconForIcon = useFaviconForIcon;
+  }
+  if (allowHttp !== undefined) {
+    syncStore.allowHttp = allowHttp;
+  }
+  if (theme !== undefined) {
+    syncStore.theme = theme;
   }
 
   globalThis.chrome = {

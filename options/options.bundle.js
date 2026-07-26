@@ -13,6 +13,11 @@ var AUTH_METHODS = {
   ADMIN_API_KEY: "admin_api_key",
   USER_API: "user_api"
 };
+var THEMES = {
+  SYSTEM: "system",
+  LIGHT: "light",
+  DARK: "dark"
+};
 
 // shared/markdown.js
 var DEFAULT_CLIP_TEMPLATES = {
@@ -21,6 +26,14 @@ var DEFAULT_CLIP_TEMPLATES = {
   fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
   textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
 };
+
+// shared/theme.js
+function normalizeTheme(value) {
+  return Object.values(THEMES).includes(value) ? value : THEMES.SYSTEM;
+}
+function applyTheme(value) {
+  document.documentElement.dataset.theme = normalizeTheme(value);
+}
 
 // shared/settings.js
 var DEFAULT_PROFILE = {
@@ -44,7 +57,8 @@ var DEFAULT_PROFILE = {
 };
 var DEFAULT_GLOBAL_SETTINGS = {
   useFaviconForIcon: false,
-  allowHttp: false
+  allowHttp: false,
+  theme: THEMES.SYSTEM
 };
 function isProfileConnected(profile) {
   if (!profile?.baseUrl) {
@@ -137,34 +151,46 @@ async function readState() {
   const syncData = await chrome.storage.sync.get(null);
   const useFaviconForIcon2 = typeof syncData.useFaviconForIcon === "boolean" ? syncData.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
   const allowHttp = typeof syncData.allowHttp === "boolean" ? syncData.allowHttp : DEFAULT_GLOBAL_SETTINGS.allowHttp;
+  const theme = normalizeTheme(syncData.theme);
   if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
     const profiles2 = localData.profiles.map(normalizeProfile);
     const authMethodsChanged = profiles2.some((profile, index) => profile.authMethod !== localData.profiles[index].authMethod);
     const activeProfileId2 = profiles2.some((profile) => profile.id === localData.activeProfileId) ? localData.activeProfileId : profiles2[0].id;
-    const needsRepair = activeProfileId2 !== localData.activeProfileId || syncData.useFaviconForIcon === void 0 || authMethodsChanged;
-    return { source: "local", syncData, profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp, needsRepair };
+    const needsRepair = activeProfileId2 !== localData.activeProfileId || syncData.useFaviconForIcon === void 0 || syncData.theme !== theme || authMethodsChanged;
+    return { source: "local", syncData, profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp, theme, needsRepair };
   }
   if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
     const profiles2 = syncData.profiles.map(normalizeProfile);
     const activeProfileId2 = profiles2.some((profile) => profile.id === syncData.activeProfileId) ? syncData.activeProfileId : profiles2[0].id;
-    return { source: "sync-migrate", syncData, profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp, needsRepair: true };
+    return { source: "sync-migrate", syncData, profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp, theme, needsRepair: true };
   }
-  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon: useFaviconForIcon2, allowHttp, needsRepair: true };
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon: useFaviconForIcon2, allowHttp, theme, needsRepair: true };
+}
+function getGlobalSettingsRepairs(syncData, useFaviconForIcon2, theme) {
+  const updates = {};
+  if (syncData.useFaviconForIcon === void 0) {
+    updates.useFaviconForIcon = useFaviconForIcon2;
+  }
+  if (syncData.theme !== theme) {
+    updates.theme = theme;
+  }
+  return updates;
 }
 async function loadStateLocked() {
   const state = await readState();
-  const { useFaviconForIcon: useFaviconForIcon2, allowHttp } = state;
+  const { useFaviconForIcon: useFaviconForIcon2, allowHttp, theme } = state;
   if (state.source === "local") {
     if (state.needsRepair) {
       await chrome.storage.local.set({
         profiles: state.profiles,
         activeProfileId: state.activeProfileId
       });
-      if (state.syncData.useFaviconForIcon === void 0) {
-        await chrome.storage.sync.set({ useFaviconForIcon: useFaviconForIcon2 });
+      const globalRepairs2 = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon2, theme);
+      if (Object.keys(globalRepairs2).length > 0) {
+        await chrome.storage.sync.set(globalRepairs2);
       }
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: useFaviconForIcon2, allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: useFaviconForIcon2, allowHttp, theme };
   }
   if (state.source === "sync-migrate") {
     await chrome.storage.local.set({
@@ -172,10 +198,11 @@ async function loadStateLocked() {
       activeProfileId: state.activeProfileId
     });
     await chrome.storage.sync.remove(["profiles", "activeProfileId"]);
-    if (state.syncData.useFaviconForIcon === void 0) {
-      await chrome.storage.sync.set({ useFaviconForIcon: useFaviconForIcon2 });
+    const globalRepairs2 = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon2, theme);
+    if (Object.keys(globalRepairs2).length > 0) {
+      await chrome.storage.sync.set(globalRepairs2);
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: useFaviconForIcon2, allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: useFaviconForIcon2, allowHttp, theme };
   }
   const legacyProfile = createProfile({
     name: "Default",
@@ -192,13 +219,16 @@ async function loadStateLocked() {
   const activeProfileId2 = legacyProfile.id;
   await chrome.storage.local.set({ profiles: profiles2, activeProfileId: activeProfileId2 });
   await chrome.storage.sync.remove(LEGACY_KEYS);
-  await chrome.storage.sync.set({ useFaviconForIcon: useFaviconForIcon2 });
-  return { profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp };
+  const globalRepairs = getGlobalSettingsRepairs(state.syncData, useFaviconForIcon2, theme);
+  if (Object.keys(globalRepairs).length > 0) {
+    await chrome.storage.sync.set(globalRepairs);
+  }
+  return { profiles: profiles2, activeProfileId: activeProfileId2, useFaviconForIcon: useFaviconForIcon2, allowHttp, theme };
 }
 async function loadState() {
   const state = await readState();
   if (state.profiles && !state.needsRepair) {
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp, theme: state.theme };
   }
   return withProfilesLock(loadStateLocked);
 }
@@ -217,6 +247,9 @@ async function saveGlobalSettings(partial) {
   }
   if (typeof partial.allowHttp === "boolean") {
     updates.allowHttp = partial.allowHttp;
+  }
+  if (typeof partial.theme === "string") {
+    updates.theme = normalizeTheme(partial.theme);
   }
   if (Object.keys(updates).length > 0) {
     await chrome.storage.sync.set(updates);
@@ -713,6 +746,7 @@ var httpWarning = document.getElementById("httpWarning");
 var allowHttpToggle = document.querySelector(".allow-http-toggle");
 var fields = {
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
+  theme: document.getElementById("theme"),
   baseUrl: document.getElementById("baseUrl"),
   allowHttp: document.getElementById("allowHttp"),
   authMethod: document.getElementById("authMethod"),
@@ -757,7 +791,7 @@ function setUserApiStatus(message, isError = false) {
     return;
   }
   userApiStatusEl.textContent = message;
-  userApiStatusEl.style.color = isError ? "#b42318" : "";
+  userApiStatusEl.classList.toggle("is-error", isError);
 }
 function setUserApiDeviceCode(code = "") {
   userApiDeviceCode.textContent = code;
@@ -877,7 +911,7 @@ function setExtensionVersion() {
 }
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
-  statusEl.style.color = isError ? "#b42318" : "";
+  statusEl.classList.toggle("is-error", isError);
 }
 function clearErrors() {
   errors.baseUrl.textContent = "";
@@ -996,6 +1030,8 @@ async function loadSettings() {
   profiles = state.profiles || [];
   activeProfileId = state.activeProfileId;
   useFaviconForIcon = state.useFaviconForIcon;
+  fields.theme.value = state.theme;
+  applyTheme(state.theme);
   if (fields.allowHttp) {
     fields.allowHttp.checked = state.allowHttp || false;
   }
@@ -1009,6 +1045,7 @@ function setButtonsDisabled(disabled) {
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
+  fields.theme.disabled = disabled;
   profileSelect.disabled = disabled;
   authTabButtons.forEach((button) => {
     button.disabled = disabled;
@@ -1050,7 +1087,8 @@ async function handleSubmit(event) {
     });
     await saveGlobalSettings({
       useFaviconForIcon: fields.useFaviconForIcon.checked,
-      allowHttp: fields.allowHttp?.checked || false
+      allowHttp: fields.allowHttp?.checked || false,
+      theme: fields.theme.value
     });
     await loadSettings();
     await updateActionIconForProfile(
@@ -1062,6 +1100,15 @@ async function handleSubmit(event) {
     setStatus(error.message || "Failed to save settings.", true);
   } finally {
     setButtonsDisabled(false);
+  }
+}
+async function handleThemeChange() {
+  const theme = fields.theme.value;
+  applyTheme(theme);
+  try {
+    await saveGlobalSettings({ theme });
+  } catch (error) {
+    setStatus(error.message || "Failed to save theme preference.", true);
   }
 }
 async function handleTestConnection() {
@@ -1457,6 +1504,7 @@ fields.baseUrl.addEventListener("input", refreshHttpWarning);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", refreshHttpWarning);
 }
+fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
 });

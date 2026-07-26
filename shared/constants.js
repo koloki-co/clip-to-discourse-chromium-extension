@@ -19,6 +19,12 @@ export const AUTH_METHODS = {
   USER_API: "user_api"
 };
 
+export const THEMES = {
+  SYSTEM: "system",
+  LIGHT: "light",
+  DARK: "dark"
+};
+
 // Maximum character length for the raw post body sent to Discourse.
 // Content exceeding this limit is truncated before posting.
 export const MAX_PAYLOAD_LENGTH = 50000;

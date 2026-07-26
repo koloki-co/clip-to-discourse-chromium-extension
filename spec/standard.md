@@ -47,6 +47,8 @@ Radio buttons or checkboxes (mutually exclusive):
    - excerpt = first N lines or characters of visible text
 - Full page text
    - extracted readable content (not raw HTML)
+- Text selection
+   - selected text and its Markdown structure
 - screenshot (future, not MVP)
 - Link to Archive.org saved version of the page (possibly with automatic trigger to archive the page) (future, not MVP)
 
@@ -83,8 +85,8 @@ Examples:
 ### 4.1.4 Visual Style (MVP)
 
 - Use the Lato font across popup and settings UI.
-- Popup and settings background color: `rgb(214, 201, 170)` (hex `#D6C9AA`).
-- Primary button color: `rgb(87, 113, 136)` (hex `#577188`).
+- Popup and settings use the Clip To Discourse semantic theme tokens, with System, Light, and Dark choices.
+- The light theme retains the `#D6C9AA` outer background and `#577188` primary action color.
 
 ### 4.2 Settings Page (Infrequently changed)
 
@@ -98,7 +100,7 @@ or
 
 - Discourse BaseURL e.g. https://forum.example.com, stored without trailing slash
 - Authentication method:
-   - User API authorization through Discourse's device authorization flow, with the encrypted credential returned by polling and stored in `chrome.storage.sync`; this is the preferred user-facing path and does not require an allowlisted callback URL
+   - User API authorization through Discourse's device authorization flow, with the encrypted credential returned by polling and stored in `chrome.storage.local`; this is the preferred user-facing path and does not require an allowlisted callback URL
    - Redirect-based `/user-api-key/new` authorization as a compatibility fallback for older Discourse sites that do not advertise device authorization
    - Administrator-generated single-user API key and API username, entered manually as a fallback
 
@@ -163,7 +165,7 @@ The above renders as a H3 header in Discourse, which is visually distinct withou
    - scripts
    - styles
 
-Plain text only for MVP (no HTML retention)
+Markdown output only for MVP (no raw HTML retention)
 
 ### 5.2 Discourse payload format
 
@@ -226,11 +228,9 @@ The final bare URL ensures Discourse Oneboxing.
 
 ### 6.1 Chrome storage
 
-Use `chrome.storage.sync` for:
+Use `chrome.storage.local` for profiles (including credentials) and `activeProfileId`.
 
-- profiles (array of settings objects, each with its own credentials and defaults)
-- activeProfileId (string)
-- useFaviconForIcon (boolean)
+Use `chrome.storage.sync` for small non-sensitive global preferences such as `useFaviconForIcon`, `allowHttp`, and the selected theme.
 
 No server-side state required.
 

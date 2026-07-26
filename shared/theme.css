@@ -1,0 +1,83 @@
+/* SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd */
+/* SPDX-License-Identifier: GPL-3.0-only */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #d6c9aa;
+  --card: #ffffff;
+  --surface-subtle: #f7f4ef;
+  --surface-emphasis: #eef2f5;
+  --control: #ffffff;
+  --text: #1f2328;
+  --muted: #5c6773;
+  --accent: #577188;
+  --on-accent: #ffffff;
+  --border: #e1ded9;
+  --focus: #2d617f;
+  --selection-bg: #f0f8ff;
+  --selection-border: #b3d9ff;
+  --selection-text: #1f2328;
+  --warning: #633c01;
+  --warning-border: #9a6700;
+  --warning-bg: #fff8c5;
+  --danger: #b42318;
+  --danger-border: #d8a19a;
+  --danger-bg: #fef0f0;
+  --success: #238636;
+  --action-background: rgb(255 255 255 / 96%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #20242a;
+  --card: #282d35;
+  --surface-subtle: #22272e;
+  --surface-emphasis: #30363d;
+  --control: #1c2128;
+  --text: #f0f6fc;
+  --muted: #b1bac4;
+  --accent: #9abbd6;
+  --on-accent: #17212b;
+  --border: #444c56;
+  --focus: #79c0ff;
+  --selection-bg: #1d3d5b;
+  --selection-border: #58a6ff;
+  --selection-text: #f0f6fc;
+  --warning: #f7d977;
+  --warning-border: #d29922;
+  --warning-bg: #3e2e00;
+  --danger: #ff938a;
+  --danger-border: #ff938a;
+  --danger-bg: #4c1d1b;
+  --success: #3fb950;
+  --action-background: rgb(40 45 53 / 96%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --bg: #20242a;
+    --card: #282d35;
+    --surface-subtle: #22272e;
+    --surface-emphasis: #30363d;
+    --control: #1c2128;
+    --text: #f0f6fc;
+    --muted: #b1bac4;
+    --accent: #9abbd6;
+    --on-accent: #17212b;
+    --border: #444c56;
+    --focus: #79c0ff;
+    --selection-bg: #1d3d5b;
+    --selection-border: #58a6ff;
+    --selection-text: #f0f6fc;
+    --warning: #f7d977;
+    --warning-border: #d29922;
+    --warning-bg: #3e2e00;
+    --danger: #ff938a;
+    --danger-border: #ff938a;
+    --danger-bg: #4c1d1b;
+    --success: #3fb950;
+    --action-background: rgb(40 45 53 / 96%);
+  }
+}

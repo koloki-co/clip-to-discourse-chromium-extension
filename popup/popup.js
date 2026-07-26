@@ -8,6 +8,7 @@ import { buildPayload } from "../shared/payload.js";
 import { createPost, listCategories } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { buildExcerpt, htmlToMarkdown, htmlToMarkdownFullPage, normalizeText } from "../shared/extract.js";
+import { applyTheme } from "../shared/theme.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
 const form = document.getElementById("clip-form");
@@ -46,7 +47,7 @@ function setExtensionVersion() {
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
-  statusEl.style.color = isError ? "#b42318" : "";
+  statusEl.classList.toggle("is-error", isError);
 }
 
 function setFormEnabled(enabled) {
@@ -374,6 +375,7 @@ async function handleProfileChange() {
 // Load settings and normalize profile defaults for the UI.
 async function loadSettings() {
   const state = await getSettingsState();
+  applyTheme(state.theme);
   profiles = state.profiles || [];
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
