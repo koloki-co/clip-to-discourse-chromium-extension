@@ -138,6 +138,9 @@ export const test = base.extend({
             origin
           );
         },
+        async getActionTitle() {
+          return serviceWorker.evaluate(() => chrome.action.getTitle({}));
+        },
         async canReadActiveTab() {
           return serviceWorker.evaluate(async () => {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

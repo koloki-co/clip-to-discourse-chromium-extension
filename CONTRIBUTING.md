@@ -29,6 +29,10 @@ Thanks for helping improve Clip to Discourse! This guide covers local setup, tes
 
 `npm run test:e2e` bundles and loads the unpacked extension into a temporary persistent Chromium profile. Tests use loopback fixture servers and dummy credentials; non-loopback HTTP traffic is blocked. Because headless Chromium cannot accept extension host-access prompts, a temporary manifest copy pregrants only the mock API host while preserving and checking the production manifest's optional-access contract.
 
+### Native Toolbar Favicon Check
+
+Playwright verifies favicon fetching, caching, and the action title, but Chromium does not expose native toolbar pixels to automation. Before a release, load the unpacked extension in Chromium, enable “Use destination site favicon for the toolbar icon” in Settings, save, and confirm the toolbar uses the destination favicon. Disable the setting and confirm the fallback Clip To Discourse icon returns.
+
 ## Versioning and releases
 
 - Ensure `manifest.json` and `package.json` stay in sync (CI enforces this).

@@ -122,3 +122,29 @@ test("shows an actionable error when Discourse rejects the connection test", asy
   await expect(page.getByRole("status").last()).toContainText("Discourse rejected the stored credential");
   await expect(page.getByRole("status").last()).toContainText("Test credential was rejected.");
 });
+
+test("caches the destination favicon when the toolbar setting is enabled", async ({
+  extension,
+  mockDiscourse,
+  page
+}) => {
+  const profile = connectedAdminProfile({ baseUrl: mockDiscourse.baseUrl });
+  await extension.setStorage({
+    profiles: [profile],
+    activeProfileId: profile.id,
+    useFaviconForIcon: false,
+    allowHttp: true
+  });
+
+  await page.goto(extension.optionsUrl);
+  await page.getByRole("checkbox", { name: "Use destination site favicon for the toolbar icon" }).check();
+  await page.getByRole("button", { name: "Save Settings" }).click();
+  await expect(page.getByRole("status").last()).toContainText("Settings saved");
+  await expect.poll(async () => {
+    const storage = await extension.getStorage();
+    return storage.faviconCache?.[profile.id] || "";
+  }).toMatch(/^data:image\/png;base64,/);
+
+  expect(mockDiscourse.requests.some((request) => request.path === "/favicon.ico")).toBe(true);
+  expect(await extension.getActionTitle()).toBe("Clip To Discourse");
+});

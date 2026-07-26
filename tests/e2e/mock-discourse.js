@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import http from "node:http";
+import { readFileSync } from "node:fs";
 
 const longFixtureText = "Full-page fixture content gives Readability enough prose to retain the article body. ".repeat(12);
+const favicon = readFileSync(new URL("../../assets/images/clip-to-discourse-logo.png", import.meta.url));
 
 async function readJson(request) {
   const chunks = [];
@@ -57,6 +59,12 @@ export async function startMockDiscourse() {
       headers: request.headers,
       body
     });
+
+    if (request.method === "GET" && url.pathname === "/favicon.ico") {
+      response.setHeader("Content-Type", "image/png");
+      response.end(favicon);
+      return;
+    }
 
     response.setHeader("Content-Type", "application/json");
     if (request.method === "GET" && url.pathname === "/site.json") {
