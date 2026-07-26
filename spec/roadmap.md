@@ -15,12 +15,6 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
 - [ ] **R67 - Offer opt-in passphrase protection for locally stored credentials** using a user-chosen passphrase, key derivation, authenticated encryption, a clear forgotten-passphrase warning, and a migration path for existing local credentials. This is for security-conscious users and must remain optional rather than blocking the default local-only credential flow.
 
-### Testing And Quality Assurance
-
-#### Coverage And Regression
-- [x] **R02 - Set up coverage thresholds for core logic** covering extraction, payload building, and posting.
-- [x] **R03 - Add regression tests for edge cases** including empty titles, very long content, and special characters.
-
 ### Chrome Web Store
 
 #### Release Assets
@@ -28,30 +22,11 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 - [ ] **R05 - Verify and update the store listing descriptions**
 - [ ] **R06 - Complete the data disclosure form with current permissions**
 
-#### Pre-Publish QA
-- [x] **R07 - Use Playwright to load the unpacked extension in a fresh temporary Chromium profile before each release**
-- [x] **R08 - Use Playwright to verify all clip styles against a mock Discourse endpoint before each release**
-- [x] **R09 - Use Playwright to test the connection test feature against success and failure responses before each release**
-- [x] **R10 - Use Playwright to verify the favicon icon setting where extension APIs expose observable state, with a documented manual check for native toolbar rendering**
-- [x] **R11 - Use Playwright to test profile switching and settings persistence before each release**
-
-### Documentation
-
-#### Developer Documentation
-- [ ] **R12 - Add an architecture overview** covering content extraction, payload building, Discourse API integration, and profile management.
-- [ ] **R13 - Document how to add new clip styles or extend functionality**
-- [ ] **R14 - Add a troubleshooting guide for common development issues**
-
 ---
 
 ## Future Enhancements
 
 ### User Experience
-
-#### Dark Mode And Theming
-- [ ] **R15 - Add System, Light, and Dark theme choices** defaulting to System and applying to the popup and options pages.
-- [ ] **R16 - Persist the chosen theme in `chrome.storage.sync`**
-- [ ] **R17 - React to OS theme changes while the extension UI is open**
 
 #### Keyboard Shortcuts
 - [ ] **R18 - Add a configurable keyboard shortcut to open the popup**

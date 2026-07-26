@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file. See [standa
 - Verify profile switching and distinct settings persistence in headless Playwright (R11).
 - Verify favicon fetching, caching, and action state with a documented native-toolbar manual check (R10).
 - Run headless unpacked-extension Playwright QA in release and Chrome Web Store publishing workflows (R07).
+- Add architecture, clip-style extension, and troubleshooting developer guides (R12-R14).
+- Add synchronised System, Light, and Dark appearance settings that react to OS preference changes (R15-R17).
 
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 

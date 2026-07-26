@@ -30,6 +30,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 - Multiple profiles - maintain separate configurations for different Discourse instances or users
 - Customizable templates for titles and clip body using placeholders like `{{title}}`, `{{url}}`, `{{date}}`, `{{datetime}}`, `{{excerpt}}`, `{{full-text}}`, `{{text-selection}}`
 - Optional favicon-based toolbar icon to match your Discourse instance
+- System, Light, and Dark appearance choices shared by the popup and Settings
 - Default clip style and destination mode per profile
 - Lazy-loaded category selectors showing the categories available to the connected account
 
@@ -56,7 +57,7 @@ Create multiple profiles to manage different Discourse instances or post as diff
 
 - **Discourse Base URL**: The root URL of your Discourse instance (e.g. `https://meta.discourse.org`)
 - **Authentication**: Prefer browser-based User API authorization; alternatively enter an administrator-generated single-user API key and its username
-- **Default Clip Style**: Choose between "Title + URL", "Excerpt", or "Full Page Text"
+- **Default Clip Style**: Choose between "Title + URL", "Excerpt", "Full Page Text", or "Text Selection"
 - **Default Destination Mode**: Create new topics or append to existing topics
 - **Default Category/Topic**: Choose a visible Discourse category for new topics or enter a topic ID for replies
 - **Custom Templates**: Personalize how your clips appear using template placeholders
@@ -102,6 +103,8 @@ Example body template: `### {{title}}\n{{url}}\n\n{{excerpt}}`
 - `npm run package` - Create release zip file
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow, [spec/README.md](spec/README.md) for product decisions, [spec/roadmap.md](spec/roadmap.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
+Developer guides for the runtime architecture, extending clip styles, and common diagnostics are in [docs/README.md](docs/README.md).
 
 ## License
 
