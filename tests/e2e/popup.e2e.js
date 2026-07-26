@@ -46,6 +46,59 @@ test("detects selected text and posts it to the chosen category", async ({
   expect(postRequest.body.title).toBe("Clip: Playwright Fixture Article");
 });
 
+test("posts every clip style to the configured Discourse endpoint", async ({
+  extension,
+  fixtureSite,
+  mockDiscourse,
+  page
+}) => {
+  const profile = connectedAdminProfile({
+    baseUrl: mockDiscourse.baseUrl,
+    overrides: {
+      defaultCategoryId: "1",
+      titleUrlTemplate: "style:title-url\n{{title}}\n{{url}}",
+      excerptTemplate: "style:excerpt\n{{excerpt}}",
+      fullTextTemplate: "style:full-text\n{{full-text}}",
+      textSelectionTemplate: "style:text-selection\n{{text-selection-markdown}}"
+    }
+  });
+  await extension.setStorage({
+    profiles: [profile],
+    activeProfileId: profile.id,
+    useFaviconForIcon: false,
+    allowHttp: true
+  });
+  await page.goto(fixtureSite.url);
+  await selectFixtureText(page);
+  await page.bringToFront();
+
+  const popup = await extension.triggerAction(page);
+  await popup.getByRole("combobox", { name: "Category" }).focus();
+  await expect(popup.getByRole("option", { name: "Community / Support" })).toBeAttached();
+
+  const styles = [
+    { name: "Title + URL", marker: "style:title-url", content: "Playwright Fixture Article" },
+    { name: "Title + URL + excerpt", marker: "style:excerpt", content: "Important **selected text** for clipping." },
+    { name: "Full page text", marker: "style:full-text", content: "Full-page fixture content" },
+    { name: "Text selection", marker: "style:text-selection", content: "Important **selected text** for clipping." }
+  ];
+
+  for (const [index, style] of styles.entries()) {
+    await popup.getByRole("radio", { name: style.name, exact: true }).check();
+    await popup.getByRole("button", { name: "Clip" }).click();
+    await expect.poll(() => mockDiscourse.requests.filter((request) => request.path === "/posts.json").length)
+      .toBe(index + 1);
+    await expect(popup.getByRole("status").last()).toContainText("Clipped successfully");
+  }
+
+  const posts = mockDiscourse.requests.filter((request) => request.path === "/posts.json");
+  styles.forEach((style, index) => {
+    expect(posts[index].body.category).toBe(1);
+    expect(posts[index].body.raw).toContain(style.marker);
+    expect(posts[index].body.raw).toContain(style.content);
+  });
+});
+
 test("switches profile, persists it, and posts a reply with that profile", async ({
   extension,
   fixtureSite,

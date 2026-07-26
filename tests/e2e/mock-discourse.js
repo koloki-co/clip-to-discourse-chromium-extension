@@ -3,6 +3,8 @@
 
 import http from "node:http";
 
+const longFixtureText = "Full-page fixture content gives Readability enough prose to retain the article body. ".repeat(12);
+
 async function readJson(request) {
   const chunks = [];
   for await (const chunk of request) {
@@ -106,11 +108,11 @@ export async function startFixtureSite() {
       <html lang="en">
         <head><title>Playwright Fixture Article</title></head>
         <body>
-          <main>
+          <article>
             <h1>Playwright Fixture Article</h1>
             <p id="selection-source">Important <strong>selected text</strong> for clipping.</p>
-            <p>Additional article content for full-page extraction.</p>
-          </main>
+            <p>${longFixtureText}</p>
+          </article>
         </body>
       </html>`);
   });
