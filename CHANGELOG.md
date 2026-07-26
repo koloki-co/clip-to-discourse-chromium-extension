@@ -5,6 +5,10 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+- Harden profile, credential, HTTP transport, popup, extraction, device-authorization, category-loading, and favicon behavior following the July 2026 code review (roadmap R54-R66).
+
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 
 
