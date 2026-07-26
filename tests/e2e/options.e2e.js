@@ -70,3 +70,23 @@ test("loads visible categories and tests the configured connection", async ({
   expect(sessionRequest.headers["api-key"]).toBe("e2e-not-a-secret-a");
   expect(sessionRequest.headers["api-username"]).toBe("e2e-user-a");
 });
+
+test("shows an actionable error when Discourse rejects the connection test", async ({
+  extension,
+  mockDiscourse,
+  page
+}) => {
+  const profile = connectedAdminProfile({ baseUrl: mockDiscourse.baseUrl });
+  mockDiscourse.setConnectionResponse(401, { errors: ["Test credential was rejected."] });
+  await extension.setStorage({
+    profiles: [profile],
+    activeProfileId: profile.id,
+    useFaviconForIcon: false,
+    allowHttp: true
+  });
+
+  await page.goto(extension.optionsUrl);
+  await page.getByRole("button", { name: "Test Connection" }).click();
+  await expect(page.getByRole("status").last()).toContainText("Discourse rejected the stored credential");
+  await expect(page.getByRole("status").last()).toContainText("Test credential was rejected.");
+});

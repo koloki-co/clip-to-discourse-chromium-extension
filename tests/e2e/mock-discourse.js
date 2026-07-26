@@ -35,6 +35,10 @@ function close(server) {
 
 export async function startMockDiscourse() {
   const requests = [];
+  let connectionResponse = {
+    status: 200,
+    body: { current_user: { username: "e2e-user" } }
+  };
   const server = http.createServer(async (request, response) => {
     response.setHeader("Access-Control-Allow-Origin", "*");
     response.setHeader("Access-Control-Allow-Headers", "Api-Key, Api-Username, Content-Type, User-Api-Key, User-Api-Client-Id");
@@ -66,7 +70,7 @@ export async function startMockDiscourse() {
       return;
     }
     if (request.method === "GET" && url.pathname === "/session/current.json") {
-      response.end(JSON.stringify({ current_user: { username: "e2e-user" } }));
+      response.writeHead(connectionResponse.status).end(JSON.stringify(connectionResponse.body));
       return;
     }
     if (request.method === "POST" && url.pathname === "/posts.json") {
@@ -94,6 +98,9 @@ export async function startMockDiscourse() {
     requests,
     resetRequests() {
       requests.length = 0;
+    },
+    setConnectionResponse(status, body) {
+      connectionResponse = { status, body };
     },
     async close() {
       await close(server);
