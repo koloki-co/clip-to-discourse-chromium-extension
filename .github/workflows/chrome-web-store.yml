@@ -32,6 +32,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - run: npm run test:coverage
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm run version:check
       - run: npm run package
       - name: Upload and publish

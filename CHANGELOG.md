@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file. See [standa
 - Verify successful and rejected Discourse connection tests in headless Playwright (R09).
 - Verify profile switching and distinct settings persistence in headless Playwright (R11).
 - Verify favicon fetching, caching, and action state with a documented native-toolbar manual check (R10).
+- Run headless unpacked-extension Playwright QA in release and Chrome Web Store publishing workflows (R07).
 
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 
