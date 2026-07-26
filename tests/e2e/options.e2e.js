@@ -13,10 +13,12 @@ test("creates, saves, switches, and persists profiles with host access", async (
   await page.getByRole("textbox", { name: "New profile name" }).fill("Forum A");
   await page.getByRole("button", { name: "Create Profile" }).click();
   const profileSelect = page.getByRole("combobox", { name: "Active Profile" });
+  await expect(page.getByRole("status").last()).toContainText('Profile "Forum A" created.');
   const forumAId = await profileSelect.inputValue();
 
   await page.getByRole("tab", { name: "Admin API Key" }).click();
   await page.getByRole("textbox", { name: "Discourse BaseURL" }).fill(mockDiscourse.baseUrl);
+  await page.getByRole("checkbox", { name: "Allow HTTP connections (advanced)" }).check();
   await page.getByRole("textbox", { name: "Discourse API Username" }).fill("e2e-user-a");
   await page.getByRole("textbox", { name: /Discourse API Key/ }).fill("e2e-not-a-secret-a");
   await page.getByRole("button", { name: "Save Settings" }).click();
@@ -26,10 +28,15 @@ test("creates, saves, switches, and persists profiles with host access", async (
   await page.getByRole("button", { name: "Add Profile" }).click();
   await page.getByRole("textbox", { name: "New profile name" }).fill("Forum B");
   await page.getByRole("button", { name: "Create Profile" }).click();
+  await expect(page.getByRole("status").last()).toContainText('Profile "Forum B" created.');
   await expect(profileSelect).not.toHaveValue(forumAId);
 
   await profileSelect.selectOption({ label: "Forum A" });
   await expect(page.getByRole("textbox", { name: "Discourse BaseURL" })).toHaveValue(mockDiscourse.baseUrl);
+  await expect.poll(async () => {
+    const storage = await extension.getStorage();
+    return storage.activeProfileId;
+  }).toBe(forumAId);
   await page.reload();
   await expect(profileSelect).toHaveValue(forumAId);
 
@@ -48,11 +55,12 @@ test("loads visible categories and tests the configured connection", async ({
   await extension.setStorage({
     profiles: [profile],
     activeProfileId: profile.id,
-    useFaviconForIcon: false
+    useFaviconForIcon: false,
+    allowHttp: true
   });
 
   await page.goto(extension.optionsUrl);
-  await page.getByRole("combobox", { name: /Default Category/ }).focus();
+  await page.getByRole("combobox", { name: /Default Category/ }).click();
   await expect(page.getByRole("option", { name: "Community / Support" })).toBeAttached();
   await page.getByRole("button", { name: "Test Connection" }).click();
   await expect(page.getByRole("status").last()).toContainText("authenticated as @e2e-user");

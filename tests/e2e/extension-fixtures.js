@@ -92,6 +92,17 @@ export const test = base.extend({
     const browserSession = await context.browser().newBrowserCDPSession();
 
     try {
+      await serviceWorker.evaluate(async () => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const { profiles } = await chrome.storage.local.get("profiles");
+          if (Array.isArray(profiles) && profiles.length > 0) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        throw new Error("Extension settings did not initialize in time");
+      });
+
       await use({
         extensionId,
         serviceWorker,
@@ -99,12 +110,17 @@ export const test = base.extend({
         popupUrl: `chrome-extension://${extensionId}/popup/popup.html`,
         async setStorage(state) {
           await serviceWorker.evaluate(async (nextState) => {
-            await chrome.storage.sync.clear();
-            await chrome.storage.local.clear();
-            const { useFaviconForIcon, ...localState } = nextState;
+            const { allowHttp, useFaviconForIcon, ...localState } = nextState;
             await chrome.storage.local.set(localState);
-            if (useFaviconForIcon !== undefined) {
-              await chrome.storage.sync.set({ useFaviconForIcon });
+            const globalState = {};
+            if (typeof useFaviconForIcon === "boolean") {
+              globalState.useFaviconForIcon = useFaviconForIcon;
+            }
+            if (typeof allowHttp === "boolean") {
+              globalState.allowHttp = allowHttp;
+            }
+            if (Object.keys(globalState).length > 0) {
+              await chrome.storage.sync.set(globalState);
             }
           }, state);
         },
