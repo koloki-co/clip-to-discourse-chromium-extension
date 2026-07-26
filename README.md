@@ -95,6 +95,7 @@ Example body template: `### {{title}}\n{{url}}\n\n{{excerpt}}`
 - `npm run dev` - Start bundler in watch mode (recommended for development)
 - `npm run bundle` - Build once without watching
 - `npm run test` - Run unit tests once
+- `npm run test:coverage` - Run core-logic coverage thresholds
 - `npm run test:e2e` - Run Playwright tests against the unpacked extension in Chromium
 - `npm run test:watch` - Run tests in watch mode
 - `npm run build` - Full build with lint, test, bundle, and version check

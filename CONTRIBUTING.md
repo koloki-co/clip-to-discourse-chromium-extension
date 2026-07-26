@@ -15,6 +15,7 @@ Thanks for helping improve Clip to Discourse! This guide covers local setup, tes
 - Install dependencies: `npm ci`
 - Run lint: `s/lint`
 - Run unit and Playwright extension tests: `s/test`
+- Run core-logic coverage thresholds: `npm run test:coverage`
 - Run the complete build: `s/build`
 - Package for the Chrome Web Store: `npm run package`
 

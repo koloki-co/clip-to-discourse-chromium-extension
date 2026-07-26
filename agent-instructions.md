@@ -25,6 +25,7 @@ Clip to Discourse is a Manifest V3 Chromium extension that sends user-selected w
 - `s/build` - lint, test, bundle, and verify versions.
 - `s/test` - run the test suite once.
 - `s/lint` - run ESLint.
+- `npm run test:coverage` - enforce coverage thresholds for extraction, payload building, and Discourse API logic.
 
 ## Before Every Commit
 
