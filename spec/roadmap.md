@@ -44,7 +44,7 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
   **Decision: Option B (local-only profiles).** The loss of cross-machine profile sync is acceptable for a single-user extension, and it improves credential privacy (partially addressing R63). The migration from the current single sync key to `storage.local` must be handled in `loadState` so existing users do not lose their profiles on upgrade. If cross-machine sync is later deemed important, Option C can be adopted as a refinement.
 - [x] **R62 - Fix favicon toolbar icon rendering in the MV3 service worker** where `new Image()` and `DOMParser` do not exist, using `createImageBitmap` so background icon refreshes work (`shared/favicon.js`, `background.js`).
-- [ ] **R63 - Decide and document credential storage and transport policy** covering plaintext API keys in synced storage and whether to warn on or reject `http://` base URLs.
+- [x] **R63 - Decide and document credential storage and transport policy** covering plaintext API keys in synced storage and whether to warn on or reject `http://` base URLs.
 
   Two distinct concerns need an explicit product decision and documentation in the spec and the store privacy disclosure:
 

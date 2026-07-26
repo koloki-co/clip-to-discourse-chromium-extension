@@ -55,11 +55,14 @@ const userApiConnectionState = document.getElementById("userApiConnectionState")
 const userApiDeviceCodePanel = document.getElementById("userApiDeviceCodePanel");
 const userApiDeviceCode = document.getElementById("userApiDeviceCode");
 const defaultCategoryStatus = document.getElementById("defaultCategoryStatus");
+const httpWarning = document.getElementById("httpWarning");
+const allowHttpToggle = document.querySelector(".allow-http-toggle");
 
 // Cache field references to simplify validation and save logic.
 const fields = {
   useFaviconForIcon: document.getElementById("useFaviconForIcon"),
   baseUrl: document.getElementById("baseUrl"),
+  allowHttp: document.getElementById("allowHttp"),
   authMethod: document.getElementById("authMethod"),
   apiUsername: document.getElementById("apiUsername"),
   apiKey: document.getElementById("apiKey"),
@@ -278,6 +281,10 @@ function validateBaseUrlField() {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error("Invalid protocol");
     }
+    if (parsed.protocol === "http:" && !fields.allowHttp?.checked) {
+      errors.baseUrl.textContent = "HTTP connections are disabled by default. Enable \"Allow HTTP connections (advanced)\" below to connect to a non-HTTPS instance.";
+      return false;
+    }
   } catch {
     errors.baseUrl.textContent = "Enter a valid URL (http or https).";
     return false;
@@ -367,15 +374,39 @@ function fillProfileForm(profile) {
   refreshUserApiControls();
 }
 
+function refreshHttpWarning() {
+  if (!httpWarning || !allowHttpToggle || !fields.allowHttp) {
+    return;
+  }
+  const baseUrl = fields.baseUrl.value.trim();
+  let isHttp = false;
+  try {
+    isHttp = new URL(baseUrl).protocol === "http:";
+  } catch {
+    // Not a valid URL yet; leave controls hidden.
+  }
+  if (isHttp) {
+    allowHttpToggle.classList.remove("hidden");
+    httpWarning.classList.toggle("hidden", !fields.allowHttp.checked);
+  } else {
+    allowHttpToggle.classList.add("hidden");
+    httpWarning.classList.add("hidden");
+  }
+}
+
 // Pull settings from storage and refresh the form UI.
 async function loadSettings() {
   const state = await getSettingsState();
   profiles = state.profiles || [];
   activeProfileId = state.activeProfileId;
   useFaviconForIcon = state.useFaviconForIcon;
+  if (fields.allowHttp) {
+    fields.allowHttp.checked = state.allowHttp || false;
+  }
   renderProfiles();
   fillProfileForm(state.activeProfile);
   fields.useFaviconForIcon.checked = useFaviconForIcon;
+  refreshHttpWarning();
 }
 
 function setButtonsDisabled(disabled) {
@@ -433,7 +464,8 @@ async function handleSubmit(event) {
     });
 
     await saveGlobalSettings({
-      useFaviconForIcon: fields.useFaviconForIcon.checked
+      useFaviconForIcon: fields.useFaviconForIcon.checked,
+      allowHttp: fields.allowHttp?.checked || false
     });
 
     await loadSettings();
@@ -894,6 +926,10 @@ checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
+fields.baseUrl.addEventListener("input", refreshHttpWarning);
+if (fields.allowHttp) {
+  fields.allowHttp.addEventListener("change", refreshHttpWarning);
+}
 authTabButtons.forEach((button) => {
   button.addEventListener("click", handleAuthMethodClick);
 });

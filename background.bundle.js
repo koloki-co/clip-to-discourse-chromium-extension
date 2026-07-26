@@ -43,7 +43,8 @@ var DEFAULT_PROFILE = {
   textSelectionTemplate: DEFAULT_CLIP_TEMPLATES.textSelection
 };
 var DEFAULT_GLOBAL_SETTINGS = {
-  useFaviconForIcon: false
+  useFaviconForIcon: false,
+  allowHttp: false
 };
 function isProfileConnected(profile) {
   if (!profile?.baseUrl) {
@@ -135,23 +136,24 @@ async function readState() {
   const localData = await chrome.storage.local.get(null);
   const syncData = await chrome.storage.sync.get(null);
   const useFaviconForIcon = typeof syncData.useFaviconForIcon === "boolean" ? syncData.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
+  const allowHttp = typeof syncData.allowHttp === "boolean" ? syncData.allowHttp : DEFAULT_GLOBAL_SETTINGS.allowHttp;
   if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
     const profiles = localData.profiles.map(normalizeProfile);
     const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== localData.profiles[index].authMethod);
     const activeProfileId = profiles.some((profile) => profile.id === localData.activeProfileId) ? localData.activeProfileId : profiles[0].id;
     const needsRepair = activeProfileId !== localData.activeProfileId || syncData.useFaviconForIcon === void 0 || authMethodsChanged;
-    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair };
   }
   if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
     const profiles = syncData.profiles.map(normalizeProfile);
     const activeProfileId = profiles.some((profile) => profile.id === syncData.activeProfileId) ? syncData.activeProfileId : profiles[0].id;
-    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair: true };
+    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair: true };
   }
-  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, allowHttp, needsRepair: true };
 }
 async function loadStateLocked() {
   const state = await readState();
-  const { useFaviconForIcon } = state;
+  const { useFaviconForIcon, allowHttp } = state;
   if (state.source === "local") {
     if (state.needsRepair) {
       await chrome.storage.local.set({
@@ -162,7 +164,7 @@ async function loadStateLocked() {
         await chrome.storage.sync.set({ useFaviconForIcon });
       }
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
   }
   if (state.source === "sync-migrate") {
     await chrome.storage.local.set({
@@ -173,7 +175,7 @@ async function loadStateLocked() {
     if (state.syncData.useFaviconForIcon === void 0) {
       await chrome.storage.sync.set({ useFaviconForIcon });
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
   }
   const legacyProfile = createProfile({
     name: "Default",
@@ -191,12 +193,12 @@ async function loadStateLocked() {
   await chrome.storage.local.set({ profiles, activeProfileId });
   await chrome.storage.sync.remove(LEGACY_KEYS);
   await chrome.storage.sync.set({ useFaviconForIcon });
-  return { profiles, activeProfileId, useFaviconForIcon };
+  return { profiles, activeProfileId, useFaviconForIcon, allowHttp };
 }
 async function loadState() {
   const state = await readState();
   if (state.profiles && !state.needsRepair) {
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp };
   }
   return withProfilesLock(loadStateLocked);
 }

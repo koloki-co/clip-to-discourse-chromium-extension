@@ -26,7 +26,8 @@ export const DEFAULT_PROFILE = {
 };
 
 export const DEFAULT_GLOBAL_SETTINGS = {
-  useFaviconForIcon: false
+  useFaviconForIcon: false,
+  allowHttp: false
 };
 
 export function isProfileConnected(profile) {
@@ -147,6 +148,9 @@ async function readState() {
   const useFaviconForIcon = typeof syncData.useFaviconForIcon === "boolean"
     ? syncData.useFaviconForIcon
     : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
+  const allowHttp = typeof syncData.allowHttp === "boolean"
+    ? syncData.allowHttp
+    : DEFAULT_GLOBAL_SETTINGS.allowHttp;
 
   // Profiles already in local storage (normal post-migration state).
   if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
@@ -159,7 +163,7 @@ async function readState() {
       || syncData.useFaviconForIcon === undefined
       || authMethodsChanged;
 
-    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair };
   }
 
   // Migration needed: profiles still in sync (pre-R61 layout).
@@ -168,18 +172,18 @@ async function readState() {
     const activeProfileId = profiles.some((profile) => profile.id === syncData.activeProfileId)
       ? syncData.activeProfileId
       : profiles[0].id;
-    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair: true };
+    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, allowHttp, needsRepair: true };
   }
 
   // Legacy single-profile keys in sync (pre-multi-profile layout).
-  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, allowHttp, needsRepair: true };
 }
 
 // Re-read and persist migrations or repairs. Must be called under the lock so
 // the write cannot clobber a concurrent update from another context.
 async function loadStateLocked() {
   const state = await readState();
-  const { useFaviconForIcon } = state;
+  const { useFaviconForIcon, allowHttp } = state;
 
   if (state.source === "local") {
     if (state.needsRepair) {
@@ -191,7 +195,7 @@ async function loadStateLocked() {
         await chrome.storage.sync.set({ useFaviconForIcon });
       }
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
   }
 
   if (state.source === "sync-migrate") {
@@ -204,7 +208,7 @@ async function loadStateLocked() {
     if (state.syncData.useFaviconForIcon === undefined) {
       await chrome.storage.sync.set({ useFaviconForIcon });
     }
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon, allowHttp };
   }
 
   // Legacy single-profile migration: build from old sync keys into local.
@@ -227,7 +231,7 @@ async function loadStateLocked() {
   await chrome.storage.sync.remove(LEGACY_KEYS);
   await chrome.storage.sync.set({ useFaviconForIcon });
 
-  return { profiles, activeProfileId, useFaviconForIcon };
+  return { profiles, activeProfileId, useFaviconForIcon, allowHttp };
 }
 
 // Load settings; ordinary reads never write, and migration or repair happens
@@ -235,7 +239,7 @@ async function loadStateLocked() {
 async function loadState() {
   const state = await readState();
   if (state.profiles && !state.needsRepair) {
-    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon };
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon: state.useFaviconForIcon, allowHttp: state.allowHttp };
   }
   return withProfilesLock(loadStateLocked);
 }
@@ -252,10 +256,16 @@ export async function getSettingsState() {
 
 // Update the small set of global settings.
 export async function saveGlobalSettings(partial) {
-  const useFaviconForIcon = typeof partial.useFaviconForIcon === "boolean"
-    ? partial.useFaviconForIcon
-    : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
-  await chrome.storage.sync.set({ useFaviconForIcon });
+  const updates = {};
+  if (typeof partial.useFaviconForIcon === "boolean") {
+    updates.useFaviconForIcon = partial.useFaviconForIcon;
+  }
+  if (typeof partial.allowHttp === "boolean") {
+    updates.allowHttp = partial.allowHttp;
+  }
+  if (Object.keys(updates).length > 0) {
+    await chrome.storage.sync.set(updates);
+  }
 }
 
 // Persist active profile id only if it exists.

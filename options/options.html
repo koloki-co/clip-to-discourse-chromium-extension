@@ -84,6 +84,13 @@
             <input id="baseUrl" name="baseUrl" type="url" placeholder="https://forum.example.com" required />
             <span id="baseUrlError" class="error"></span>
           </label>
+          <p id="httpWarning" class="hint http-warning hidden" role="alert">
+            HTTP connections send credentials in plaintext. Only use this for local development or trusted intranet instances.
+          </p>
+          <label class="checkbox allow-http-toggle hidden">
+            <input id="allowHttp" name="allowHttp" type="checkbox" />
+            Allow HTTP connections (advanced)
+          </label>
           <input id="authMethod" name="authMethod" type="hidden" value="user_api" />
 
           <div class="auth-tabs" role="tablist" aria-label="Authentication methods">
