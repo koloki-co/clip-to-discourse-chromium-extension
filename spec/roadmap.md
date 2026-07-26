@@ -33,7 +33,7 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 - [x] **R08 - Use Playwright to verify all clip styles against a mock Discourse endpoint before each release**
 - [x] **R09 - Use Playwright to test the connection test feature against success and failure responses before each release**
 - [ ] **R10 - Use Playwright to verify the favicon icon setting where extension APIs expose observable state, with a documented manual check for native toolbar rendering**
-- [ ] **R11 - Use Playwright to test profile switching and settings persistence before each release**
+- [x] **R11 - Use Playwright to test profile switching and settings persistence before each release**
 
 ### Documentation
 

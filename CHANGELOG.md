@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. See [standa
 - Add regression coverage for empty titles, long content, and special characters, and preserve Unicode code-point boundaries during truncation (R03).
 - Verify every clip style against a loopback Discourse mock in headless Playwright (R08).
 - Verify successful and rejected Discourse connection tests in headless Playwright (R09).
+- Verify profile switching and distinct settings persistence in headless Playwright (R11).
 
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 
