@@ -62,7 +62,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(refreshActionIcon);
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "sync" && (changes.profiles || changes.activeProfileId || changes.useFaviconForIcon)) {
+  if (areaName === "local" && (changes.profiles || changes.activeProfileId)) {
+    refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
+  }
+  if (areaName === "sync" && changes.useFaviconForIcon) {
     refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
   }
 });

@@ -137,26 +137,42 @@ function withProfilesLock(task) {
 
 // Read and normalize stored state without writing. Reports whether a
 // migration or repair write is needed so callers can take the lock first.
+//
+// Profiles and activeProfileId live in chrome.storage.local (keeps
+// credentials on this device only, avoids the 8 KB sync per-item quota).
+// useFaviconForIcon stays in chrome.storage.sync (small, non-sensitive).
 async function readState() {
-  const data = await chrome.storage.sync.get(null);
-  const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean"
-    ? data.useFaviconForIcon
+  const localData = await chrome.storage.local.get(null);
+  const syncData = await chrome.storage.sync.get(null);
+  const useFaviconForIcon = typeof syncData.useFaviconForIcon === "boolean"
+    ? syncData.useFaviconForIcon
     : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
 
-  if (Array.isArray(data.profiles) && data.profiles.length > 0) {
-    const profiles = data.profiles.map(normalizeProfile);
-    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
-    const activeProfileId = profiles.some((profile) => profile.id === data.activeProfileId)
-      ? data.activeProfileId
+  // Profiles already in local storage (normal post-migration state).
+  if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
+    const profiles = localData.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== localData.profiles[index].authMethod);
+    const activeProfileId = profiles.some((profile) => profile.id === localData.activeProfileId)
+      ? localData.activeProfileId
       : profiles[0].id;
-    const needsRepair = activeProfileId !== data.activeProfileId
-      || data.useFaviconForIcon === undefined
+    const needsRepair = activeProfileId !== localData.activeProfileId
+      || syncData.useFaviconForIcon === undefined
       || authMethodsChanged;
 
-    return { legacyData: null, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair };
   }
 
-  return { legacyData: data, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+  // Migration needed: profiles still in sync (pre-R61 layout).
+  if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
+    const profiles = syncData.profiles.map(normalizeProfile);
+    const activeProfileId = profiles.some((profile) => profile.id === syncData.activeProfileId)
+      ? syncData.activeProfileId
+      : profiles[0].id;
+    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair: true };
+  }
+
+  // Legacy single-profile keys in sync (pre-multi-profile layout).
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
 }
 
 // Re-read and persist migrations or repairs. Must be called under the lock so
@@ -165,34 +181,51 @@ async function loadStateLocked() {
   const state = await readState();
   const { useFaviconForIcon } = state;
 
-  if (state.profiles) {
+  if (state.source === "local") {
     if (state.needsRepair) {
-      await chrome.storage.sync.set({
+      await chrome.storage.local.set({
         profiles: state.profiles,
-        activeProfileId: state.activeProfileId,
-        useFaviconForIcon
+        activeProfileId: state.activeProfileId
       });
+      if (state.syncData.useFaviconForIcon === undefined) {
+        await chrome.storage.sync.set({ useFaviconForIcon });
+      }
     }
     return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
   }
 
+  if (state.source === "sync-migrate") {
+    // Move profiles and activeProfileId from sync to local.
+    await chrome.storage.local.set({
+      profiles: state.profiles,
+      activeProfileId: state.activeProfileId
+    });
+    await chrome.storage.sync.remove(["profiles", "activeProfileId"]);
+    if (state.syncData.useFaviconForIcon === undefined) {
+      await chrome.storage.sync.set({ useFaviconForIcon });
+    }
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+  }
+
+  // Legacy single-profile migration: build from old sync keys into local.
   const legacyProfile = createProfile({
     name: "Default",
-    baseUrl: state.legacyData.baseUrl,
-    apiUsername: state.legacyData.apiUsername,
-    apiKey: state.legacyData.apiKey,
-    defaultClipStyle: state.legacyData.defaultClipStyle,
-    defaultDestination: state.legacyData.defaultDestination,
-    defaultCategoryId: state.legacyData.defaultCategoryId,
-    defaultTopicId: state.legacyData.defaultTopicId,
-    titleTemplate: state.legacyData.titleTemplate
+    baseUrl: state.syncData.baseUrl,
+    apiUsername: state.syncData.apiUsername,
+    apiKey: state.syncData.apiKey,
+    defaultClipStyle: state.syncData.defaultClipStyle,
+    defaultDestination: state.syncData.defaultDestination,
+    defaultCategoryId: state.syncData.defaultCategoryId,
+    defaultTopicId: state.syncData.defaultTopicId,
+    titleTemplate: state.syncData.titleTemplate
   });
 
   const profiles = [legacyProfile];
   const activeProfileId = legacyProfile.id;
 
-  await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
+  await chrome.storage.local.set({ profiles, activeProfileId });
   await chrome.storage.sync.remove(LEGACY_KEYS);
+  await chrome.storage.sync.set({ useFaviconForIcon });
 
   return { profiles, activeProfileId, useFaviconForIcon };
 }
@@ -233,7 +266,7 @@ export async function setActiveProfile(profileId) {
     if (!exists) {
       throw new Error("Selected profile does not exist.");
     }
-    await chrome.storage.sync.set({ activeProfileId: profileId });
+    await chrome.storage.local.set({ activeProfileId: profileId });
   });
 }
 
@@ -250,7 +283,7 @@ async function writeProfileUpdate(state, profileId, partial) {
     });
   });
 
-  await chrome.storage.sync.set({ profiles: updatedProfiles });
+  await chrome.storage.local.set({ profiles: updatedProfiles });
 }
 
 // Merge changes into the active profile in storage.
@@ -279,7 +312,7 @@ export async function addProfile(partial = {}) {
     const state = await loadStateLocked();
     const profile = createProfile(partial);
     const profiles = [...state.profiles, profile];
-    await chrome.storage.sync.set({ profiles, activeProfileId: profile.id });
+    await chrome.storage.local.set({ profiles, activeProfileId: profile.id });
     return profile;
   });
 }
@@ -296,6 +329,6 @@ export async function deleteProfile(profileId) {
       ? state.activeProfileId
       : profiles[0].id;
 
-    await chrome.storage.sync.set({ profiles, activeProfileId });
+    await chrome.storage.local.set({ profiles, activeProfileId });
   });
 }

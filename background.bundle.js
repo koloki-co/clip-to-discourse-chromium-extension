@@ -132,45 +132,65 @@ function withProfilesLock(task) {
   return run;
 }
 async function readState() {
-  const data = await chrome.storage.sync.get(null);
-  const useFaviconForIcon = typeof data.useFaviconForIcon === "boolean" ? data.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
-  if (Array.isArray(data.profiles) && data.profiles.length > 0) {
-    const profiles = data.profiles.map(normalizeProfile);
-    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== data.profiles[index].authMethod);
-    const activeProfileId = profiles.some((profile) => profile.id === data.activeProfileId) ? data.activeProfileId : profiles[0].id;
-    const needsRepair = activeProfileId !== data.activeProfileId || data.useFaviconForIcon === void 0 || authMethodsChanged;
-    return { legacyData: null, profiles, activeProfileId, useFaviconForIcon, needsRepair };
+  const localData = await chrome.storage.local.get(null);
+  const syncData = await chrome.storage.sync.get(null);
+  const useFaviconForIcon = typeof syncData.useFaviconForIcon === "boolean" ? syncData.useFaviconForIcon : DEFAULT_GLOBAL_SETTINGS.useFaviconForIcon;
+  if (Array.isArray(localData.profiles) && localData.profiles.length > 0) {
+    const profiles = localData.profiles.map(normalizeProfile);
+    const authMethodsChanged = profiles.some((profile, index) => profile.authMethod !== localData.profiles[index].authMethod);
+    const activeProfileId = profiles.some((profile) => profile.id === localData.activeProfileId) ? localData.activeProfileId : profiles[0].id;
+    const needsRepair = activeProfileId !== localData.activeProfileId || syncData.useFaviconForIcon === void 0 || authMethodsChanged;
+    return { source: "local", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair };
   }
-  return { legacyData: data, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
+  if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
+    const profiles = syncData.profiles.map(normalizeProfile);
+    const activeProfileId = profiles.some((profile) => profile.id === syncData.activeProfileId) ? syncData.activeProfileId : profiles[0].id;
+    return { source: "sync-migrate", syncData, profiles, activeProfileId, useFaviconForIcon, needsRepair: true };
+  }
+  return { source: "legacy-migrate", syncData, profiles: null, activeProfileId: "", useFaviconForIcon, needsRepair: true };
 }
 async function loadStateLocked() {
   const state = await readState();
   const { useFaviconForIcon } = state;
-  if (state.profiles) {
+  if (state.source === "local") {
     if (state.needsRepair) {
-      await chrome.storage.sync.set({
+      await chrome.storage.local.set({
         profiles: state.profiles,
-        activeProfileId: state.activeProfileId,
-        useFaviconForIcon
+        activeProfileId: state.activeProfileId
       });
+      if (state.syncData.useFaviconForIcon === void 0) {
+        await chrome.storage.sync.set({ useFaviconForIcon });
+      }
+    }
+    return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
+  }
+  if (state.source === "sync-migrate") {
+    await chrome.storage.local.set({
+      profiles: state.profiles,
+      activeProfileId: state.activeProfileId
+    });
+    await chrome.storage.sync.remove(["profiles", "activeProfileId"]);
+    if (state.syncData.useFaviconForIcon === void 0) {
+      await chrome.storage.sync.set({ useFaviconForIcon });
     }
     return { profiles: state.profiles, activeProfileId: state.activeProfileId, useFaviconForIcon };
   }
   const legacyProfile = createProfile({
     name: "Default",
-    baseUrl: state.legacyData.baseUrl,
-    apiUsername: state.legacyData.apiUsername,
-    apiKey: state.legacyData.apiKey,
-    defaultClipStyle: state.legacyData.defaultClipStyle,
-    defaultDestination: state.legacyData.defaultDestination,
-    defaultCategoryId: state.legacyData.defaultCategoryId,
-    defaultTopicId: state.legacyData.defaultTopicId,
-    titleTemplate: state.legacyData.titleTemplate
+    baseUrl: state.syncData.baseUrl,
+    apiUsername: state.syncData.apiUsername,
+    apiKey: state.syncData.apiKey,
+    defaultClipStyle: state.syncData.defaultClipStyle,
+    defaultDestination: state.syncData.defaultDestination,
+    defaultCategoryId: state.syncData.defaultCategoryId,
+    defaultTopicId: state.syncData.defaultTopicId,
+    titleTemplate: state.syncData.titleTemplate
   });
   const profiles = [legacyProfile];
   const activeProfileId = legacyProfile.id;
-  await chrome.storage.sync.set({ profiles, activeProfileId, useFaviconForIcon });
+  await chrome.storage.local.set({ profiles, activeProfileId });
   await chrome.storage.sync.remove(LEGACY_KEYS);
+  await chrome.storage.sync.set({ useFaviconForIcon });
   return { profiles, activeProfileId, useFaviconForIcon };
 }
 async function loadState() {
@@ -360,7 +380,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 chrome.runtime.onStartup.addListener(refreshActionIcon);
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "sync" && (changes.profiles || changes.activeProfileId || changes.useFaviconForIcon)) {
+  if (areaName === "local" && (changes.profiles || changes.activeProfileId)) {
+    refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
+  }
+  if (areaName === "sync" && changes.useFaviconForIcon) {
     refreshActionIcon().catch((error) => console.error("Failed to update action icon:", error));
   }
 });

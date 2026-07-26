@@ -23,7 +23,7 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 - [x] **R60 - Run only the extraction pipeline needed for the chosen clip style** and degrade gracefully when a pipeline throws, so one pathological page cannot freeze or fail unrelated clip styles (`popup/popup.js`).
 
 #### Medium Severity
-- [ ] **R61 - Rework profile storage to avoid the `chrome.storage.sync` per-item quota** (8,192 bytes for the single `profiles` item, easily exceeded by a few profiles or long custom templates), coordinated with R55.
+- [x] **R61 - Rework profile storage to avoid the `chrome.storage.sync` per-item quota** (8,192 bytes for the single `profiles` item, easily exceeded by a few profiles or long custom templates), coordinated with R55.
 
   The current design stores the entire `profiles` array as a single `chrome.storage.sync` item. Each profile carries five template strings plus credentials, so a handful of profiles or one profile with long custom templates exceeds the 8,192-byte `QUOTA_BYTES_PER_ITEM` cap and every `set` rejects with a cryptic error. There is no fallback to `storage.local`. The race-safety fix in R55 (Web Locks) is independent of which storage area is used, so this can be addressed without disturbing the locking.
 

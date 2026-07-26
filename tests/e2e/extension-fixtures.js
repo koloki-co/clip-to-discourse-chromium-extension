@@ -101,11 +101,19 @@ export const test = base.extend({
           await serviceWorker.evaluate(async (nextState) => {
             await chrome.storage.sync.clear();
             await chrome.storage.local.clear();
-            await chrome.storage.sync.set(nextState);
+            const { useFaviconForIcon, ...localState } = nextState;
+            await chrome.storage.local.set(localState);
+            if (useFaviconForIcon !== undefined) {
+              await chrome.storage.sync.set({ useFaviconForIcon });
+            }
           }, state);
         },
         async getStorage() {
-          return serviceWorker.evaluate(() => chrome.storage.sync.get(null));
+          return serviceWorker.evaluate(async () => {
+            const local = await chrome.storage.local.get(null);
+            const sync = await chrome.storage.sync.get(null);
+            return { ...local, ...sync };
+          });
         },
         async hasHostPermission(baseUrl) {
           const origin = `${new URL(baseUrl).origin}/*`;

@@ -20,7 +20,7 @@ export function loadPopupHTML() {
 /**
  * Mock chrome.storage.sync API
  */
-export function createStorageMock(initialData = {}) {
+function createStorageArea(initialData = {}) {
   return {
     get: vi.fn((keys, callback) => {
       const result = {};
@@ -111,9 +111,18 @@ export function setupChromeMock({
   scripting = {},
   version = "0.19.3"
 } = {}) {
+  const syncStore = {};
+  const localStore = {};
+  const { useFaviconForIcon, ...localData } = storage;
+  Object.assign(localStore, localData);
+  if (useFaviconForIcon !== undefined) {
+    syncStore.useFaviconForIcon = useFaviconForIcon;
+  }
+
   globalThis.chrome = {
     storage: {
-      sync: createStorageMock(storage)
+      sync: createStorageArea(syncStore),
+      local: createStorageArea(localStore)
     },
     tabs: createTabsMock(tabs),
     scripting: createScriptingMock(scripting),

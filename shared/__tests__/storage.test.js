@@ -14,41 +14,48 @@ import {
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../../shared/constants.js";
 
 describe("Chrome Storage Configuration", () => {
-  let mockStorage;
+  let mockSync;
+  let mockLocal;
+
+  function createStorageArea(store) {
+    return {
+      get: vi.fn((keys) => {
+        const result = {};
+        if (typeof keys === "string") {
+          result[keys] = store[keys];
+        } else if (Array.isArray(keys)) {
+          keys.forEach((key) => {
+            result[key] = store[key];
+          });
+        } else if (keys === null || keys === undefined) {
+          Object.assign(result, store);
+        } else if (typeof keys === "object") {
+          Object.keys(keys).forEach((key) => {
+            result[key] = store[key] !== undefined ? store[key] : keys[key];
+          });
+        }
+        return Promise.resolve(result);
+      }),
+      set: vi.fn((items) => {
+        Object.assign(store, items);
+        return Promise.resolve();
+      }),
+      remove: vi.fn((keys) => {
+        const keysArray = Array.isArray(keys) ? keys : [keys];
+        keysArray.forEach((key) => delete store[key]);
+        return Promise.resolve();
+      })
+    };
+  }
 
   beforeEach(() => {
-    mockStorage = {};
-    
+    mockSync = {};
+    mockLocal = {};
+
     globalThis.chrome = {
       storage: {
-        sync: {
-          get: vi.fn((keys) => {
-            const result = {};
-            if (typeof keys === "string") {
-              result[keys] = mockStorage[keys];
-            } else if (Array.isArray(keys)) {
-              keys.forEach((key) => {
-                result[key] = mockStorage[key];
-              });
-            } else if (keys === null || keys === undefined) {
-              Object.assign(result, mockStorage);
-            } else if (typeof keys === "object") {
-              Object.keys(keys).forEach((key) => {
-                result[key] = mockStorage[key] !== undefined ? mockStorage[key] : keys[key];
-              });
-            }
-            return Promise.resolve(result);
-          }),
-          set: vi.fn((items) => {
-            Object.assign(mockStorage, items);
-            return Promise.resolve();
-          }),
-          remove: vi.fn((keys) => {
-            const keysArray = Array.isArray(keys) ? keys : [keys];
-            keysArray.forEach((key) => delete mockStorage[key]);
-            return Promise.resolve();
-          })
-        }
+        sync: createStorageArea(mockSync),
+        local: createStorageArea(mockLocal)
       }
     };
   });
@@ -60,12 +67,12 @@ describe("Chrome Storage Configuration", () => {
 
   describe("getSettingsState", () => {
     it("loads settings from chrome.storage.sync", async () => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "test-profile",
         name: "Test",
         baseUrl: "https://forum.example.com"
       }];
-      mockStorage.activeProfileId = "test-profile";
+      mockLocal.activeProfileId = "test-profile";
 
       const state = await getSettingsState();
 
@@ -83,7 +90,7 @@ describe("Chrome Storage Configuration", () => {
     });
 
     it("normalizes profiles with default values", async () => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "partial-profile",
         name: "Partial",
         baseUrl: "https://forum.example.com"
@@ -98,24 +105,24 @@ describe("Chrome Storage Configuration", () => {
     });
 
     it("preserves Admin API credentials in profiles created before auth methods", async () => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "legacy-admin-profile",
         name: "Legacy Admin",
         baseUrl: "https://forum.example.com",
         apiUsername: "legacy-user",
         apiKey: "legacy-key"
       }];
-      mockStorage.activeProfileId = "legacy-admin-profile";
-      mockStorage.useFaviconForIcon = false;
+      mockLocal.activeProfileId = "legacy-admin-profile";
+      mockSync.useFaviconForIcon = false;
 
       const state = await getSettingsState();
 
       expect(state.activeProfile.authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
-      expect(mockStorage.profiles[0].authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
+      expect(mockLocal.profiles[0].authMethod).toBe(AUTH_METHODS.ADMIN_API_KEY);
     });
 
     it("returns active profile", async () => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "profile-1",
         name: "Profile 1",
         baseUrl: "https://forum1.example.com"
@@ -124,7 +131,7 @@ describe("Chrome Storage Configuration", () => {
         name: "Profile 2",
         baseUrl: "https://forum2.example.com"
       }];
-      mockStorage.activeProfileId = "profile-2";
+      mockLocal.activeProfileId = "profile-2";
 
       const state = await getSettingsState();
 
@@ -135,36 +142,36 @@ describe("Chrome Storage Configuration", () => {
 
   describe("setActiveProfile", () => {
     beforeEach(() => {
-      mockStorage.profiles = [
+      mockLocal.profiles = [
         { id: "profile-1", name: "Profile 1" },
         { id: "profile-2", name: "Profile 2" }
       ];
-      mockStorage.activeProfileId = "profile-1";
+      mockLocal.activeProfileId = "profile-1";
     });
 
     it("updates active profile ID in storage", async () => {
       await setActiveProfile("profile-2");
 
-      expect(chrome.storage.sync.set).toHaveBeenCalledWith({
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({
         activeProfileId: "profile-2"
       });
-      expect(mockStorage.activeProfileId).toBe("profile-2");
+      expect(mockLocal.activeProfileId).toBe("profile-2");
     });
 
     it("does not change storage if profile does not exist", async () => {
       await expect(setActiveProfile("nonexistent")).rejects.toThrow("Selected profile does not exist.");
-      expect(mockStorage.activeProfileId).toBe("profile-1");
+      expect(mockLocal.activeProfileId).toBe("profile-1");
     });
   });
 
   describe("addProfile", () => {
     it("creates new profile with generated id", async () => {
       // Start with a default profile so we know the count
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "default",
         name: "Default"
       }];
-      mockStorage.activeProfileId = "default";
+      mockLocal.activeProfileId = "default";
 
       const newProfile = {
         name: "New Profile",
@@ -176,9 +183,9 @@ describe("Chrome Storage Configuration", () => {
       const saved = await addProfile(newProfile);
 
       expect(saved.id).toBeTruthy();
-      expect(chrome.storage.sync.set).toHaveBeenCalled();
-      expect(mockStorage.profiles).toHaveLength(2);
-      expect(mockStorage.profiles[1].name).toBe("New Profile");
+      expect(chrome.storage.local.set).toHaveBeenCalled();
+      expect(mockLocal.profiles).toHaveLength(2);
+      expect(mockLocal.profiles[1].name).toBe("New Profile");
     });
 
     it("normalizes base URL by removing trailing slash", async () => {
@@ -198,18 +205,18 @@ describe("Chrome Storage Configuration", () => {
         baseUrl: "https://forum.example.com"
       });
 
-      expect(mockStorage.activeProfileId).toBe(saved.id);
+      expect(mockLocal.activeProfileId).toBe(saved.id);
     });
   });
 
   describe("saveActiveProfile", () => {
     beforeEach(() => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "active-profile",
         name: "Active Profile",
         baseUrl: "https://active.example.com"
       }];
-      mockStorage.activeProfileId = "active-profile";
+      mockLocal.activeProfileId = "active-profile";
     });
 
     it("updates active profile", async () => {
@@ -218,25 +225,25 @@ describe("Chrome Storage Configuration", () => {
         baseUrl: "https://updated.example.com"
       });
 
-      expect(mockStorage.profiles).toHaveLength(1);
-      expect(mockStorage.profiles[0].name).toBe("Updated Name");
-      expect(mockStorage.profiles[0].baseUrl).toBe("https://updated.example.com");
+      expect(mockLocal.profiles).toHaveLength(1);
+      expect(mockLocal.profiles[0].name).toBe("Updated Name");
+      expect(mockLocal.profiles[0].baseUrl).toBe("https://updated.example.com");
     });
 
     it("preserves other profiles when updating active one", async () => {
-      mockStorage.profiles = [
+      mockLocal.profiles = [
         { id: "profile-1", name: "Profile 1" },
         { id: "profile-2", name: "Profile 2" }
       ];
-      mockStorage.activeProfileId = "profile-1";
+      mockLocal.activeProfileId = "profile-1";
 
       await saveActiveProfile({
         name: "Updated Profile 1"
       });
 
-      expect(mockStorage.profiles).toHaveLength(2);
-      expect(mockStorage.profiles[0].name).toBe("Updated Profile 1");
-      expect(mockStorage.profiles[1].name).toBe("Profile 2");
+      expect(mockLocal.profiles).toHaveLength(2);
+      expect(mockLocal.profiles[0].name).toBe("Updated Profile 1");
+      expect(mockLocal.profiles[1].name).toBe("Profile 2");
     });
 
     it("normalizes base URL by removing trailing slash", async () => {
@@ -244,17 +251,17 @@ describe("Chrome Storage Configuration", () => {
         baseUrl: "https://forum.example.com/"
       });
 
-      expect(mockStorage.profiles[0].baseUrl).toBe("https://forum.example.com");
+      expect(mockLocal.profiles[0].baseUrl).toBe("https://forum.example.com");
     });
   });
 
   describe("saveProfile", () => {
     beforeEach(() => {
-      mockStorage.profiles = [
+      mockLocal.profiles = [
         { id: "profile-1", name: "Profile 1", baseUrl: "https://forum1.example.com" },
         { id: "profile-2", name: "Profile 2", baseUrl: "https://forum2.example.com" }
       ];
-      mockStorage.activeProfileId = "profile-1";
+      mockLocal.activeProfileId = "profile-1";
     });
 
     it("saves to the flow's profile even after the active profile changed", async () => {
@@ -264,8 +271,8 @@ describe("Chrome Storage Configuration", () => {
 
       await saveProfile("profile-1", { userApiKey: "key-for-profile-1" });
 
-      const profile1 = mockStorage.profiles.find((profile) => profile.id === "profile-1");
-      const profile2 = mockStorage.profiles.find((profile) => profile.id === "profile-2");
+      const profile1 = mockLocal.profiles.find((profile) => profile.id === "profile-1");
+      const profile2 = mockLocal.profiles.find((profile) => profile.id === "profile-2");
       expect(profile1.userApiKey).toBe("key-for-profile-1");
       expect(profile2.userApiKey).toBeFalsy();
     });
@@ -273,46 +280,63 @@ describe("Chrome Storage Configuration", () => {
     it("rejects when the target profile no longer exists", async () => {
       await expect(saveProfile("deleted-profile", { userApiKey: "orphan-key" }))
         .rejects.toThrow("Profile no longer exists.");
-      expect(mockStorage.profiles.every((profile) => !profile.userApiKey)).toBe(true);
+      expect(mockLocal.profiles.every((profile) => !profile.userApiKey)).toBe(true);
     });
   });
 
   describe("deleteProfile", () => {
     beforeEach(() => {
-      mockStorage.profiles = [
+      mockLocal.profiles = [
         { id: "profile-1", name: "Profile 1" },
         { id: "profile-2", name: "Profile 2" }
       ];
-      mockStorage.activeProfileId = "profile-1";
+      mockLocal.activeProfileId = "profile-1";
     });
 
     it("removes profile from storage", async () => {
       await deleteProfile("profile-2");
 
-      expect(mockStorage.profiles).toHaveLength(1);
-      expect(mockStorage.profiles[0].id).toBe("profile-1");
+      expect(mockLocal.profiles).toHaveLength(1);
+      expect(mockLocal.profiles[0].id).toBe("profile-1");
     });
 
     it("switches active profile when deleting active profile", async () => {
       await deleteProfile("profile-1");
 
-      expect(mockStorage.activeProfileId).toBe("profile-2");
+      expect(mockLocal.activeProfileId).toBe("profile-2");
     });
 
     it("does not remove last profile", async () => {
       await deleteProfile("profile-1");
       
       await expect(deleteProfile("profile-2")).rejects.toThrow("At least one profile is required.");
-      expect(mockStorage.profiles.length).toBe(1);
+      expect(mockLocal.profiles.length).toBe(1);
     });
   });
 
   describe("Storage Migration", () => {
+    it("migrates profiles from sync to local storage on first load", async () => {
+      mockSync.profiles = [{ id: "migrated", name: "Migrated Profile", baseUrl: "https://forum.example.com" }];
+      mockSync.activeProfileId = "migrated";
+      mockSync.useFaviconForIcon = true;
+
+      const state = await getSettingsState();
+
+      expect(state.profiles).toHaveLength(1);
+      expect(state.profiles[0].id).toBe("migrated");
+      expect(mockLocal.profiles).toHaveLength(1);
+      expect(mockLocal.profiles[0].id).toBe("migrated");
+      expect(mockLocal.activeProfileId).toBe("migrated");
+      expect(mockSync.profiles).toBeUndefined();
+      expect(mockSync.activeProfileId).toBeUndefined();
+      expect(mockSync.useFaviconForIcon).toBe(true);
+    });
+
     it("migrates legacy single-profile settings to multi-profile", async () => {
-      mockStorage.baseUrl = "https://legacy.example.com";
-      mockStorage.apiUsername = "legacyuser";
-      mockStorage.apiKey = "legacykey";
-      mockStorage.defaultClipStyle = CLIP_STYLES.EXCERPT;
+      mockSync.baseUrl = "https://legacy.example.com";
+      mockSync.apiUsername = "legacyuser";
+      mockSync.apiKey = "legacykey";
+      mockSync.defaultClipStyle = CLIP_STYLES.EXCERPT;
 
       const state = await getSettingsState();
 
@@ -325,8 +349,8 @@ describe("Chrome Storage Configuration", () => {
     });
 
     it("removes legacy keys after migration", async () => {
-      mockStorage.baseUrl = "https://legacy.example.com";
-      mockStorage.apiUsername = "legacyuser";
+      mockSync.baseUrl = "https://legacy.example.com";
+      mockSync.apiUsername = "legacyuser";
 
       await getSettingsState();
 
@@ -334,11 +358,11 @@ describe("Chrome Storage Configuration", () => {
     });
 
     it("does not migrate when profiles already exist", async () => {
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "existing",
         name: "Existing Profile"
       }];
-      mockStorage.baseUrl = "https://legacy.example.com";
+      mockSync.baseUrl = "https://legacy.example.com";
 
       const state = await getSettingsState();
 
@@ -351,19 +375,19 @@ describe("Chrome Storage Configuration", () => {
   describe("Storage Persistence", () => {
     beforeEach(() => {
       // Start with a default profile
-      mockStorage.profiles = [{
+      mockLocal.profiles = [{
         id: "default",
         name: "Default"
       }];
-      mockStorage.activeProfileId = "default";
+      mockLocal.activeProfileId = "default";
     });
 
     it("persists multiple profiles", async () => {
       await addProfile({ name: "Profile 1", baseUrl: "https://forum1.example.com" });
       await addProfile({ name: "Profile 2", baseUrl: "https://forum2.example.com" });
 
-      expect(mockStorage.profiles).toHaveLength(3); // default + 2 new
-      expect(chrome.storage.sync.set).toHaveBeenCalled();
+      expect(mockLocal.profiles).toHaveLength(3); // default + 2 new
+      expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
     it("keeps both profiles when two adds run concurrently", async () => {
@@ -375,8 +399,8 @@ describe("Chrome Storage Configuration", () => {
         addProfile(profile2)
       ]);
 
-      expect(mockStorage.profiles).toHaveLength(3); // default + both new profiles
-      const names = mockStorage.profiles.map((profile) => profile.name);
+      expect(mockLocal.profiles).toHaveLength(3); // default + both new profiles
+      const names = mockLocal.profiles.map((profile) => profile.name);
       expect(names).toContain("Profile 1");
       expect(names).toContain("Profile 2");
     });
@@ -387,9 +411,9 @@ describe("Chrome Storage Configuration", () => {
         addProfile({ name: "Second", baseUrl: "https://forum2.example.com" })
       ]);
 
-      const defaultProfile = mockStorage.profiles.find((profile) => profile.id === "default");
+      const defaultProfile = mockLocal.profiles.find((profile) => profile.id === "default");
       expect(defaultProfile.userApiKey).toBe("freshly-issued-key");
-      expect(mockStorage.profiles.map((profile) => profile.name)).toContain("Second");
+      expect(mockLocal.profiles.map((profile) => profile.name)).toContain("Second");
     });
   });
 
