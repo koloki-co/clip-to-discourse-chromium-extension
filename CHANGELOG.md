@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. See [standa
 ## Unreleased
 
 - Harden profile, credential, HTTP transport, popup, extraction, device-authorization, category-loading, and favicon behavior following the July 2026 code review (roadmap R54-R66).
+- Enforce coverage thresholds for extraction, payload building, and Discourse API logic (R02).
 - Add regression coverage for empty titles, long content, and special characters, and preserve Unicode code-point boundaries during truncation (R03).
 - Verify every clip style against a loopback Discourse mock in headless Playwright (R08).
 - Verify successful and rejected Discourse connection tests in headless Playwright (R09).
