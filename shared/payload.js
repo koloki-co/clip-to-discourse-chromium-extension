@@ -5,6 +5,14 @@ import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "./constants.
 
 export const TRUNCATION_NOTICE = "\n\n_(truncated by Clip to Discourse — original exceeded Discourse's 50,000 character post limit)_";
 
+function truncateAtCodePointBoundary(value, maximumLength) {
+  const truncated = value.slice(0, maximumLength);
+  const finalCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  return finalCodeUnit >= 0xD800 && finalCodeUnit <= 0xDBFF
+    ? truncated.slice(0, -1)
+    : truncated;
+}
+
 export function truncateRaw(raw) {
   if (typeof raw !== "string") {
     return raw;
@@ -13,7 +21,7 @@ export function truncateRaw(raw) {
     return raw;
   }
   const noticeLength = TRUNCATION_NOTICE.length;
-  return raw.slice(0, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
+  return truncateAtCodePointBoundary(raw, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
 }
 
 export function truncateTitle(title) {
@@ -23,7 +31,7 @@ export function truncateTitle(title) {
   if (title.length <= MAX_TITLE_LENGTH) {
     return title;
   }
-  return title.slice(0, MAX_TITLE_LENGTH);
+  return truncateAtCodePointBoundary(title, MAX_TITLE_LENGTH);
 }
 
 // Shape payloads for new topics vs append flows.

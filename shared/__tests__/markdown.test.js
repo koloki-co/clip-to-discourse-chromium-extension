@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildMarkdown, normalizeTitle, applyTitleTemplate } from "../markdown.js";
 import { CLIP_STYLES, MAX_TITLE_LENGTH } from "../constants.js";
 
@@ -18,6 +18,23 @@ describe("markdown", () => {
     });
 
     expect(markdown).toBe("### Example Page\nhttps://example.com\n");
+  });
+
+  it("uses the timestamped fallback for empty titles", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-26T14:05:00.000Z"));
+
+    try {
+      const fallback = "2026-07-26 14:05:00 UTC Clipped with Clip To Discourse";
+      expect(buildMarkdown({
+        title: " \t ",
+        url: "https://example.com",
+        clipStyle: CLIP_STYLES.TITLE_URL
+      })).toBe(`### ${fallback}\nhttps://example.com\n`);
+      expect(applyTitleTemplate(null, "")).toBe(`Clip: ${fallback}`);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("builds excerpt markdown with a title header", () => {

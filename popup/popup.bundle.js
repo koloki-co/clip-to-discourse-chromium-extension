@@ -2107,6 +2107,11 @@ var MAX_TITLE_LENGTH = 255;
 
 // shared/payload.js
 var TRUNCATION_NOTICE = "\n\n_(truncated by Clip to Discourse \u2014 original exceeded Discourse's 50,000 character post limit)_";
+function truncateAtCodePointBoundary(value, maximumLength) {
+  const truncated = value.slice(0, maximumLength);
+  const finalCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  return finalCodeUnit >= 55296 && finalCodeUnit <= 56319 ? truncated.slice(0, -1) : truncated;
+}
 function truncateRaw(raw) {
   if (typeof raw !== "string") {
     return raw;
@@ -2115,7 +2120,7 @@ function truncateRaw(raw) {
     return raw;
   }
   const noticeLength = TRUNCATION_NOTICE.length;
-  return raw.slice(0, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
+  return truncateAtCodePointBoundary(raw, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
 }
 function truncateTitle(title) {
   if (typeof title !== "string") {
@@ -2124,7 +2129,7 @@ function truncateTitle(title) {
   if (title.length <= MAX_TITLE_LENGTH) {
     return title;
   }
-  return title.slice(0, MAX_TITLE_LENGTH);
+  return truncateAtCodePointBoundary(title, MAX_TITLE_LENGTH);
 }
 function buildPayload({ destination, title, categoryId, topicId, raw }) {
   const trimmedRaw = truncateRaw(raw);

@@ -64,3 +64,60 @@ describe("popup submit status rendering", () => {
     expect(sentBody.raw).toContain("https://example.com");
   });
 });
+
+describe("popup submission edge cases", () => {
+  it("preserves special characters in a selected-text clip", async () => {
+    const title = "Café \"quotes\" & [brackets] 😀";
+    const selectedText = "Café \"quotes\" & [brackets] 😀";
+    const url = "https://example.com/search?q=tea&tag=[notes]";
+    const mounted = await mountPopup({
+      storage: {
+        profiles: [{
+          id: "profile-1",
+          name: "Site One",
+          baseUrl: "https://forum1.example.com",
+          authMethod: AUTH_METHODS.ADMIN_API_KEY,
+          apiUsername: "user",
+          apiKey: "key",
+          defaultClipStyle: CLIP_STYLES.TEXT_SELECTION,
+          defaultDestination: DESTINATIONS.NEW_TOPIC,
+          defaultCategoryId: "",
+          defaultTopicId: "",
+          titleTemplate: "Clip: {{title}}"
+        }],
+        activeProfileId: "profile-1",
+        useFaviconForIcon: false
+      },
+      scripting: {
+        title,
+        url,
+        selectionText: selectedText,
+        selectionHtml: `<p>${selectedText}</p>`
+      }
+    });
+
+    try {
+      const { window, fetchMock, pendingFetches } = mounted;
+      const categoryInput = window.document.getElementById("categoryId");
+      const form = window.document.getElementById("clip-form");
+      const option = window.document.createElement("option");
+      option.value = "5";
+      categoryInput.appendChild(option);
+      categoryInput.value = "5";
+
+      form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+      await until(() => fetchMock.mock.calls.length === 1);
+      pendingFetches[0].resolve({
+        ok: true,
+        json: async () => ({ id: 1, topic_id: 42, topic_slug: "test-topic" })
+      });
+
+      const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(sentBody.title).toBe(`Clip: ${title}`);
+      expect(sentBody.raw).toContain(selectedText);
+      expect(sentBody.raw).toContain(url);
+    } finally {
+      unmountPopup(mounted);
+    }
+  });
+});

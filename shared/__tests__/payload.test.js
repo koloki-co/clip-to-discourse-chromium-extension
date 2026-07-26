@@ -5,6 +5,22 @@ import { describe, expect, it } from "vitest";
 import { buildPayload, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
 import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "../constants.js";
 
+function hasUnpairedSurrogate(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xD800 && codeUnit <= 0xDBFF) {
+      const nextCodeUnit = value.charCodeAt(index + 1);
+      if (nextCodeUnit < 0xDC00 || nextCodeUnit > 0xDFFF) {
+        return true;
+      }
+      index += 1;
+    } else if (codeUnit >= 0xDC00 && codeUnit <= 0xDFFF) {
+      return true;
+    }
+  }
+  return false;
+}
+
 describe("payload", () => {
   it("builds a new topic payload with category", () => {
     const payload = buildPayload({
@@ -52,6 +68,16 @@ describe("truncateRaw", () => {
     expect(result.length).toBe(MAX_PAYLOAD_LENGTH);
     expect(result.endsWith(TRUNCATION_NOTICE)).toBe(true);
     expect(result.startsWith("b".repeat(MAX_PAYLOAD_LENGTH - TRUNCATION_NOTICE.length))).toBe(true);
+  });
+
+  it("does not split an emoji at the truncation boundary", () => {
+    const contentLength = MAX_PAYLOAD_LENGTH - TRUNCATION_NOTICE.length;
+    const raw = `${"a".repeat(contentLength - 1)}😀${"more".repeat(TRUNCATION_NOTICE.length)}`;
+    const result = truncateRaw(raw);
+
+    expect(result.endsWith(TRUNCATION_NOTICE)).toBe(true);
+    expect(result.length).toBe(MAX_PAYLOAD_LENGTH - 1);
+    expect(hasUnpairedSurrogate(result)).toBe(false);
   });
 
   it("passes through non-string values", () => {
@@ -116,6 +142,14 @@ describe("truncateTitle", () => {
     const result = truncateTitle(long);
     expect(result.length).toBe(MAX_TITLE_LENGTH);
     expect(result).toBe(long.slice(0, MAX_TITLE_LENGTH));
+  });
+
+  it("does not split an emoji at the title truncation boundary", () => {
+    const title = `${"a".repeat(MAX_TITLE_LENGTH - 1)}😀`;
+    const result = truncateTitle(title);
+
+    expect(result).toBe("a".repeat(MAX_TITLE_LENGTH - 1));
+    expect(hasUnpairedSurrogate(result)).toBe(false);
   });
 
   it("passes through non-string values", () => {

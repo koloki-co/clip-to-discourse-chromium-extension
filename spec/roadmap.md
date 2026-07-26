@@ -19,7 +19,7 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
 #### Coverage And Regression
 - [ ] **R02 - Set up coverage thresholds for core logic** covering extraction, payload building, and posting.
-- [ ] **R03 - Add regression tests for edge cases** including empty titles, very long content, and special characters.
+- [x] **R03 - Add regression tests for edge cases** including empty titles, very long content, and special characters.
 
 ### Chrome Web Store
 

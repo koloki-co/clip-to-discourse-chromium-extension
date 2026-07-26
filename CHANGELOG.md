@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. See [standa
 ## Unreleased
 
 - Harden profile, credential, HTTP transport, popup, extraction, device-authorization, category-loading, and favicon behavior following the July 2026 code review (roadmap R54-R66).
+- Add regression coverage for empty titles, long content, and special characters, and preserve Unicode code-point boundaries during truncation (R03).
 
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 
