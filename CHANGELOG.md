@@ -5,18 +5,31 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## Unreleased
+## [0.21.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.20.0...v0.21.0) (2026-07-27)
 
-- Harden profile, credential, HTTP transport, popup, extraction, device-authorization, category-loading, and favicon behavior following the July 2026 code review (roadmap R54-R66).
-- Enforce coverage thresholds for extraction, payload building, and Discourse API logic (R02).
-- Add regression coverage for empty titles, long content, and special characters, and preserve Unicode code-point boundaries during truncation (R03).
-- Verify every clip style against a loopback Discourse mock in headless Playwright (R08).
-- Verify successful and rejected Discourse connection tests in headless Playwright (R09).
-- Verify profile switching and distinct settings persistence in headless Playwright (R11).
-- Verify favicon fetching, caching, and action state with a documented native-toolbar manual check (R10).
-- Run headless unpacked-extension Playwright QA in release and Chrome Web Store publishing workflows (R07).
-- Add architecture, clip-style extension, and troubleshooting developer guides (R12-R14).
-- Add synchronised System, Light, and Dark appearance settings that react to OS preference changes (R15-R17).
+
+### Features
+
+* **security:** disable HTTP by default with advanced opt-in (R63) ([6bad5e2](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/6bad5e240dfd29783aa3bf84db13c6f685e416c3))
+* **theme:** add system, light, and dark modes (R15-R17) ([cafab95](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/cafab9592395a4bb72ae4caa9736b14a9bc99d46))
+
+
+### Bug Fixes
+
+* **discourse:** treat 2xx responses without JSON bodies as success (R54) ([30c4e4b](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/30c4e4b8ac5767bff6c5f737e6c8cf0b14916938))
+* **extract:** stop page content breaking out of generated markdown (R58) ([918fa84](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/918fa84c22ea2cc749763abc93cae957c6610d37))
+* **favicon:** use worker-safe APIs for icon rendering in the service worker (R62) ([000e520](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/000e5203628b9661f31e96d048d68320fc935916))
+* **options:** make device-authorization polling resilient to transient errors (R64) ([b85e055](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/b85e055667172e4fffc72e66d47fa73d9a358cd0))
+* **options:** pin long-running flows to the profile they started on (R56) ([8807e49](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/8807e493c8ae8a512772703d5be6ec7d128a5158))
+* **options:** prevent double category fetch and non-gesture permission prompts (R66) ([e3825cb](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/e3825cb5cfb9cec7a508a5a5cb6e22618e6161b0))
+* **package:** exclude source files from release archive ([4907be4](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/4907be4cafbef896e36dd5ff26138b91f5aa6b96))
+* **payload:** preserve Unicode at truncation limits (R03) ([3385aa7](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/3385aa7ae20889fca680c496486eaa96bacc324d))
+* **popup:** build the success link with DOM APIs instead of innerHTML (R59) ([3e541ce](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/3e541ce5b959dffc6b3ea070c451f4d944d96ad2))
+* **popup:** discard stale category loads after a profile switch (R57) ([d1b5b5e](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/d1b5b5ef29474f531b06cba9ff41faf6f52e9f03))
+* **popup:** handle undefined injection results with a clear error (R65) ([a8be6ed](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/a8be6ed137fa29c535de702d9d472db8b1bbca77))
+* **popup:** run only the extraction pipeline the clip style needs (R60) ([9483446](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/94834468134d86cf2f30990e313eda70f0862797))
+* **settings:** move profiles and credentials to chrome.storage.local (R61) ([30b5bf1](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/30b5bf1cf8ea387b67ef70b00a4a1eaf8ce6cc61))
+* **settings:** serialize profile storage writes across contexts (R55) ([a5c6e64](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/a5c6e64957edcc0b07288f22a915aac826d4f780))
 
 ## [0.20.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.19.5...v0.20.0) (2026-07-24)
 
