@@ -37,29 +37,10 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 - [ ] **R21 - Add a preset "Clip Selection" style with a selection-focused template**
 - [ ] **R22 - Support multiple selections or ranges**
 
-#### Daily Log Mode
-- [ ] **R23 - Add a "Daily Log" destination mode that appends to a daily topic**
-- [ ] **R24 - Auto-create daily topics with date-based naming**
-- [ ] **R25 - Support custom date format templates**
-
 #### Tagging Support
 - [ ] **R26 - Add a tag input field to the popup**
 - [ ] **R27 - Store default tags per profile**
 - [ ] **R28 - Support tag autocomplete from the Discourse API**
-
-### Clip Styles
-
-#### Screenshot Clipping
-- [ ] **R29 - Capture the visible viewport as a screenshot**
-- [ ] **R30 - Upload captured images to Discourse**
-- [ ] **R31 - Include uploaded images in the clip body with an optional caption**
-- [ ] **R32 - Support full-page screenshots using scroll capture**
-
-#### Archive.org Integration
-- [ ] **R33 - Add an option to trigger an Archive.org capture when clipping**
-- [ ] **R34 - Include the Archive.org link in the clip body**
-- [ ] **R35 - Show pending and completed archive status in the popup**
-- [ ] **R36 - Check for existing archives before requesting a capture**
 
 ### Platform Expansion
 
