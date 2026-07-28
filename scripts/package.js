@@ -13,6 +13,8 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const archivePath = path.join(rootDir, "clip-to-discourse-extension.zip");
 const runtimeFiles = [
   "manifest.json",
+  "LICENSE.md",
+  "THIRD-PARTY-NOTICES.md",
   "background.bundle.js",
   "popup/popup.html",
   "popup/popup.css",
