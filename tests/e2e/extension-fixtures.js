@@ -2,28 +2,34 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { chromium, expect, test as base } from "@playwright/test";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { startFixtureSite, startMockDiscourse } from "./mock-discourse.js";
 
+const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const runtimeEntries = [
-  "manifest.json",
-  "popup",
-  "options",
-  "shared",
-  "assets",
-  "background.bundle.js"
-];
+const archivePath = path.join(repoRoot, "clip-to-discourse-extension.zip");
 
 async function createTestExtension() {
   const extensionDir = await mkdtemp(path.join(tmpdir(), "clip-to-discourse-extension-"));
   try {
-    for (const entry of runtimeEntries) {
-      await cp(path.join(repoRoot, entry), path.join(extensionDir, entry), { recursive: true });
+    // Extract the packaged ZIP so E2E validates the actual release artifact.
+    // If the ZIP does not exist yet, build and package it on the fly.
+    try {
+      await readFile(archivePath);
+    } catch {
+      const { stdout, stderr } = await execFileAsync("npm", ["run", "package"], { cwd: repoRoot });
+      if (stderr) {
+        process.stderr.write(stderr);
+      }
+      void stdout;
     }
+    await execFileAsync("unzip", ["-q", "-o", archivePath, "-d", extensionDir]);
+
     const manifestPath = path.join(extensionDir, "manifest.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     const optionalHosts = manifest.optional_host_permissions ?? [];
