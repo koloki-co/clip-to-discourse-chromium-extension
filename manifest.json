@@ -27,11 +27,11 @@
     "activeTab",
     "scripting",
     "identity",
-    "contextMenus",
-    "notifications"
+    "contextMenus"
   ],
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
-  ]
+  ],
+  "minimum_chrome_version": "127"
 }
