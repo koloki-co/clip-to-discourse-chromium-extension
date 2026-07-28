@@ -377,7 +377,7 @@ function fillProfileForm(profile) {
 }
 
 function refreshHttpWarning() {
-  if (!httpWarning || !allowHttpToggle || !fields.allowHttp) {
+  if (!allowHttpToggle || !fields.allowHttp) {
     return;
   }
   const baseUrl = fields.baseUrl.value.trim();
@@ -389,11 +389,19 @@ function refreshHttpWarning() {
   }
   if (isHttp) {
     allowHttpToggle.classList.remove("hidden");
-    httpWarning.classList.toggle("hidden", !fields.allowHttp.checked);
   } else {
     allowHttpToggle.classList.add("hidden");
-    httpWarning.classList.add("hidden");
+    if (httpWarning) {
+      httpWarning.classList.add("hidden");
+    }
   }
+}
+
+function updateHttpWarningVisibility() {
+  if (!httpWarning || !fields.allowHttp) {
+    return;
+  }
+  httpWarning.classList.toggle("hidden", !fields.allowHttp.checked);
 }
 
 // Pull settings from storage and refresh the form UI.
@@ -944,7 +952,7 @@ revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
 if (fields.allowHttp) {
-  fields.allowHttp.addEventListener("change", refreshHttpWarning);
+  fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);
 }
 fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {
