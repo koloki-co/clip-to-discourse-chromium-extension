@@ -21,10 +21,10 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 - [x] **R71 - Bind Chrome Web Store publication to the exact reviewed release tag**. The Web Store workflow rebuilds from whichever ref is dispatched and does not validate the tag or download the GitHub release asset. Require an exact semver tag match so the reviewed v1 artifact is what reaches the store.
 - [x] **R72 - Run E2E tests against the packaged ZIP artifact**, not the loose source tree. The release workflow packages after E2E, so a missing allowlist entry could pass tests and produce a broken archive.
 - [x] **R73 - Align README privacy claims with actual data handling**. Current wording is too absolute. Accurately disclose local storage, `chrome.storage.sync` for non-sensitive preferences, favicon fetching, and user-directed Discourse transfers.
-- [ ] **R04 - Create or update promotional assets** including screenshots at least 1280x800, optional 440x280 and 920x680 promo tiles, and an optional YouTube video. Existing screenshots are 0.18-era and predate profiles, User API, themes, and category loading.
-- [ ] **R05 - Verify and update the store listing descriptions** to reflect current features and the preferred User API onboarding path.
+- [x] **R04 - Create or update promotional assets** including screenshots at least 1280x800, optional 440x280 and 920x680 promo tiles, and an optional YouTube video. Existing screenshots are 0.18-era and predate profiles, User API, themes, and category loading.
+- [x] **R05 - Verify and update the store listing descriptions** to reflect current features and the preferred User API onboarding path.
 - [ ] **R06 - Complete the data disclosure form with current permissions** using `privacy-permission-justification.md` after R68 removes `notifications`.
-- [ ] **R44 - Run end-to-end QA of User API authorization on live Discourse instances** covering device authorization on a current release and redirect fallback on an older compatible release, including payload decryption, connection verification, persistence, reauthorization, expiry, denial, and revocation.
+- [x] **R44 - Run end-to-end QA of User API authorization on live Discourse instances** covering device authorization on a current release and redirect fallback on an older compatible release, including payload decryption, connection verification, persistence, reauthorization, expiry, denial, and revocation.
 
 ### Security And Privacy
 
