@@ -9,13 +9,16 @@
   </a>
 </p>
 
-This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API.
+This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API. Requires Chrome 127 or later.
 
 ## Privacy
 
-- It does not gather any data at all about you or your content.
-- All data is sent directly to your Discourse instance from your browser.
-- No third-party servers are involved.
+- The developer does not collect any data from your use of this extension.
+- Clipped content and credentials are sent directly from your browser to the Discourse instance you configure. No intermediary service is involved.
+- Profiles, credentials, and clipping preferences are stored locally in Chrome's extension storage on this device only. They are not synced through your Google account.
+- Small non-sensitive preferences (theme, toolbar icon option, HTTP opt-in) are synced via Chrome's extension storage so they follow your browser profile.
+- The extension reads the active page's URL, title, and user-selected or extracted content only when you invoke it.
+- Favicon icons are fetched directly from your configured Discourse instance to display its icon on the toolbar.
 
 ## Features
 
@@ -35,9 +38,10 @@ This Chromium extension allows users to quickly create new topics or replies on 
 - Lazy-loaded category selectors showing the categories available to the connected account
 
 **Security & Privacy:**
-- No data collection - all clipping happens directly between your browser and your Discourse instance
-- No third-party servers involved
-- API keys stored locally in Chrome's storage on this device only (not synced through your Google account)
+- No data collection by the developer - all clipping happens directly between your browser and your Discourse instance
+- No intermediary service involved
+- Credentials stored locally in Chrome's extension storage on this device only (not synced through your Google account)
+- Non-sensitive preferences synced via Chrome so they follow your browser profile
 - Support for user-scoped API keys with granular permissions
 - HTTPS required by default; HTTP connections require an explicit advanced opt-in with a plaintext warning
 
