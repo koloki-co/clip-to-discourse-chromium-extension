@@ -5,6 +5,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.21.1](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.21.0...v0.21.1) (2026-07-30)
+
+
+### Features
+
+* **assets:** automated screenshots, store listing copy, and live QA (R04, R05, R44) ([507ac85](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/507ac852ab907451cffcf1d97b231e829593505f))
+
+
+### Bug Fixes
+
+* **manifest:** declare minimum_chrome_version 127 (R69) ([cb4478b](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/cb4478b77a40704a81f32368fa6548ea21475513))
+* **manifest:** remove unused notifications permission (R68) ([5b4e39c](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/5b4e39c3acd1bcd168cd8d535a4ba6be0e19543b))
+* **options:** hide the HTTP plaintext warning until Allow HTTP is enabled ([3a066aa](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/3a066aad89de92eddc4a2b37a950d466ba490bc6))
+* **options:** only show HTTP warning when user enables Allow HTTP ([4f8c2f0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/4f8c2f01feedc49ad66bd17cc401ecc54c48c704))
+* **package:** include licence and third-party notices in release archive (R70) ([c597704](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/c5977041b9c628a4528e4f0deb62ea9bb824acd5))
+* **popup:** keep the clip form usable when a favicon cannot be decoded ([4eecbe6](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/4eecbe633921d78ab91ff2486a66f4e7c19bab6a))
+
 ## [0.21.0](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.20.0...v0.21.0) (2026-07-27)
 
 
