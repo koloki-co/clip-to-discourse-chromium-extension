@@ -22,8 +22,12 @@
   box-sizing: border-box;
 }
 
+/* Visibility utility. This rule sits near the top of the file, so any later
+   single-class rule that sets `display` (.hint, .checkbox, ...) would win the
+   cascade on equal specificity and leave the element on screen. `!important`
+   keeps the utility authoritative wherever it is declared. */
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 /* Base page styling. */
