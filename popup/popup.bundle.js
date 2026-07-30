@@ -2653,6 +2653,19 @@ function createCanvas(size) {
 function getCanvasContext(canvas) {
   return canvas.getContext("2d");
 }
+function isDecodableImageType(contentType) {
+  if (!contentType) {
+    return false;
+  }
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (!type.startsWith("image/")) {
+    return false;
+  }
+  return type !== "image/svg+xml";
+}
+function isUsableImageBlob(blob) {
+  return Boolean(blob) && blob.size > 0 && isDecodableImageType(blob.type);
+}
 async function loadImageFromBlob(blob) {
   return createImageBitmap(blob);
 }
@@ -2705,8 +2718,11 @@ async function fetchFaviconBlob(baseUrl) {
   const faviconUrl = `${normalized}/favicon.ico`;
   try {
     const response = await fetch(faviconUrl);
-    if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
-      return await response.blob();
+    if (response.ok && isDecodableImageType(response.headers.get("content-type"))) {
+      const blob = await response.blob();
+      if (isUsableImageBlob(blob)) {
+        return blob;
+      }
     }
   } catch {
   }
@@ -2722,7 +2738,9 @@ async function fetchFaviconBlob(baseUrl) {
     const iconUrl = new URL(href, normalized).toString();
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
-    return await iconResponse.blob();
+    if (!isDecodableImageType(iconResponse.headers.get("content-type"))) return null;
+    const iconBlob = await iconResponse.blob();
+    return isUsableImageBlob(iconBlob) ? iconBlob : null;
   } catch {
     return null;
   }
@@ -2767,7 +2785,13 @@ async function updateActionIconForProfile(profile, useFavicon) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
     return;
   }
-  const imageData = await blobToImageDataMap(blob);
+  let imageData;
+  try {
+    imageData = await blobToImageDataMap(blob);
+  } catch {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
+    return;
+  }
   await chrome.action.setIcon({ imageData });
   const dataUrl = await blobToDataUrl(blob);
   await setCachedDataUrl(profile.id, dataUrl);
@@ -4347,6 +4371,13 @@ function buildTopicTitle({ title }) {
   const safeTitle = normalizeTitle(title) || fallbackTitle();
   return applyTitleTemplate(currentProfile.titleTemplate, safeTitle);
 }
+async function refreshActionIcon() {
+  try {
+    await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  } catch (error) {
+    console.error("Failed to update action icon:", error);
+  }
+}
 function renderProfiles() {
   profileSelect.innerHTML = "";
   profiles.forEach((profile) => {
@@ -4363,7 +4394,7 @@ function applyProfileDefaults(profile) {
   const defaultClipStyle = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   const defaultDestination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
   const clipInput = form.querySelector(`input[name='clipStyle'][value='${defaultClipStyle}']`);
-  if (clipInput && !clipInput.disabled) {
+  if (clipInput) {
     clipInput.checked = true;
   }
   const destinationInput = form.querySelector(`input[name='destination'][value='${defaultDestination}']`);
@@ -4491,7 +4522,7 @@ async function handleProfileChange() {
   setStatus("Switching profile...");
   await setActiveProfile(selectedId);
   await loadSettings();
-  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  await refreshActionIcon();
   setStatus("");
 }
 async function loadSettings() {
@@ -4516,7 +4547,7 @@ async function init() {
   setExtensionVersion();
   setStatus("Loading settings...");
   const connected = await loadSettings();
-  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  await refreshActionIcon();
   if (!connected) {
     connectionRequired.querySelector(".connect-button")?.focus();
     setStatus("");

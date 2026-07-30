@@ -83,6 +83,59 @@ describe("updateActionIconForProfile", () => {
     expect(cache[profile.id]).toBe("data:image/png;base64,AQID");
   });
 
+  // Regression: createImageBitmap cannot decode SVG blobs in Chromium, and
+  // an undecodable favicon used to reject with "The source image could not
+  // be decoded.", taking the popup's startup path down with it.
+  it("falls back when the site serves an SVG favicon", async () => {
+    fetchMock.mockImplementation(async (url) => {
+      if (url.endsWith("/favicon.ico")) {
+        return {
+          ok: true,
+          headers: { get: () => "image/svg+xml" },
+          blob: async () => new Blob(["<svg/>"], { type: "image/svg+xml" })
+        };
+      }
+      return { ok: true, headers: { get: () => "text/html" }, text: async () => "<html></html>" };
+    });
+
+    await expect(updateActionIconForProfile(profile, true)).resolves.toBeUndefined();
+
+    expect(createImageBitmap).not.toHaveBeenCalled();
+    expect(action.setIcon).toHaveBeenCalledWith({
+      imageData: { 16: { source: "fallback" }, 32: { source: "fallback" } }
+    });
+    expect(cache[profile.id]).toBeUndefined();
+  });
+
+  it("falls back when the favicon bytes cannot be decoded", async () => {
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => {
+      throw new Error("The source image could not be decoded.");
+    }));
+
+    await expect(updateActionIconForProfile(profile, true)).resolves.toBeUndefined();
+
+    expect(action.setIcon).toHaveBeenCalledWith({
+      imageData: { 16: { source: "fallback" }, 32: { source: "fallback" } }
+    });
+    expect(cache[profile.id]).toBeUndefined();
+  });
+
+  // An opaque cross-origin response yields a zero-byte blob.
+  it("falls back when the favicon response is opaque", async () => {
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      headers: { get: () => "" },
+      blob: async () => new Blob([], { type: "" }),
+      text: async () => ""
+    }));
+
+    await expect(updateActionIconForProfile(profile, true)).resolves.toBeUndefined();
+
+    expect(action.setIcon).toHaveBeenCalledWith({
+      imageData: { 16: { source: "fallback" }, 32: { source: "fallback" } }
+    });
+  });
+
   it("uses the fallback icon without fetching when disabled", async () => {
     await updateActionIconForProfile(profile, false);
 

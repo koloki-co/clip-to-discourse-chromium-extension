@@ -199,6 +199,15 @@ function buildTopicTitle({ title }) {
   return applyTitleTemplate(currentProfile.titleTemplate, safeTitle);
 }
 
+// The action icon is cosmetic; never let it break the clip form.
+async function refreshActionIcon() {
+  try {
+    await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  } catch (error) {
+    console.error("Failed to update action icon:", error);
+  }
+}
+
 function renderProfiles() {
   profileSelect.innerHTML = "";
   profiles.forEach((profile) => {
@@ -212,13 +221,15 @@ function renderProfiles() {
   });
 }
 
-// Apply profile defaults into the form without overriding disabled inputs.
+// Apply profile defaults into the form.
 function applyProfileDefaults(profile) {
   const defaultClipStyle = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
   const defaultDestination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
 
+  // Do not skip disabled inputs: init() disables the whole form while
+  // settings load, so a disabled check here would drop every default.
   const clipInput = form.querySelector(`input[name='clipStyle'][value='${defaultClipStyle}']`);
-  if (clipInput && !clipInput.disabled) {
+  if (clipInput) {
     clipInput.checked = true;
   }
 
@@ -368,7 +379,7 @@ async function handleProfileChange() {
   setStatus("Switching profile...");
   await setActiveProfile(selectedId);
   await loadSettings();
-  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  await refreshActionIcon();
   setStatus("");
 }
 
@@ -397,7 +408,7 @@ async function init() {
   setExtensionVersion();
   setStatus("Loading settings...");
   const connected = await loadSettings();
-  await updateActionIconForProfile(currentProfile, useFaviconForIcon);
+  await refreshActionIcon();
 
   if (!connected) {
     connectionRequired.querySelector(".connect-button")?.focus();

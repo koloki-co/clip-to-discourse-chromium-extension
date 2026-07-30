@@ -21,6 +21,25 @@ function getCanvasContext(canvas) {
   return canvas.getContext("2d");
 }
 
+// createImageBitmap decodes raster formats only. SVG blobs and non-image
+// payloads (HTML error pages, login redirects) both reject with
+// "The source image could not be decoded.", so screen them out up front.
+function isDecodableImageType(contentType) {
+  if (!contentType) {
+    return false;
+  }
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (!type.startsWith("image/")) {
+    return false;
+  }
+  return type !== "image/svg+xml";
+}
+
+// A cross-origin response without CORS yields an opaque, zero-byte blob.
+function isUsableImageBlob(blob) {
+  return Boolean(blob) && blob.size > 0 && isDecodableImageType(blob.type);
+}
+
 // Decode an image blob into a bitmap for canvas drawing.
 // Uses createImageBitmap (available in service workers and documents)
 // instead of new Image() which is document-only.
@@ -91,8 +110,11 @@ async function fetchFaviconBlob(baseUrl) {
   const faviconUrl = `${normalized}/favicon.ico`;
   try {
     const response = await fetch(faviconUrl);
-    if (response.ok && response.headers.get("content-type")?.startsWith("image")) {
-      return await response.blob();
+    if (response.ok && isDecodableImageType(response.headers.get("content-type"))) {
+      const blob = await response.blob();
+      if (isUsableImageBlob(blob)) {
+        return blob;
+      }
     }
   } catch {
     // Ignore and try HTML parsing.
@@ -110,7 +132,9 @@ async function fetchFaviconBlob(baseUrl) {
     const iconUrl = new URL(href, normalized).toString();
     const iconResponse = await fetch(iconUrl);
     if (!iconResponse.ok) return null;
-    return await iconResponse.blob();
+    if (!isDecodableImageType(iconResponse.headers.get("content-type"))) return null;
+    const iconBlob = await iconResponse.blob();
+    return isUsableImageBlob(iconBlob) ? iconBlob : null;
   } catch {
     return null;
   }
@@ -167,7 +191,18 @@ export async function updateActionIconForProfile(profile, useFavicon) {
     return;
   }
 
-  const imageData = await blobToImageDataMap(blob);
+  // A served content-type can still misdescribe the bytes, so a decode
+  // failure here must degrade to the fallback icon rather than reject: this
+  // runs on the popup's startup path and an unhandled rejection there leaves
+  // the clip form disabled.
+  let imageData;
+  try {
+    imageData = await blobToImageDataMap(blob);
+  } catch {
+    await chrome.action.setIcon({ imageData: createFallbackImageDataMap() });
+    return;
+  }
+
   await chrome.action.setIcon({ imageData });
   const dataUrl = await blobToDataUrl(blob);
   await setCachedDataUrl(profile.id, dataUrl);

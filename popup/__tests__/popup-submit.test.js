@@ -121,3 +121,49 @@ describe("popup submission edge cases", () => {
     }
   });
 });
+
+// Regression: init() disables the whole form while settings load, and
+// applyProfileDefaults used to skip disabled inputs, so the profile's
+// default clip style and destination were silently never applied.
+describe("popup applies profile defaults", () => {
+  let mounted;
+
+  afterEach(() => {
+    unmountPopup(mounted);
+  });
+
+  it("preselects the profile's default clip style and destination", async () => {
+    mounted = await mountPopup({
+      storage: {
+        profiles: [{
+          id: "profile-1",
+          name: "Site One",
+          baseUrl: "https://forum1.example.com",
+          authMethod: AUTH_METHODS.ADMIN_API_KEY,
+          apiUsername: "user",
+          apiKey: "key",
+          defaultClipStyle: CLIP_STYLES.FULL_TEXT,
+          defaultDestination: DESTINATIONS.APPEND_TOPIC,
+          defaultCategoryId: "",
+          defaultTopicId: "345",
+          titleTemplate: "Clip: {{title}}"
+        }],
+        activeProfileId: "profile-1",
+        useFaviconForIcon: false
+      }
+    });
+
+    const { document } = mounted.window;
+
+    expect(document.querySelector("input[name='clipStyle']:checked").value)
+      .toBe(CLIP_STYLES.FULL_TEXT);
+    expect(document.querySelector("input[name='destination']:checked").value)
+      .toBe(DESTINATIONS.APPEND_TOPIC);
+    expect(document.getElementById("topicId").value).toBe("345");
+    // Append-topic hides the category field and shows the topic field.
+    expect(document.getElementById("topic-field").classList.contains("hidden")).toBe(false);
+    expect(document.getElementById("category-field").classList.contains("hidden")).toBe(true);
+    // The form must be usable once init() completes.
+    expect(document.querySelector("button[type=submit]").disabled).toBe(false);
+  });
+});
