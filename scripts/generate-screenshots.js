@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { chromium } from "@playwright/test";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
@@ -234,7 +234,12 @@ async function main() {
     console.log("Saved popup-selection-screenshot.png");
 
   } finally {
-    try { await context?.close(); } catch {}
+    try {
+      await context?.close();
+    } catch {
+      // A browser that already exited throws here; the remaining cleanup
+      // below still has to run, so swallow it.
+    }
     await mockDiscourse.close();
     await fixtureSite.close();
     await rm(extensionDir, { recursive: true, force: true });
