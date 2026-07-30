@@ -8,5 +8,6 @@ These guides describe the extension as it is implemented. Start with the archite
 - [Architecture](development/architecture.md) - runtime entry points, clipping pipeline, storage, permissions, and trust boundaries.
 - [Extending Clip Styles](development/extending-clip-styles.md) - the complete change checklist for a new clipping mode.
 - [Troubleshooting](development/troubleshooting.md) - local development, browser, connection, extraction, and test diagnostics.
+- [Releasing](development/releasing.md) - cutting a version, the tag-triggered pipeline, and Chrome Web Store publication.
 
 For product decisions and outstanding work, see [spec/README.md](../spec/README.md) and [spec/roadmap.md](../spec/roadmap.md).

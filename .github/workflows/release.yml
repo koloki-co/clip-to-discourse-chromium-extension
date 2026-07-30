@@ -3,16 +3,41 @@
 
 name: Release
 
+# Pushing a vX.Y.Z tag runs the whole pipeline: verify, package, publish the
+# GitHub release, then publish that same archive to the Chrome Web Store.
+#
+# The Web Store job is gated on the `chrome-web-store` environment. Store
+# version numbers can never be reused or rolled back, so the gate is what
+# stops a mistaken tag from becoming a permanent public release. It must be
+# configured with required reviewers; see docs/development/releasing.md.
+#
+# workflow_dispatch re-publishes an already-released tag to the store without
+# rebuilding, which is the recovery path if the store upload fails on its own.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to publish to the store (e.g. v1.0.0)"
+        required: true
+        type: string
+      publish_target:
+        description: "Publish target"
+        required: true
+        default: "public"
+        type: choice
+        options:
+          - public
+          - trusted
 
 permissions:
   contents: read
 
 jobs:
   build-and-release:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,6 +50,19 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Verify tag matches manifest version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag must be in the form vX.Y.Z (got: $tag)"
+            exit 1
+          fi
+          manifest_version=$(node -p "require('./manifest.json').version")
+          if [ "$tag" != "v${manifest_version}" ]; then
+            echo "Tag $tag does not match manifest version $manifest_version"
+            exit 1
+          fi
+          echo "Tag $tag matches manifest version $manifest_version"
       - run: npm run lint
       - run: npm test
       - run: npm run test:coverage
@@ -39,3 +77,72 @@ jobs:
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: clip-to-discourse-extension.zip
+
+  publish-chrome-web-store:
+    needs: build-and-release
+    # Runs after a tag release, or standalone to re-publish an existing tag.
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.build-and-release.result == 'success')
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    steps:
+      - name: Resolve release tag and publish target
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+          INPUT_TARGET: ${{ inputs.publish_target }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            tag="$REF_NAME"
+            target="public"
+          else
+            tag="$INPUT_TAG"
+            target="$INPUT_TARGET"
+          fi
+          if ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag must be in the form vX.Y.Z (got: $tag)"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      # Download the archive attached to the release rather than rebuilding it,
+      # so the bytes that reach the store are the bytes that were tested and
+      # published on GitHub (R71).
+      - name: Download the released archive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          gh release download "$TAG" --pattern clip-to-discourse-extension.zip --dir .
+          test -s clip-to-discourse-extension.zip
+
+      - name: Verify the archive manifest matches the tag
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          archive_version=$(unzip -p clip-to-discourse-extension.zip manifest.json | jq -r .version)
+          if [ "$TAG" != "v${archive_version}" ]; then
+            echo "Tag $TAG does not match archive manifest version $archive_version"
+            exit 1
+          fi
+          echo "Archive manifest version $archive_version matches $TAG"
+
+      - name: Upload and publish
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: >
+          npx -y chrome-webstore-upload-cli@2.2.2
+          upload
+          --source clip-to-discourse-extension.zip
+          --extension-id "$EXTENSION_ID"
+          --client-id "$CLIENT_ID"
+          --client-secret "$CLIENT_SECRET"
+          --refresh-token "$REFRESH_TOKEN"
+          --auto-publish
+          ${{ steps.resolve.outputs.target == 'trusted' && '--trusted-testers' || '' }}
