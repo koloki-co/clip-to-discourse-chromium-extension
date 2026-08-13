@@ -296,6 +296,23 @@ async function addProfile(partial = {}) {
     return profile;
   });
 }
+async function duplicateProfile(profileId) {
+  return withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    const source = state.profiles.find((profile2) => profile2.id === profileId);
+    if (!source) {
+      throw new Error("Profile no longer exists.");
+    }
+    const profile = createProfile({
+      ...source,
+      id: "",
+      name: `${source.name} copy`
+    });
+    const profiles2 = [...state.profiles, profile];
+    await chrome.storage.local.set({ profiles: profiles2, activeProfileId: profile.id });
+    return profile;
+  });
+}
 async function deleteProfile(profileId) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -740,9 +757,16 @@ var form = document.getElementById("settings-form");
 var statusEl = document.getElementById("status");
 var submitButton = form.querySelector("button[type=submit]");
 var testButton = document.getElementById("testConnection");
-var profileSelect = document.getElementById("profileSelect");
+var profileList = document.getElementById("profileList");
 var addProfileButton = document.getElementById("addProfile");
+var renameProfileButton = document.getElementById("renameProfile");
+var duplicateProfileButton = document.getElementById("duplicateProfile");
 var deleteProfileButton = document.getElementById("deleteProfile");
+var profileRenamePanel = document.getElementById("profileRenamePanel");
+var profileNameInput = document.getElementById("profileName");
+var profileNameError = document.getElementById("profileNameError");
+var saveProfileNameButton = document.getElementById("saveProfileName");
+var cancelRenameProfileButton = document.getElementById("cancelRenameProfile");
 var profileCreatePanel = document.getElementById("profileCreatePanel");
 var newProfileNameInput = document.getElementById("newProfileName");
 var newProfileNameError = document.getElementById("newProfileNameError");
@@ -997,15 +1021,16 @@ function validateFields() {
   return isValid;
 }
 function renderProfiles() {
-  profileSelect.innerHTML = "";
+  profileList.innerHTML = "";
   profiles.forEach((profile) => {
-    const option = document.createElement("option");
-    option.value = profile.id;
-    option.textContent = profile.name || "Untitled";
-    if (profile.id === activeProfileId) {
-      option.selected = true;
-    }
-    profileSelect.appendChild(option);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "profile-list-item";
+    button.dataset.profileId = profile.id;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", String(profile.id === activeProfileId));
+    button.textContent = profile.name || "Untitled";
+    profileList.appendChild(button);
   });
   deleteProfileButton.disabled = profiles.length <= 1;
 }
@@ -1075,9 +1100,13 @@ function setButtonsDisabled(disabled) {
   submitButton.disabled = disabled;
   testButton.disabled = disabled;
   addProfileButton.disabled = disabled;
+  renameProfileButton.disabled = disabled;
+  duplicateProfileButton.disabled = disabled;
   deleteProfileButton.disabled = disabled || profiles.length <= 1;
   fields.theme.disabled = disabled;
-  profileSelect.disabled = disabled;
+  profileList.querySelectorAll("button").forEach((button) => {
+    button.disabled = disabled;
+  });
   authTabButtons.forEach((button) => {
     button.disabled = disabled;
   });
@@ -1420,11 +1449,11 @@ function handleAuthMethodClick(event) {
   setUserApiStatus("");
   setStatus("");
 }
-async function handleProfileChange() {
-  const selectedId = profileSelect.value;
+async function handleProfileChange(selectedId) {
   if (!selectedId || selectedId === activeProfileId) {
     return;
   }
+  closeProfileRenamePanel();
   closeProfileCreatePanel();
   closeProfileDeletePanel();
   setStatus("Switching profile...");
@@ -1435,6 +1464,12 @@ async function handleProfileChange() {
     fields.useFaviconForIcon.checked
   );
   setStatus("");
+}
+function closeProfileRenamePanel() {
+  profileRenamePanel.classList.add("hidden");
+  renameProfileButton.setAttribute("aria-expanded", "false");
+  profileNameInput.value = "";
+  profileNameError.textContent = "";
 }
 function closeProfileCreatePanel() {
   profileCreatePanel.classList.add("hidden");
@@ -1447,10 +1482,57 @@ function closeProfileDeletePanel() {
   deleteProfileButton.setAttribute("aria-expanded", "false");
 }
 function handleAddProfile() {
+  closeProfileRenamePanel();
   closeProfileDeletePanel();
   profileCreatePanel.classList.remove("hidden");
   addProfileButton.setAttribute("aria-expanded", "true");
   newProfileNameInput.focus();
+}
+function handleRenameProfile() {
+  closeProfileCreatePanel();
+  closeProfileDeletePanel();
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  profileNameInput.value = activeProfile?.name || "";
+  profileRenamePanel.classList.remove("hidden");
+  renameProfileButton.setAttribute("aria-expanded", "true");
+  profileNameInput.focus();
+  profileNameInput.select();
+}
+async function handleSaveProfileName() {
+  const name = profileNameInput.value.trim();
+  if (!name) {
+    profileNameError.textContent = "Enter a profile name.";
+    profileNameInput.focus();
+    return;
+  }
+  saveProfileNameButton.disabled = true;
+  try {
+    await saveProfile(activeProfileId, { name });
+    closeProfileRenamePanel();
+    await loadSettings();
+    setStatus(`Profile renamed to "${name}".`);
+  } catch (error) {
+    profileNameError.textContent = error.message || "The profile could not be renamed.";
+  } finally {
+    saveProfileNameButton.disabled = false;
+  }
+}
+async function handleDuplicateProfile() {
+  closeProfileRenamePanel();
+  closeProfileCreatePanel();
+  closeProfileDeletePanel();
+  setButtonsDisabled(true);
+  setStatus("Duplicating profile...");
+  try {
+    const profile = await duplicateProfile(activeProfileId);
+    await loadSettings();
+    await updateActionIconForProfile(profile, fields.useFaviconForIcon.checked);
+    setStatus(`Profile duplicated as "${profile.name}".`);
+  } catch (error) {
+    setStatus(error.message || "The profile could not be duplicated.", true);
+  } finally {
+    setButtonsDisabled(false);
+  }
 }
 async function handleCreateProfile() {
   const name = newProfileNameInput.value.trim();
@@ -1482,6 +1564,7 @@ function handleDeleteProfile() {
     return;
   }
   closeProfileCreatePanel();
+  closeProfileRenamePanel();
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
   profileDeleteName.textContent = activeProfile?.name || "this profile";
   profileDeletePanel.classList.remove("hidden");
@@ -1508,9 +1591,18 @@ async function handleConfirmDeleteProfile() {
 }
 form.addEventListener("submit", handleSubmit);
 testButton.addEventListener("click", handleTestConnection);
-profileSelect.addEventListener("change", handleProfileChange);
+profileList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-profile-id]");
+  if (button) {
+    handleProfileChange(button.dataset.profileId);
+  }
+});
 addProfileButton.addEventListener("click", handleAddProfile);
+renameProfileButton.addEventListener("click", handleRenameProfile);
+duplicateProfileButton.addEventListener("click", handleDuplicateProfile);
 deleteProfileButton.addEventListener("click", handleDeleteProfile);
+saveProfileNameButton.addEventListener("click", handleSaveProfileName);
+cancelRenameProfileButton.addEventListener("click", closeProfileRenamePanel);
 createProfileButton.addEventListener("click", handleCreateProfile);
 cancelAddProfileButton.addEventListener("click", closeProfileCreatePanel);
 confirmDeleteProfileButton.addEventListener("click", handleConfirmDeleteProfile);
@@ -1525,6 +1617,18 @@ newProfileNameInput.addEventListener("keydown", (event) => {
   } else if (event.key === "Escape") {
     closeProfileCreatePanel();
     addProfileButton.focus();
+  }
+});
+profileNameInput.addEventListener("input", () => {
+  profileNameError.textContent = "";
+});
+profileNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleSaveProfileName();
+  } else if (event.key === "Escape") {
+    closeProfileRenamePanel();
+    renameProfileButton.focus();
   }
 });
 checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);

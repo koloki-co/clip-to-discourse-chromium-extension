@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "npm run bundle && playwright test",
+    "test:e2e": "npm run package && playwright test",
     "test:watch": "vitest",
     "version:check": "node scripts/check-versions.js",
     "bundle": "node scripts/bundle.js",

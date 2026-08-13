@@ -109,6 +109,46 @@ h1 {
   margin-top: 0;
 }
 
+.profile-list {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.profile-list-item {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-list-item:hover {
+  background: var(--control);
+}
+
+.profile-list-item[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--surface-emphasis);
+  font-weight: 700;
+}
+
+.profile-tools {
+  grid-template-columns: 1fr 1fr;
+}
+
+.profile-tools #addProfile {
+  grid-column: 1 / -1;
+}
+
+.delete-profile-trigger {
+  width: 100%;
+  margin-top: 16px;
+}
+
 .profile-inline-panel {
   margin-top: 12px;
   padding: 14px;

@@ -8,6 +8,7 @@ import {
   saveActiveProfile,
   saveProfile,
   addProfile,
+  duplicateProfile,
   deleteProfile,
   saveGlobalSettings,
   DEFAULT_PROFILE
@@ -283,6 +284,35 @@ describe("Chrome Storage Configuration", () => {
       });
 
       expect(mockLocal.profiles[0].baseUrl).toBe("https://forum.example.com");
+    });
+  });
+
+  describe("duplicateProfile", () => {
+    it("copies credentials and defaults into a new active profile", async () => {
+      mockLocal.profiles = [{
+        id: "source",
+        name: "Full page",
+        baseUrl: "https://forum.example.com",
+        authMethod: AUTH_METHODS.ADMIN_API_KEY,
+        apiUsername: "clipper",
+        apiKey: "secret-key",
+        defaultClipStyle: CLIP_STYLES.FULL_TEXT
+      }];
+      mockLocal.activeProfileId = "source";
+
+      const duplicate = await duplicateProfile("source");
+
+      expect(duplicate.id).not.toBe("source");
+      expect(duplicate.name).toBe("Full page copy");
+      expect(duplicate.apiUsername).toBe("clipper");
+      expect(duplicate.apiKey).toBe("secret-key");
+      expect(duplicate.defaultClipStyle).toBe(CLIP_STYLES.FULL_TEXT);
+      expect(mockLocal.activeProfileId).toBe(duplicate.id);
+      expect(mockLocal.profiles).toHaveLength(2);
+    });
+
+    it("rejects a missing source profile", async () => {
+      await expect(duplicateProfile("missing")).rejects.toThrow("Profile no longer exists.");
     });
   });
 

@@ -350,6 +350,25 @@ export async function addProfile(partial = {}) {
   });
 }
 
+// Duplicate a profile, including its connection credentials and defaults.
+export async function duplicateProfile(profileId) {
+  return withProfilesLock(async () => {
+    const state = await loadStateLocked();
+    const source = state.profiles.find((profile) => profile.id === profileId);
+    if (!source) {
+      throw new Error("Profile no longer exists.");
+    }
+    const profile = createProfile({
+      ...source,
+      id: "",
+      name: `${source.name} copy`
+    });
+    const profiles = [...state.profiles, profile];
+    await chrome.storage.local.set({ profiles, activeProfileId: profile.id });
+    return profile;
+  });
+}
+
 // Remove a profile, ensuring at least one remains active.
 export async function deleteProfile(profileId) {
   await withProfilesLock(async () => {

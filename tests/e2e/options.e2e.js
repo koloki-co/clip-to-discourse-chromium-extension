@@ -9,12 +9,11 @@ test("creates, saves, switches, and persists distinct profiles with host access"
   page
 }) => {
   await page.goto(extension.optionsUrl);
-  await page.getByRole("button", { name: "Add Profile" }).click();
+  await page.getByRole("button", { name: "New Profile" }).click();
   await page.getByRole("textbox", { name: "New profile name" }).fill("Forum A");
   await page.getByRole("button", { name: "Create Profile" }).click();
-  const profileSelect = page.getByRole("combobox", { name: "Active Profile" });
   await expect(page.getByRole("status").last()).toContainText('Profile "Forum A" created.');
-  const forumAId = await profileSelect.inputValue();
+  const forumAId = await extension.getStorage().then((storage) => storage.activeProfileId);
 
   await page.getByRole("tab", { name: "Admin API Key" }).click();
   await page.getByRole("textbox", { name: "Discourse BaseURL" }).fill(mockDiscourse.baseUrl);
@@ -25,12 +24,12 @@ test("creates, saves, switches, and persists distinct profiles with host access"
   await expect(page.getByRole("status").last()).toContainText("Settings saved");
   await expect.poll(() => extension.hasHostPermission(mockDiscourse.baseUrl)).toBe(true);
 
-  await page.getByRole("button", { name: "Add Profile" }).click();
+  await page.getByRole("button", { name: "New Profile" }).click();
   await page.getByRole("textbox", { name: "New profile name" }).fill("Forum B");
   await page.getByRole("button", { name: "Create Profile" }).click();
   await expect(page.getByRole("status").last()).toContainText('Profile "Forum B" created.');
-  await expect(profileSelect).not.toHaveValue(forumAId);
-  const forumBId = await profileSelect.inputValue();
+  const forumBId = await extension.getStorage().then((storage) => storage.activeProfileId);
+  expect(forumBId).not.toBe(forumAId);
 
   await page.getByRole("tab", { name: "Admin API Key" }).click();
   await page.getByRole("textbox", { name: "Discourse BaseURL" }).fill(mockDiscourse.alternate.baseUrl);
@@ -43,17 +42,17 @@ test("creates, saves, switches, and persists distinct profiles with host access"
   await page.getByRole("button", { name: "Save Settings" }).click();
   await expect(page.getByRole("status").last()).toContainText("Settings saved");
 
-  await profileSelect.selectOption(forumAId);
+  await page.getByRole("option", { name: "Forum A" }).click();
   await expect(page.getByRole("textbox", { name: "Discourse BaseURL" })).toHaveValue(mockDiscourse.baseUrl);
   await expect.poll(async () => {
     const storage = await extension.getStorage();
     return storage.activeProfileId;
   }).toBe(forumAId);
   await page.reload();
-  await expect(profileSelect).toHaveValue(forumAId);
+  await expect(page.getByRole("option", { name: "Forum A" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("textbox", { name: /Discourse API Key/ })).toHaveValue("e2e-not-a-secret-a");
 
-  await profileSelect.selectOption(forumBId);
+  await page.getByRole("option", { name: "Forum B" }).click();
   await expect(page.getByRole("textbox", { name: "Discourse BaseURL" })).toHaveValue(mockDiscourse.alternate.baseUrl);
   await expect(page.getByRole("combobox", { name: "Default Clip Style" })).toHaveValue("full_text");
   await expect(page.getByRole("combobox", { name: "Default Destination" })).toHaveValue("append_topic");
@@ -64,7 +63,7 @@ test("creates, saves, switches, and persists distinct profiles with host access"
     return storage.activeProfileId;
   }).toBe(forumBId);
   await page.reload();
-  await expect(profileSelect).toHaveValue(forumBId);
+  await expect(page.getByRole("option", { name: "Forum B" })).toHaveAttribute("aria-selected", "true");
 
   const storage = await extension.getStorage();
   const forumA = storage.profiles.find((profile) => profile.name === "Forum A");
@@ -76,6 +75,42 @@ test("creates, saves, switches, and persists distinct profiles with host access"
   expect(forumB.defaultDestination).toBe("append_topic");
   expect(forumB.defaultTopicId).toBe("345");
   expect(forumB.titleTemplate).toBe("Forum B: {{title}}");
+});
+
+test("renames, duplicates, and confirms deletion of profiles", async ({ extension, mockDiscourse, page }) => {
+  const profile = connectedAdminProfile({
+    name: "Full page",
+    baseUrl: mockDiscourse.baseUrl,
+    overrides: { defaultClipStyle: "full_text" }
+  });
+  await extension.setStorage({
+    profiles: [profile],
+    activeProfileId: profile.id,
+    useFaviconForIcon: false,
+    allowHttp: true
+  });
+  await page.goto(extension.optionsUrl);
+
+  await page.getByRole("button", { name: "Rename", exact: true }).click();
+  await page.getByRole("textbox", { name: "Profile name" }).fill("Research archive");
+  await page.getByRole("button", { name: "Save Name" }).click();
+  await expect(page.getByRole("option", { name: "Research archive" })).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "Duplicate" }).click();
+  await expect(page.getByRole("option", { name: "Research archive copy" })).toHaveAttribute("aria-selected", "true");
+  let storage = await extension.getStorage();
+  const duplicate = storage.profiles.find((candidate) => candidate.name === "Research archive copy");
+  expect(duplicate.apiKey).toBe(profile.apiKey);
+  expect(duplicate.apiUsername).toBe(profile.apiUsername);
+  expect(duplicate.defaultClipStyle).toBe("full_text");
+
+  await page.getByRole("button", { name: "Delete Profile..." }).click();
+  await expect(page.getByText("Its connection credentials and defaults will be removed.")).toBeVisible();
+  await page.getByRole("button", { name: "Delete Profile", exact: true }).click();
+  await expect(page.getByRole("option", { name: "Research archive copy" })).toHaveCount(0);
+  storage = await extension.getStorage();
+  expect(storage.profiles).toHaveLength(1);
+  expect(storage.profiles[0].name).toBe("Research archive");
 });
 
 test("loads visible categories and tests the configured connection", async ({

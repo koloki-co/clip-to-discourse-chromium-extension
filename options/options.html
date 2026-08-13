@@ -27,13 +27,22 @@
         <aside class="settings-sidebar">
           <section class="sidebar-section">
             <h2>Profiles</h2>
-            <label>
-              Active Profile
-              <select id="profileSelect" name="profileSelect"></select>
-            </label>
-            <div class="sidebar-actions">
-              <button class="secondary" type="button" id="addProfile" aria-expanded="false" aria-controls="profileCreatePanel">Add Profile</button>
-              <button class="secondary danger-button" type="button" id="deleteProfile" aria-expanded="false" aria-controls="profileDeletePanel">Delete Profile</button>
+            <div id="profileList" class="profile-list" role="listbox" aria-label="Profiles"></div>
+            <div class="sidebar-actions profile-tools" aria-label="Profile actions">
+              <button class="secondary" type="button" id="renameProfile" aria-expanded="false" aria-controls="profileRenamePanel">Rename</button>
+              <button class="secondary" type="button" id="duplicateProfile">Duplicate</button>
+              <button class="secondary" type="button" id="addProfile" aria-expanded="false" aria-controls="profileCreatePanel">New Profile</button>
+            </div>
+            <div id="profileRenamePanel" class="profile-inline-panel hidden">
+              <label for="profileName">
+                Profile name
+                <input id="profileName" name="profileName" type="text" maxlength="80" autocomplete="off" />
+              </label>
+              <span id="profileNameError" class="error" role="alert"></span>
+              <div class="inline-panel-actions">
+                <button class="primary" type="button" id="saveProfileName">Save Name</button>
+                <button class="text-button" type="button" id="cancelRenameProfile">Cancel</button>
+              </div>
             </div>
             <div id="profileCreatePanel" class="profile-inline-panel hidden">
               <label for="newProfileName">
@@ -46,6 +55,7 @@
                 <button class="text-button" type="button" id="cancelAddProfile">Cancel</button>
               </div>
             </div>
+            <button class="text-button danger-button delete-profile-trigger" type="button" id="deleteProfile" aria-expanded="false" aria-controls="profileDeletePanel">Delete Profile...</button>
             <div id="profileDeletePanel" class="profile-inline-panel profile-delete-panel hidden">
               <p>Delete <strong id="profileDeleteName"></strong>?</p>
               <p class="sidebar-hint">Its connection credentials and defaults will be removed. This cannot be undone.</p>
