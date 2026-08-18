@@ -54,7 +54,7 @@ This Chromium extension allows users to quickly create new topics or replies on 
 5. Set your Profile's default clip style and destination mode
 6. Start clipping content to your Discourse forum!
 7. **Tip**: Pin the extension to your toolbar for easy access
-8. **Tip**: Open the popup with the keyboard shortcut `Ctrl+Shift+U` (`Command+Shift+U` on macOS). Change or clear it at `chrome://extensions/shortcuts`.
+8. **Tip**: Open the popup with the keyboard shortcut `Ctrl+Shift+K` (`Command+Shift+K` on macOS). Change or clear it at `chrome://extensions/shortcuts`.
 
 ## Profiles
 
