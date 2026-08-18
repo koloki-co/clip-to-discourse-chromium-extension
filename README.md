@@ -4,12 +4,60 @@
 # Clip To Discourse Chromium Extension
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/clip-to-discourse/copdhiejkkdblhdcdjapcoalldkondhi">
-    <img src="https://developer.chrome.com/static/docs/webstore/branding/image/HRs9MPufa1J1h5glNhut.png" alt="Available in the Chrome Web Store">
+  <a href="https://koloki.co">
+    <img src="docs/images/koloki-logo.png" alt="Koloki - What everyone's talking about" width="298">
   </a>
 </p>
 
-This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API. Requires Chrome 127 or later.
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/clip-to-discourse/copdhiejkkdblhdcdjapcoalldkondhi">
+    <img src="https://developer.chrome.com/static/docs/webstore/branding/image/HRs9MPufa1J1h5glNhut.png" alt="Available in the Chrome Web Store">
+  </a>
+  <a href="https://github.com/sponsors/koloki-co">
+    <img src="https://img.shields.io/badge/Sponsor-Koloki-ea4aaa?logo=githubsponsors" alt="Sponsor Koloki on GitHub">
+  </a>
+</p>
+
+Clip To Discourse is developed by [Koloki](https://koloki.co). This Chromium extension allows users to quickly create new topics or replies on Discourse forums by clipping content directly from web pages to the Discourse REST API. Requires Chrome 127 or later.
+
+## Screenshots
+
+### Clip A Page
+
+<p align="center">
+  <img src="assets/images/clipping-01-clip-to-discourse-popup.png" alt="Choosing a clip style, destination, and category in the Clip To Discourse popup" width="960">
+</p>
+
+<p align="center">
+  <img src="assets/images/clipping-02-the-clipped-page-koloki-demo-discourse.png" alt="A clipped GitHub page published as a topic on the Koloki demo Discourse forum" width="960">
+</p>
+
+### Manage Profiles And Defaults
+
+<p align="center">
+  <img src="assets/images/settings-screenshot.png" alt="Clip To Discourse settings showing profiles, authentication, and clipping defaults" width="960">
+</p>
+
+<details>
+<summary><strong>Authorize With The Discourse User API</strong></summary>
+
+<p align="center">
+  <img src="assets/images/userauth-01-authorizing-the-user-api.png" alt="Chrome requesting permission for Clip To Discourse to access the configured Discourse forum" width="960">
+</p>
+
+<p align="center">
+  <img src="assets/images/userauth-02-enter-this-code-in-discourse.png" alt="Clip To Discourse displaying the User API device authorization code" width="960">
+</p>
+
+<p align="center">
+  <img src="assets/images/userauth-03-authorize-the-extension-koloki-demo-discourse.png" alt="Approving Clip To Discourse User API access on the Koloki demo Discourse forum" width="960">
+</p>
+
+<p align="center">
+  <img src="assets/images/userauth-04-authorization-complete.png" alt="Discourse confirming that User API authorization is complete" width="960">
+</p>
+
+</details>
 
 ## Privacy
 
@@ -106,6 +154,7 @@ Example body template: `### {{title}}\n{{url}}\n\n{{excerpt}}`
 - `npm run test:watch` - Run tests in watch mode
 - `npm run build` - Full build with lint, test, bundle, and version check
 - `npm run package` - Create release zip file
+- `npm run screenshots` - Rebuild the packaged extension and regenerate its automated screenshots
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow, [spec/README.md](spec/README.md) for product decisions, [spec/roadmap.md](spec/roadmap.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
