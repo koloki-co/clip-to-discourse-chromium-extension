@@ -37,7 +37,7 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 ### User Experience
 
 #### Keyboard Shortcuts
-- [ ] **R18 - Add a configurable keyboard shortcut to open the popup**
+- [x] **R18 - Add a configurable keyboard shortcut to open the popup**
 - [ ] **R19 - Add a shortcut to clip with default settings without opening the popup**
 
 #### Enhanced Selection Clipping
