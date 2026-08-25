@@ -789,7 +789,7 @@ export function htmlToMarkdownFullPage(html, options = {}) {
 
 /**
  * Trim normalized plain text to a maximum length. Cuts at a hard character
- * boundary (not a word boundary) — callers that need whole words should
+ * boundary (not a word boundary) - callers that need whole words should
  * trim further.
  * @param {string} text
  * @param {number} [maxLength=DEFAULT_EXCERPT_LENGTH]

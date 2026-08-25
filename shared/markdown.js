@@ -47,7 +47,7 @@ export function applyTemplate(template, data) {
 
 /**
  * Normalize a page-derived title: trims whitespace and coerces non-string
- * input to `""`. Does not apply {@link fallbackTitle} — callers combine the
+ * input to `""`. Does not apply {@link fallbackTitle} - callers combine the
  * two when an empty title needs a stand-in.
  * @param {unknown} value - Raw title value, typically from the page's `document.title`.
  * @returns {string}
