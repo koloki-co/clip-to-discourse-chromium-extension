@@ -155,7 +155,18 @@ async function blobToDataUrl(blob) {
   return `data:${mimeType};base64,${base64}`;
 }
 
-// Update the action icon using a profile favicon or fallback.
+/**
+ * Update the extension's toolbar icon and title to reflect a profile's
+ * connection and favicon state: a grey fallback icon with a "connection
+ * required" title when disconnected, a fetched-and-cached site favicon
+ * when `useFavicon` is true and one loads successfully, otherwise the
+ * default connected fallback icon. Favicon fetches are cached per profile
+ * id in `chrome.storage.local`; a fetch or decode failure silently
+ * degrades to the fallback icon rather than throwing.
+ * @param {object} profile - A profile as returned by `getSettingsState` in `shared/settings.js`.
+ * @param {boolean} useFavicon - Whether to attempt using the site's favicon (the `useFaviconForIcon` global setting).
+ * @returns {Promise<void>}
+ */
 export async function updateActionIconForProfile(profile, useFavicon) {
   if (!isProfileConnected(profile)) {
     await chrome.action.setIcon({ imageData: createFallbackImageDataMap(false) });

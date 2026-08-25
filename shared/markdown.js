@@ -23,6 +23,15 @@ function normalizeToken(value) {
   return value.toLowerCase().replace(/_/g, "-");
 }
 
+/**
+ * Replace `{{token}}` placeholders in a template with values from `data`.
+ * Token matching is case-insensitive and treats `_` and `-` as equivalent
+ * (e.g. `{{FULL_TEXT}}` and `{{full-text}}` both resolve to `data["full-text"]`).
+ * Unknown tokens resolve to an empty string.
+ * @param {string} template - Template string containing `{{token}}` placeholders.
+ * @param {Record<string, string>} data - Replacement values keyed by normalized (lowercase, hyphenated) token name.
+ * @returns {string} `""` if `template` is falsy, otherwise the template with placeholders substituted.
+ */
 export function applyTemplate(template, data) {
   if (!template) {
     return "";
@@ -36,12 +45,23 @@ export function applyTemplate(template, data) {
   });
 }
 
-// Normalize title input from the page.
+/**
+ * Normalize a page-derived title: trims whitespace and coerces non-string
+ * input to `""`. Does not apply {@link fallbackTitle} - callers combine the
+ * two when an empty title needs a stand-in.
+ * @param {unknown} value - Raw title value, typically from the page's `document.title`.
+ * @returns {string}
+ */
 export function normalizeTitle(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-// Generate a fallback title to keep posts unique and identifiable.
+/**
+ * Generate a timestamped fallback title (e.g. `"2026-08-25 12:00:00 UTC
+ * Clipped with Clip To Discourse"`), used whenever a page has no usable
+ * title, to keep posts unique and identifiable.
+ * @returns {string}
+ */
 export function fallbackTitle() {
   const timestamp = new Date().toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
   return `${timestamp} Clipped with Clip To Discourse`;
@@ -95,14 +115,40 @@ function buildTitleTemplateData(title) {
   };
 }
 
-// Apply title template tokens ({{title}}, {{date}}, {{datetime}}).
+/**
+ * Render a profile's title template with `{{title}}`, `{{date}}`, and
+ * `{{datetime}}` tokens, then truncate to Discourse's title limit via
+ * {@link truncateTitle}. Falls back to `"Clip: {{title}}"` if `template`
+ * omits the required `{{title}}` token (e.g. an empty or misconfigured
+ * profile setting).
+ * @param {string} template - Profile's `titleTemplate` (see `DEFAULT_PROFILE` in `shared/settings.js`).
+ * @param {unknown} title - Raw page title; normalized via {@link normalizeTitle}, falling back to {@link fallbackTitle} when empty.
+ * @returns {string}
+ */
 export function applyTitleTemplate(template, title) {
   const safeTemplate = template && template.includes("{{title}}") ? template : "Clip: {{title}}";
   const result = applyTemplate(safeTemplate, buildTitleTemplateData(title));
   return truncateTitle(result);
 }
 
-// Build the Discourse post body based on the selected clip style.
+/**
+ * Build the Discourse post body markdown for the selected clip style,
+ * using the matching per-style template (from `templates`, falling back to
+ * {@link DEFAULT_CLIP_TEMPLATES} for any template left unset).
+ * @param {object} options
+ * @param {unknown} options.title - Raw page title; normalized via {@link normalizeTitle}, falling back to {@link fallbackTitle} when empty.
+ * @param {string} [options.url] - Page URL.
+ * @param {string} options.clipStyle - One of {@link CLIP_STYLES}.
+ * @param {string} [options.excerpt] - Markdown excerpt, used for `EXCERPT` style.
+ * @param {string} [options.excerptPlain] - Plain-text excerpt, exposed to templates as `{{excerpt-plain}}`.
+ * @param {string} [options.fullText] - Full-page markdown, used for `FULL_TEXT` style.
+ * @param {string} [options.fullTextPlain] - Plain-text full page, exposed to templates as `{{full-text-plain}}`.
+ * @param {string} [options.selectionText] - Plain-text selection, exposed to templates as `{{text-selection}}`.
+ * @param {string} [options.selectionMarkdown] - Markdown selection, used for `TEXT_SELECTION` style; falls back to `selectionText` when empty.
+ * @param {{titleUrl?: string, excerpt?: string, fullText?: string, textSelection?: string}} [options.templates] - Profile templates keyed by clip style, matching {@link DEFAULT_CLIP_TEMPLATES}'s shape.
+ * @returns {string} The rendered post body markdown for `clipStyle`.
+ * @throws {Error} If `clipStyle` is not a recognized {@link CLIP_STYLES} value.
+ */
 export function buildMarkdown({
   title,
   url,

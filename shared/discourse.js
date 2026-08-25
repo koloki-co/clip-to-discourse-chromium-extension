@@ -84,7 +84,19 @@ function actionableDiscourseError(response, detail, context) {
   return `${guidance} Server response: ${detail || `HTTP ${response.status}`}`;
 }
 
-// Create a new Discourse post (topic or reply) via the API.
+/**
+ * Create a new Discourse post (topic or reply) via `POST /posts.json`.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} [options.authMethod] - One of {@link AUTH_METHODS}; inferred from `userApiKey` when omitted.
+ * @param {string} [options.apiUsername] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.apiKey] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.userApiKey] - Required for `USER_API` auth.
+ * @param {string} [options.userApiClientId] - Optional client id sent alongside a User API key.
+ * @param {object} options.payload - Body shaped by {@link buildPayload} from `shared/payload.js`.
+ * @returns {Promise<object>} The parsed JSON response, or `{}` if the 2xx response has no JSON body.
+ * @throws {Error} With actionable guidance if credentials are missing or Discourse returns a non-2xx response.
+ */
 export async function createPost({
   baseUrl,
   authMethod,
@@ -117,9 +129,20 @@ export async function createPost({
   }
 }
 
-// Verify credentials by asking Discourse who we're authenticated as.
-// /session/current.json works for both Admin API keys and User API keys
-// and returns the resolved username, which we surface to the user.
+/**
+ * Verify credentials by asking Discourse who we're authenticated as, via
+ * `GET /session/current.json` (works for both Admin API keys and User API
+ * keys).
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} [options.authMethod] - One of {@link AUTH_METHODS}; inferred from `userApiKey` when omitted.
+ * @param {string} [options.apiUsername] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.apiKey] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.userApiKey] - Required for `USER_API` auth.
+ * @param {string} [options.userApiClientId] - Optional client id sent alongside a User API key.
+ * @returns {Promise<{data: object|null, username: string}>} The raw JSON response and the resolved username (empty string if not resolvable).
+ * @throws {Error} With actionable guidance if credentials are missing or Discourse returns a non-2xx response.
+ */
 export async function testConnection({
   baseUrl,
   authMethod,
@@ -151,6 +174,21 @@ export async function testConnection({
   return { data, username };
 }
 
+/**
+ * List categories available on a Discourse site via `GET /site.json`.
+ * Sub-categories are returned flat with their name prefixed by the parent
+ * category's name (e.g. `"Parent / Child"`), sorted alphabetically by that
+ * combined name.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} [options.authMethod] - One of {@link AUTH_METHODS}; inferred from `userApiKey` when omitted.
+ * @param {string} [options.apiUsername] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.apiKey] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.userApiKey] - Required for `USER_API` auth.
+ * @param {string} [options.userApiClientId] - Optional client id sent alongside a User API key.
+ * @returns {Promise<Array<{id: number, name: string}>>} Categories sorted by display name.
+ * @throws {Error} With actionable guidance if credentials are missing, Discourse returns a non-2xx response, or the response shape is unrecognized.
+ */
 export async function listCategories({
   baseUrl,
   authMethod,
@@ -192,6 +230,14 @@ export async function listCategories({
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/**
+ * Probe whether a Discourse site supports the User API key flow, via
+ * `HEAD /user-api-key/new`.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @returns {Promise<{version: string, supportsDeviceCode: boolean}>} The site's `Auth-Api-Version` (empty string if absent) and whether it advertises device-code authorization.
+ * @throws {Error} If the site is unreachable, returns 404 (User API not supported), or returns another non-2xx response.
+ */
 export async function checkUserApiVersion({ baseUrl }) {
   let response;
   try {
@@ -218,6 +264,21 @@ export async function checkUserApiVersion({ baseUrl }) {
   };
 }
 
+/**
+ * Start a User API key device authorization request via
+ * `POST /user-api-key/device.json`. The caller must poll for completion
+ * with {@link pollUserApiDeviceRequest}.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} options.applicationName - Name shown to the user during authorization.
+ * @param {string} options.clientId - This extension install's client identifier.
+ * @param {string} options.scopes - Comma-separated User API scopes being requested.
+ * @param {string} options.nonce - One-time nonce for this authorization attempt.
+ * @param {string} options.publicKey - PEM-encoded RSA public key used to encrypt the resulting key.
+ * @param {number} [options.expiresInSeconds] - Optional key lifetime; omitted from the request when not provided.
+ * @returns {Promise<{device_code: string, user_code: string, verification_uri: string, [key: string]: unknown}>} The device authorization details returned by Discourse.
+ * @throws {Error} With actionable guidance if Discourse returns a non-2xx response, or if the response is missing required fields.
+ */
 export async function createUserApiDeviceRequest({
   baseUrl,
   applicationName,
@@ -254,6 +315,16 @@ export async function createUserApiDeviceRequest({
   return data;
 }
 
+/**
+ * Poll a pending device authorization request via
+ * `POST /user-api-key/device/poll.json`. Callers are expected to poll
+ * repeatedly until `status` indicates completion, denial, or expiry.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} options.deviceCode - The `device_code` returned by {@link createUserApiDeviceRequest}.
+ * @returns {Promise<{status: string, [key: string]: unknown}>} The current authorization status and, once approved, the encrypted payload fields.
+ * @throws {Error} With actionable guidance if Discourse returns a non-2xx response, or if the response is missing a status.
+ */
 export async function pollUserApiDeviceRequest({ baseUrl, deviceCode }) {
   const response = await fetch(`${baseUrl}/user-api-key/device/poll.json`, {
     method: "POST",
@@ -274,6 +345,16 @@ export async function pollUserApiDeviceRequest({ baseUrl, deviceCode }) {
   return data;
 }
 
+/**
+ * Revoke a User API key via `POST /user-api-key/revoke`, so it can no
+ * longer be used after the profile is disconnected or deleted.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} options.userApiKey - The key to revoke.
+ * @param {string} [options.userApiClientId] - Optional client id sent alongside the key.
+ * @returns {Promise<void>}
+ * @throws {Error} If `userApiKey` is missing, or Discourse returns a non-2xx response.
+ */
 export async function revokeUserApiKey({ baseUrl, userApiKey, userApiClientId }) {
   if (!userApiKey) {
     throw new Error("Missing User API key.");
