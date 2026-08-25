@@ -5,7 +5,13 @@ import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS, THEMES } from "./constants.js"
 import { DEFAULT_CLIP_TEMPLATES } from "./markdown.js";
 import { normalizeTheme } from "./theme.js";
 
-// Default per-profile settings used for normalization and migrations.
+/**
+ * Default per-profile settings, used both as the normalization baseline for
+ * every stored profile (see `normalizeProfile`) and as the canonical shape
+ * of a "profile" object throughout the codebase — every function in this
+ * module that accepts or returns a profile follows this shape.
+ * @type {{id: string, name: string, baseUrl: string, authMethod: string, apiUsername: string, apiKey: string, userApiKey: string, userApiClientId: string, defaultClipStyle: string, defaultDestination: string, defaultCategoryId: string, defaultTopicId: string, titleTemplate: string, titleUrlTemplate: string, excerptTemplate: string, fullTextTemplate: string, textSelectionTemplate: string}}
+ */
 export const DEFAULT_PROFILE = {
   id: "",
   name: "Default",
@@ -32,6 +38,13 @@ export const DEFAULT_GLOBAL_SETTINGS = {
   theme: THEMES.SYSTEM
 };
 
+/**
+ * Check whether a profile has enough stored credentials to attempt a
+ * Discourse API call. Does not verify the credentials actually work — see
+ * `testConnection` in `shared/discourse.js` for that.
+ * @param {object} profile - A profile as returned by {@link getSettingsState}, or `null`/`undefined`.
+ * @returns {boolean} `true` if `baseUrl` is set and, depending on `authMethod`, either `userApiKey` or both `apiUsername` and `apiKey` are set.
+ */
 export function isProfileConnected(profile) {
   if (!profile?.baseUrl) {
     return false;
@@ -62,7 +75,12 @@ function generateId() {
   return `profile_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-// Normalize and strip trailing slashes for consistent API calls.
+/**
+ * Trim and strip trailing slashes from a Discourse base URL for consistent
+ * API calls (endpoints are built by string-concatenating a path onto this).
+ * @param {string} value
+ * @returns {string} `""` if `value` is falsy.
+ */
 export function normalizeBaseUrl(value) {
   if (!value) {
     return "";
@@ -264,7 +282,13 @@ async function loadState() {
   return withProfilesLock(loadStateLocked);
 }
 
-// Return full settings state with the active profile expanded.
+/**
+ * Read all stored profiles and global settings. Pure read on the fast path;
+ * transparently migrates legacy storage layouts or repairs inconsistent
+ * state under a cross-context lock the first time it's needed, so callers
+ * never need to handle migration themselves.
+ * @returns {Promise<{profiles: object[], activeProfileId: string, activeProfile: object|undefined, useFaviconForIcon: boolean, allowHttp: boolean, theme: string}>}
+ */
 export async function getSettingsState() {
   const state = await loadState();
   const activeProfile = state.profiles.find((profile) => profile.id === state.activeProfileId);
@@ -274,7 +298,13 @@ export async function getSettingsState() {
   };
 }
 
-// Update the small set of global settings.
+/**
+ * Persist a partial update to the global (non-profile) settings —
+ * `useFaviconForIcon`, `allowHttp`, `theme`. Fields absent or of the wrong
+ * type in `partial` are left unchanged; unrecognized keys are ignored.
+ * @param {{useFaviconForIcon?: boolean, allowHttp?: boolean, theme?: string}} partial
+ * @returns {Promise<void>}
+ */
 export async function saveGlobalSettings(partial) {
   const updates = {};
   if (typeof partial.useFaviconForIcon === "boolean") {
@@ -291,7 +321,12 @@ export async function saveGlobalSettings(partial) {
   }
 }
 
-// Persist active profile id only if it exists.
+/**
+ * Switch the active profile.
+ * @param {string} profileId - Must match an existing profile's `id`.
+ * @returns {Promise<void>}
+ * @throws {Error} If no profile with `profileId` exists.
+ */
 export async function setActiveProfile(profileId) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -319,7 +354,14 @@ async function writeProfileUpdate(state, profileId, partial) {
   await chrome.storage.local.set({ profiles: updatedProfiles });
 }
 
-// Merge changes into the active profile in storage.
+/**
+ * Merge a partial update into the currently active profile. Prefer
+ * {@link saveProfile} for long-running flows (e.g. device authorization)
+ * that must keep writing to the profile they started on even if the user
+ * switches the active profile meanwhile.
+ * @param {object} partial - Fields to merge; passed through {@link DEFAULT_PROFILE}-shaped normalization.
+ * @returns {Promise<void>}
+ */
 export async function saveActiveProfile(partial) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -327,8 +369,15 @@ export async function saveActiveProfile(partial) {
   });
 }
 
-// Merge changes into a specific profile, so long-running flows can save to
-// the profile they started on even if the active profile changed meanwhile.
+/**
+ * Merge a partial update into a specific profile by id, so long-running
+ * flows can save to the profile they started on even if the active profile
+ * changed meanwhile.
+ * @param {string} profileId - Must match an existing profile's `id`.
+ * @param {object} partial - Fields to merge; passed through {@link DEFAULT_PROFILE}-shaped normalization.
+ * @returns {Promise<void>}
+ * @throws {Error} If no profile with `profileId` exists (e.g. it was deleted concurrently).
+ */
 export async function saveProfile(profileId, partial) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -339,7 +388,13 @@ export async function saveProfile(profileId, partial) {
   });
 }
 
-// Add a new profile and make it active.
+/**
+ * Create a new profile (assigned a fresh id, normalized against
+ * {@link DEFAULT_PROFILE}), append it to storage, and make it the active
+ * profile.
+ * @param {object} [partial={}] - Initial field overrides.
+ * @returns {Promise<object>} The newly created, normalized profile.
+ */
 export async function addProfile(partial = {}) {
   return withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -350,7 +405,14 @@ export async function addProfile(partial = {}) {
   });
 }
 
-// Duplicate a profile, including its connection credentials and defaults.
+/**
+ * Duplicate an existing profile — including its connection credentials and
+ * defaults — under a fresh id and a `"<name> copy"` name, append it to
+ * storage, and make it the active profile.
+ * @param {string} profileId - Must match an existing profile's `id`.
+ * @returns {Promise<object>} The newly created, normalized profile copy.
+ * @throws {Error} If no profile with `profileId` exists.
+ */
 export async function duplicateProfile(profileId) {
   return withProfilesLock(async () => {
     const state = await loadStateLocked();
@@ -369,7 +431,15 @@ export async function duplicateProfile(profileId) {
   });
 }
 
-// Remove a profile, ensuring at least one remains active.
+/**
+ * Delete a profile. If it was the active profile, another remaining
+ * profile becomes active. Does not revoke any credentials the profile
+ * held — callers should revoke first (see `revokeUserApiKey` in
+ * `shared/discourse.js`) if that's needed.
+ * @param {string} profileId - Must match an existing profile's `id`.
+ * @returns {Promise<void>}
+ * @throws {Error} If this is the last remaining profile (at least one profile is always required).
+ */
 export async function deleteProfile(profileId) {
   await withProfilesLock(async () => {
     const state = await loadStateLocked();

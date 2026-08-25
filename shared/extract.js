@@ -7,7 +7,13 @@ import { gfm } from "turndown-plugin-gfm";
 import ReadabilityModule from "@mozilla/readability";
 export const DEFAULT_EXCERPT_LENGTH = 800;
 
-// Normalize whitespace for cleaner excerpts and full-text captures.
+/**
+ * Normalize whitespace in plain text for cleaner excerpts and full-text
+ * captures: strips carriage returns, collapses runs of spaces/tabs and of
+ * 3+ blank lines, and trims the ends.
+ * @param {string} text
+ * @returns {string} `""` if `text` is falsy.
+ */
 export function normalizeText(text) {
   if (!text) {
     return "";
@@ -207,6 +213,16 @@ function renderChildren(node, listDepth) {
   return output;
 }
 
+/**
+ * Convert a raw HTML fragment (typically a text selection) to markdown
+ * using a lightweight hand-rolled DOM walker (see `nodeToMarkdown` above),
+ * not Turndown/Readability. `script`, `style`, and `noscript` elements are
+ * stripped; link and image destinations are sanitized against unsafe
+ * schemes. Falls back to naive tag-stripping when `DOMParser` is
+ * unavailable (e.g. a non-DOM test environment).
+ * @param {string} html
+ * @returns {string} `""` if `html` is falsy or has no parseable body.
+ */
 export function htmlToMarkdown(html) {
   if (!html) {
     return "";
@@ -731,6 +747,23 @@ function extractWithReadability(html, baseUrl, charThreshold) {
   return reader.parse();
 }
 
+/**
+ * Convert a full page's HTML to markdown for the "full text" clip style:
+ * extracts the main article with Mozilla Readability, strips navigation/ad/
+ * cookie-banner noise, normalizes heading levels, and renders through
+ * Turndown (with GFM tables/strikethrough) into markdown. Falls back to
+ * naive tag-stripping when `DOMParser` is unavailable (e.g. a non-DOM test
+ * environment).
+ * @param {string} html - Full page HTML (e.g. `document.documentElement.outerHTML`).
+ * @param {object} [options]
+ * @param {string} [options.baseUrl] - Page URL, used to resolve relative image/link URLs and as Readability's document base.
+ * @param {boolean} [options.includeImages=true] - Keep `<img>`/`<picture>`/`<figure>` elements.
+ * @param {boolean} [options.includeLinks=true] - Keep `<a>` hrefs; when `false`, links are replaced with their text content.
+ * @param {boolean} [options.includeTables=true] - Keep `<table>` elements.
+ * @param {boolean} [options.aggressiveCleanup=true] - Strip nav/sidebar/ad/cookie-banner/social-share elements before conversion.
+ * @param {number} [options.charThreshold=500] - Minimum character count Readability requires before treating a candidate node as the article body.
+ * @returns {string} `""` if `html` is falsy. Falls back to the raw (unextracted) HTML if Readability cannot identify an article.
+ */
 export function htmlToMarkdownFullPage(html, options = {}) {
   if (!html) {
     return "";
@@ -754,7 +787,14 @@ export function htmlToMarkdownFullPage(html, options = {}) {
   return postProcessMarkdown(markdown);
 }
 
-// Trim to a max length without splitting into multiple paragraphs.
+/**
+ * Trim normalized plain text to a maximum length. Cuts at a hard character
+ * boundary (not a word boundary) — callers that need whole words should
+ * trim further.
+ * @param {string} text
+ * @param {number} [maxLength=DEFAULT_EXCERPT_LENGTH]
+ * @returns {string} `""` if `text` is falsy after whitespace normalization.
+ */
 export function buildExcerpt(text, maxLength = DEFAULT_EXCERPT_LENGTH) {
   const normalized = collapseWhitespace(text || "");
   if (!normalized) {

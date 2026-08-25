@@ -73,7 +73,7 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 ### Code Quality
 - [ ] **R45 - Review and refactor payload building for better testability**
 - [ ] **R46 - Consolidate error handling patterns across modules**
-- [ ] **R47 - Add JSDoc comments to public APIs where they clarify contracts**
+- [x] **R47 - Add JSDoc comments to public APIs where they clarify contracts**
 - [ ] **R48 - Evaluate a TypeScript migration and record the decision**
 
 ### Performance
