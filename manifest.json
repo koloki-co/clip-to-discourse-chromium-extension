@@ -40,6 +40,13 @@
         "mac": "Command+Shift+K"
       },
       "description": "Open the Clip to Discourse popup"
+    },
+    "clip-default": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Clip the page with the active profile's default settings"
     }
   },
   "minimum_chrome_version": "127"

@@ -18,6 +18,56 @@ var THEMES = {
   LIGHT: "light",
   DARK: "dark"
 };
+var MAX_PAYLOAD_LENGTH = 5e4;
+var MAX_TITLE_LENGTH = 255;
+
+// shared/payload.js
+var TRUNCATION_NOTICE = "\n\n_(truncated by Clip to Discourse \u2014 original exceeded Discourse's 50,000 character post limit)_";
+function truncateAtCodePointBoundary(value, maximumLength) {
+  const truncated = value.slice(0, maximumLength);
+  const finalCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  return finalCodeUnit >= 55296 && finalCodeUnit <= 56319 ? truncated.slice(0, -1) : truncated;
+}
+function truncateRaw(raw) {
+  if (typeof raw !== "string") {
+    return raw;
+  }
+  if (raw.length <= MAX_PAYLOAD_LENGTH) {
+    return raw;
+  }
+  const noticeLength = TRUNCATION_NOTICE.length;
+  return truncateAtCodePointBoundary(raw, MAX_PAYLOAD_LENGTH - noticeLength) + TRUNCATION_NOTICE;
+}
+function truncateTitle(title) {
+  if (typeof title !== "string") {
+    return title;
+  }
+  if (title.length <= MAX_TITLE_LENGTH) {
+    return title;
+  }
+  return truncateAtCodePointBoundary(title, MAX_TITLE_LENGTH);
+}
+function buildPayload({ destination, title, categoryId, topicId, raw }) {
+  const trimmedRaw = truncateRaw(raw);
+  const trimmedTitle = truncateTitle(title);
+  if (destination === DESTINATIONS.NEW_TOPIC) {
+    const payload = {
+      title: trimmedTitle,
+      raw: trimmedRaw
+    };
+    if (categoryId) {
+      payload.category = Number(categoryId);
+    }
+    return payload;
+  }
+  if (destination === DESTINATIONS.APPEND_TOPIC) {
+    return {
+      topic_id: Number(topicId),
+      raw: trimmedRaw
+    };
+  }
+  throw new Error("Unsupported destination mode.");
+}
 
 // shared/markdown.js
 var DEFAULT_CLIP_TEMPLATES = {
@@ -26,6 +76,224 @@ var DEFAULT_CLIP_TEMPLATES = {
   fullText: "### {{title}}\n{{url}}\n\n---\n\n{{full-text}}\n\n---\n\n{{url}}",
   textSelection: "### {{title}}\n{{url}}\n\n{{text-selection-markdown}}\n\n{{url}}"
 };
+function formatCodeBlock(text) {
+  const trimmed = text ? text.trim() : "";
+  if (!trimmed) {
+    return "";
+  }
+  return `\`\`\`
+${trimmed}
+\`\`\``;
+}
+function normalizeToken(value) {
+  return value.toLowerCase().replace(/_/g, "-");
+}
+function applyTemplate(template, data) {
+  if (!template) {
+    return "";
+  }
+  return template.replace(/\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g, (match, token) => {
+    const key = normalizeToken(token);
+    if (!(key in data)) {
+      return "";
+    }
+    return data[key] ?? "";
+  });
+}
+function normalizeTitle(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function fallbackTitle() {
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+  return `${timestamp} Clipped with Clip To Discourse`;
+}
+function buildTemplateData({
+  title,
+  url,
+  excerpt,
+  excerptPlain,
+  fullText,
+  fullTextPlain,
+  selectionText,
+  selectionMarkdown
+}) {
+  const now = /* @__PURE__ */ new Date();
+  const date = now.toISOString().slice(0, 10);
+  const datetime = now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+  const safeUrl = url || "";
+  const safeTitle = normalizeTitle(title) || fallbackTitle();
+  const safeExcerpt = excerpt ? excerpt.trim() : "";
+  const safeExcerptPlain = excerptPlain ? excerptPlain.trim() : "";
+  const safeFullText = fullText ? fullText.trim() : "";
+  const safeFullTextPlain = fullTextPlain ? fullTextPlain.trim() : "";
+  const safeSelectionPlain = selectionText ? selectionText.trim() : "";
+  const safeSelectionMarkdown = selectionMarkdown ? selectionMarkdown.trim() : "";
+  return {
+    title: safeTitle,
+    url: safeUrl,
+    date,
+    datetime,
+    excerpt: safeExcerpt,
+    "excerpt-plain": safeExcerptPlain,
+    "full-text": safeFullText,
+    "full-text-markdown": formatCodeBlock(safeFullText),
+    "full-text-plain": safeFullTextPlain,
+    "text-selection": safeSelectionPlain,
+    "text-selection-markdown": safeSelectionMarkdown || safeSelectionPlain
+  };
+}
+function buildTitleTemplateData(title) {
+  const now = /* @__PURE__ */ new Date();
+  const date = now.toISOString().slice(0, 10);
+  const datetime = now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+  return {
+    title: normalizeTitle(title) || fallbackTitle(),
+    date,
+    datetime
+  };
+}
+function applyTitleTemplate(template, title) {
+  const safeTemplate = template && template.includes("{{title}}") ? template : "Clip: {{title}}";
+  const result = applyTemplate(safeTemplate, buildTitleTemplateData(title));
+  return truncateTitle(result);
+}
+function buildMarkdown({
+  title,
+  url,
+  clipStyle,
+  excerpt,
+  excerptPlain,
+  fullText,
+  fullTextPlain,
+  selectionText,
+  selectionMarkdown,
+  templates = {}
+}) {
+  const data = buildTemplateData({
+    title,
+    url,
+    excerpt,
+    excerptPlain,
+    fullText,
+    fullTextPlain,
+    selectionText,
+    selectionMarkdown
+  });
+  if (clipStyle === CLIP_STYLES.TITLE_URL) {
+    const template = templates.titleUrl || DEFAULT_CLIP_TEMPLATES.titleUrl;
+    return applyTemplate(template, data);
+  }
+  if (clipStyle === CLIP_STYLES.EXCERPT) {
+    const template = templates.excerpt || DEFAULT_CLIP_TEMPLATES.excerpt;
+    return applyTemplate(template, data);
+  }
+  if (clipStyle === CLIP_STYLES.FULL_TEXT) {
+    const template = templates.fullText || DEFAULT_CLIP_TEMPLATES.fullText;
+    return applyTemplate(template, data);
+  }
+  if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
+    const template = templates.textSelection || DEFAULT_CLIP_TEMPLATES.textSelection;
+    return applyTemplate(template, data);
+  }
+  throw new Error("Unsupported clip style.");
+}
+
+// shared/discourse.js
+function buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId }) {
+  const effectiveAuthMethod = authMethod || (userApiKey ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY);
+  if (effectiveAuthMethod === AUTH_METHODS.USER_API) {
+    if (!userApiKey) {
+      throw new Error("Missing User API key. Update settings first.");
+    }
+    const headers = {
+      "User-Api-Key": userApiKey
+    };
+    if (userApiClientId) {
+      headers["User-Api-Client-Id"] = userApiClientId;
+    }
+    return headers;
+  }
+  if (!apiKey) {
+    throw new Error("Missing API key. Update settings first.");
+  }
+  if (!apiUsername) {
+    throw new Error("Missing API username. Update settings first.");
+  }
+  return {
+    "Api-Key": apiKey,
+    "Api-Username": apiUsername
+  };
+}
+async function extractErrorMessage(response) {
+  let data = null;
+  let rawText = "";
+  try {
+    data = await response.json();
+  } catch {
+    try {
+      rawText = await response.text();
+    } catch {
+      rawText = "";
+    }
+  }
+  if (data && (data.errors || data.error)) {
+    return (data.errors || data.error).toString();
+  }
+  return rawText || response.statusText;
+}
+function actionableDiscourseError(response, detail, context) {
+  const normalized = detail.toLowerCase();
+  let guidance;
+  if (normalized.includes("scope") || normalized.includes("not permitted")) {
+    guidance = "The available User API scopes are insufficient. Ask the site administrator to enable both read and write in 'allow user API key scopes', then authorize again.";
+  } else if (normalized.includes("unable to issue user api keys") || normalized.includes("trust level") || normalized.includes("allowed group")) {
+    guidance = "This account is not allowed to create User API keys. Ask the site administrator to enable User API keys and include your group in 'user API key allowed groups'.";
+  } else if (normalized.includes("redirect")) {
+    guidance = "The site rejected the authorization callback. Current sites should use device authorization; on older sites an administrator must allow the redirect URL shown in Authorization details.";
+  } else if (normalized.includes("expired") || response.status === 410) {
+    guidance = "The authorization or credential has expired. Start authorization again.";
+  } else if (response.status === 401) {
+    guidance = "Discourse rejected the stored credential. It may have been revoked or expired; authorize this profile again.";
+  } else if (response.status === 403) {
+    guidance = context === "posting" ? "Discourse accepted the credential but refused this action. Check that the account can post to the selected category or topic and that write scope is enabled." : "Discourse refused this authorization request. Check User API scopes, allowed groups, and the account's site permissions.";
+  } else if (response.status === 404) {
+    guidance = "The expected Discourse API endpoint was not found. Check the Base URL and confirm the site is a supported, current Discourse installation.";
+  } else if (response.status === 429) {
+    guidance = "Discourse is rate-limiting requests. Wait a few minutes before trying again.";
+  } else if (response.status >= 500) {
+    guidance = "The Discourse site encountered a server error. Retry later or ask the site administrator to inspect the server logs.";
+  } else {
+    guidance = "Discourse rejected the request. Check the Base URL, authentication method, account permissions, and selected destination.";
+  }
+  return `${guidance} Server response: ${detail || `HTTP ${response.status}`}`;
+}
+async function createPost({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId,
+  payload
+}) {
+  const response = await fetch(`${baseUrl}/posts.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "posting"));
+  }
+  try {
+    return await response.json() ?? {};
+  } catch {
+    return {};
+  }
+}
 
 // shared/theme.js
 function normalizeTheme(value) {
@@ -238,6 +506,82 @@ async function getSettingsState() {
   };
 }
 
+// shared/clip.js
+function parsePositiveId(value, label) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(`${label} must be a positive number.`);
+  }
+  return numeric;
+}
+async function fetchTabPageInfo(tabId) {
+  const [injectionResult] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute("content");
+      const docTitle = (document.title || "").trim();
+      const title = docTitle || (ogTitle ? ogTitle.trim() : "");
+      return { title, url: window.location.href };
+    }
+  });
+  if (!injectionResult?.result) {
+    throw new Error("Could not read the page content. The tab may be a privileged page (chrome://, about:) or the page may have blocked content access.");
+  }
+  return injectionResult.result;
+}
+async function clipTabWithProfileDefaults(tab, profile) {
+  if (!isProfileConnected(profile)) {
+    throw new Error("Clip To Discourse is not set up. Open the popup and connect a profile first.");
+  }
+  if (!tab?.id) {
+    throw new Error("No active tab found.");
+  }
+  const clipStyle = profile.defaultClipStyle || CLIP_STYLES.TITLE_URL;
+  if (clipStyle !== CLIP_STYLES.TITLE_URL) {
+    throw new Error(`This shortcut only supports the "Title & URL" clip style. Open the popup for other styles, or change the profile's default clip style in Settings.`);
+  }
+  const destination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
+  let categoryId;
+  let topicId;
+  if (destination === DESTINATIONS.NEW_TOPIC) {
+    if (!profile.defaultCategoryId) {
+      throw new Error("No default category is set for this profile. Open the popup and set a default category first.");
+    }
+    categoryId = parsePositiveId(profile.defaultCategoryId, "Default category ID");
+  } else if (destination === DESTINATIONS.APPEND_TOPIC) {
+    if (!profile.defaultTopicId) {
+      throw new Error("No default topic is set for this profile. Open the popup and set a default topic first.");
+    }
+    topicId = parsePositiveId(profile.defaultTopicId, "Default topic ID");
+  }
+  const pageInfo = await fetchTabPageInfo(tab.id);
+  const title = normalizeTitle(pageInfo.title) || fallbackTitle();
+  const url = pageInfo.url;
+  const raw = buildMarkdown({
+    title,
+    url,
+    clipStyle,
+    templates: { titleUrl: profile.titleUrlTemplate }
+  });
+  const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? applyTitleTemplate(profile.titleTemplate, title) : void 0;
+  const payload = buildPayload({
+    destination,
+    title: topicTitle,
+    categoryId,
+    topicId,
+    raw
+  });
+  return createPost({
+    baseUrl: profile.baseUrl,
+    authMethod: profile.authMethod,
+    apiUsername: profile.apiUsername,
+    apiKey: profile.apiKey,
+    userApiKey: profile.userApiKey,
+    userApiClientId: profile.userApiClientId,
+    payload
+  });
+}
+
 // shared/favicon.js
 var CACHE_KEY = "faviconCache";
 var ICON_SIZES = [16, 32];
@@ -400,6 +744,31 @@ async function updateActionIconForProfile(profile, useFavicon) {
 // background.js
 var MENU_CLIP_PAGE = "clip-page";
 var MENU_CLIP_SELECTION = "clip-selection";
+var COMMAND_CLIP_DEFAULT = "clip-default";
+var BADGE_SUCCESS = { text: "\u2713", color: "#2e7d32" };
+var BADGE_ERROR = { text: "!", color: "#c62828" };
+var BADGE_CLEAR_DELAY_MS = 4e3;
+async function showClipResultBadge(tabId, { text, color }) {
+  await chrome.action.setBadgeText({ tabId, text });
+  await chrome.action.setBadgeBackgroundColor({ tabId, color });
+  setTimeout(() => {
+    chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {
+    });
+  }, BADGE_CLEAR_DELAY_MS);
+}
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== COMMAND_CLIP_DEFAULT || !tab?.id) {
+    return;
+  }
+  try {
+    const { activeProfile } = await getSettingsState();
+    await clipTabWithProfileDefaults(tab, activeProfile);
+    await showClipResultBadge(tab.id, BADGE_SUCCESS);
+  } catch (error) {
+    console.error("Failed to clip with default settings:", error);
+    await showClipResultBadge(tab.id, BADGE_ERROR);
+  }
+});
 async function createContextMenus() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
