@@ -13,6 +13,14 @@ import { buildPayload } from "./payload.js";
 import { createPost } from "./discourse.js";
 import { isProfileConnected } from "./settings.js";
 
+function parsePositiveId(value, label) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(`${label} must be a positive number.`);
+  }
+  return numeric;
+}
+
 /**
  * Read a tab's title and URL via an injected script, for the `title_url`
  * clip style only - the other styles' content extraction (excerpt, full
@@ -63,14 +71,19 @@ export async function clipTabWithProfileDefaults(tab, profile) {
   }
 
   const destination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
-  const categoryId = profile.defaultCategoryId || "";
-  const topicId = profile.defaultTopicId || "";
+  let categoryId;
+  let topicId;
 
-  if (destination === DESTINATIONS.NEW_TOPIC && !categoryId) {
-    throw new Error("No default category is set for this profile. Open the popup and set a default category first.");
-  }
-  if (destination === DESTINATIONS.APPEND_TOPIC && !topicId) {
-    throw new Error("No default topic is set for this profile. Open the popup and set a default topic first.");
+  if (destination === DESTINATIONS.NEW_TOPIC) {
+    if (!profile.defaultCategoryId) {
+      throw new Error("No default category is set for this profile. Open the popup and set a default category first.");
+    }
+    categoryId = parsePositiveId(profile.defaultCategoryId, "Default category ID");
+  } else if (destination === DESTINATIONS.APPEND_TOPIC) {
+    if (!profile.defaultTopicId) {
+      throw new Error("No default topic is set for this profile. Open the popup and set a default topic first.");
+    }
+    topicId = parsePositiveId(profile.defaultTopicId, "Default topic ID");
   }
 
   const pageInfo = await fetchTabPageInfo(tab.id);

@@ -21,17 +21,11 @@ const BADGE_CLEAR_DELAY_MS = 4000;
 
 // There is no popup to report into for clip-default, so feedback goes on
 // the toolbar badge instead (chrome.notifications was removed in R68).
-async function showClipResultBadge(tabId, { text, color }, title) {
+async function showClipResultBadge(tabId, { text, color }) {
   await chrome.action.setBadgeText({ tabId, text });
   await chrome.action.setBadgeBackgroundColor({ tabId, color });
-  if (title) {
-    await chrome.action.setTitle({ tabId, title });
-  }
   setTimeout(() => {
     chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {});
-    if (title) {
-      chrome.action.setTitle({ tabId, title: "Clip to Discourse" }).catch(() => {});
-    }
   }, BADGE_CLEAR_DELAY_MS);
 }
 
@@ -45,7 +39,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     await showClipResultBadge(tab.id, BADGE_SUCCESS);
   } catch (error) {
     console.error("Failed to clip with default settings:", error);
-    await showClipResultBadge(tab.id, BADGE_ERROR, error.message || "Failed to clip.");
+    await showClipResultBadge(tab.id, BADGE_ERROR);
   }
 });
 

@@ -127,6 +127,28 @@ describe("clipTabWithProfileDefaults", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects an invalid default category", async () => {
+    stubScripting();
+
+    await expect(
+      clipTabWithProfileDefaults(tab, { ...connectedProfile, defaultCategoryId: "not-a-number" })
+    ).rejects.toThrow(/Default category ID must be a positive number/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid default topic", async () => {
+    stubScripting();
+
+    await expect(
+      clipTabWithProfileDefaults(tab, {
+        ...connectedProfile,
+        defaultDestination: DESTINATIONS.APPEND_TOPIC,
+        defaultTopicId: "-1"
+      })
+    ).rejects.toThrow(/Default topic ID must be a positive number/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("rejects when there is no active tab", async () => {
     stubScripting();
 

@@ -507,6 +507,13 @@ async function getSettingsState() {
 }
 
 // shared/clip.js
+function parsePositiveId(value, label) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(`${label} must be a positive number.`);
+  }
+  return numeric;
+}
 async function fetchTabPageInfo(tabId) {
   const [injectionResult] = await chrome.scripting.executeScript({
     target: { tabId },
@@ -534,13 +541,18 @@ async function clipTabWithProfileDefaults(tab, profile) {
     throw new Error(`This shortcut only supports the "Title & URL" clip style. Open the popup for other styles, or change the profile's default clip style in Settings.`);
   }
   const destination = profile.defaultDestination || DESTINATIONS.NEW_TOPIC;
-  const categoryId = profile.defaultCategoryId || "";
-  const topicId = profile.defaultTopicId || "";
-  if (destination === DESTINATIONS.NEW_TOPIC && !categoryId) {
-    throw new Error("No default category is set for this profile. Open the popup and set a default category first.");
-  }
-  if (destination === DESTINATIONS.APPEND_TOPIC && !topicId) {
-    throw new Error("No default topic is set for this profile. Open the popup and set a default topic first.");
+  let categoryId;
+  let topicId;
+  if (destination === DESTINATIONS.NEW_TOPIC) {
+    if (!profile.defaultCategoryId) {
+      throw new Error("No default category is set for this profile. Open the popup and set a default category first.");
+    }
+    categoryId = parsePositiveId(profile.defaultCategoryId, "Default category ID");
+  } else if (destination === DESTINATIONS.APPEND_TOPIC) {
+    if (!profile.defaultTopicId) {
+      throw new Error("No default topic is set for this profile. Open the popup and set a default topic first.");
+    }
+    topicId = parsePositiveId(profile.defaultTopicId, "Default topic ID");
   }
   const pageInfo = await fetchTabPageInfo(tab.id);
   const title = normalizeTitle(pageInfo.title) || fallbackTitle();
@@ -736,19 +748,12 @@ var COMMAND_CLIP_DEFAULT = "clip-default";
 var BADGE_SUCCESS = { text: "\u2713", color: "#2e7d32" };
 var BADGE_ERROR = { text: "!", color: "#c62828" };
 var BADGE_CLEAR_DELAY_MS = 4e3;
-async function showClipResultBadge(tabId, { text, color }, title) {
+async function showClipResultBadge(tabId, { text, color }) {
   await chrome.action.setBadgeText({ tabId, text });
   await chrome.action.setBadgeBackgroundColor({ tabId, color });
-  if (title) {
-    await chrome.action.setTitle({ tabId, title });
-  }
   setTimeout(() => {
     chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {
     });
-    if (title) {
-      chrome.action.setTitle({ tabId, title: "Clip to Discourse" }).catch(() => {
-      });
-    }
   }, BADGE_CLEAR_DELAY_MS);
 }
 chrome.commands.onCommand.addListener(async (command, tab) => {
@@ -761,7 +766,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     await showClipResultBadge(tab.id, BADGE_SUCCESS);
   } catch (error) {
     console.error("Failed to clip with default settings:", error);
-    await showClipResultBadge(tab.id, BADGE_ERROR, error.message || "Failed to clip.");
+    await showClipResultBadge(tab.id, BADGE_ERROR);
   }
 });
 async function createContextMenus() {
