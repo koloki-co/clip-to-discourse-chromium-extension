@@ -110,21 +110,22 @@ Clipped: {{datetime}}
 
 ### How It Works
 
-#### Selection Detection (popup.js:287-308)
+#### Selection Detection (popup.js:419-435, inside `init()`)
 When the popup opens, it:
 1. Calls `getActiveTabInfo()` to extract page data and selection
 2. Checks if `selectionText` exists and has content
 3. Calculates character count and word count
 4. Shows the selection indicator with this info
+5. Checks the "Text Selection" clip style radio (see "Automatic Clip Style Selection" below)
 
-#### Selection Extraction (popup.js:76-104)
-The `getActiveTabInfo()` function uses `chrome.scripting.executeScript` to:
+#### Selection Extraction (popup.js:131-166, `fetchActiveTabInfo()`)
+The `fetchActiveTabInfo()` function (called via the cached `getActiveTabInfo()` wrapper at popup.js:168-173) uses `chrome.scripting.executeScript` to:
 - Get `window.getSelection()` from the active tab
 - Extract both plain text (`selection.toString()`)
 - Extract HTML (`selection.getRangeAt(0).cloneContents()`)
 - Return both as `selectionText` and `selectionHtml`
 
-#### Selection in Templates (shared/markdown.js:49-83)
+#### Selection in Templates (shared/markdown.js:70-105)
 The `buildTemplateData()` function makes selection available as:
 - `text-selection` - Plain text selection
 - `text-selection-markdown` - Markdown formatted (or falls back to plain text)
@@ -202,8 +203,8 @@ Compared to the previous complex context menu implementation:
 
 ## Known Limitations
 
-1. **Selection Display Only**: The popup shows selection info but doesn't force its use - templates must include `{{text-selection}}` tokens
-2. **No Direct "Clip Selection Only"**: To clip only selected text, users must customize their templates
+1. **Automatic Override, Not a Suggestion**: If a page selection is present when the popup opens, the "Text Selection" clip style radio is checked unconditionally (popup.js:430-434), overriding whatever the active profile's `defaultClipStyle` set moments earlier. This happens once, on open, for every profile — there is no per-profile opt-out. After the popup is open, the user is free to click a different clip style radio and it will not be re-forced back.
+2. **No Direct "Clip Selection Only" From the Menu**: The context menu cannot clip immediately; it only opens the popup, where the (possibly auto-selected) clip style and template still govern what's clipped.
 3. **Context Menu Opens Popup**: Doesn't clip directly from context menu (by design for simplicity)
 
 ## Future Enhancements

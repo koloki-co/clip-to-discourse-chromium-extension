@@ -57,6 +57,7 @@ Only one clip style can be active per clip.
 Defaults:
 
 - MVP default: Title + URL
+- Selection override: if a browser text selection exists on the page when the popup opens, "Text selection" is checked automatically, overriding the active profile's default for that popup session. This happens once, on open; it is not re-applied if the user then selects a different clip style. There is no per-profile opt-out. See [context-menu.md](context-menu.md) ("Automatic Clip Style Selection") for implementation details.
 
 #### 4.1.2 Destination Mode (frequently changed)
 
