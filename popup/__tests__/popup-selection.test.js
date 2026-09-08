@@ -51,14 +51,14 @@ describe("popup automatic clip style selection", () => {
     expect(indicator.classList.contains("hidden")).toBe(false);
   });
 
-  it("leaves the profile default in place when there is no page selection", async () => {
+  it("leaves the profile default in place when the page selection is only whitespace", async () => {
     mounted = await mountPopup({
       storage: {
         profiles: [profile({ defaultClipStyle: CLIP_STYLES.TITLE_URL })],
         activeProfileId: "profile-1"
       },
       scripting: {
-        selectionText: "",
+        selectionText: "  \n",
         selectionHtml: ""
       }
     });
