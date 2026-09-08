@@ -110,21 +110,22 @@ Clipped: {{datetime}}
 
 ### How It Works
 
-#### Selection Detection (popup.js:287-308)
+#### Selection Detection (`init()` in `popup/popup.js`)
 When the popup opens, it:
 1. Calls `getActiveTabInfo()` to extract page data and selection
 2. Checks if `selectionText` exists and has content
 3. Calculates character count and word count
 4. Shows the selection indicator with this info
+5. Checks the "Text Selection" clip style radio (see "Automatic Clip Style Selection" below)
 
-#### Selection Extraction (popup.js:76-104)
-The `getActiveTabInfo()` function uses `chrome.scripting.executeScript` to:
+#### Selection Extraction (`fetchActiveTabInfo()` in `popup/popup.js`)
+The `fetchActiveTabInfo()` function, called via the cached `getActiveTabInfo()` wrapper, uses `chrome.scripting.executeScript` to:
 - Get `window.getSelection()` from the active tab
 - Extract both plain text (`selection.toString()`)
 - Extract HTML (`selection.getRangeAt(0).cloneContents()`)
 - Return both as `selectionText` and `selectionHtml`
 
-#### Selection in Templates (shared/markdown.js:49-83)
+#### Selection in Templates (`buildTemplateData()` in `shared/markdown.js`)
 The `buildTemplateData()` function makes selection available as:
 - `text-selection` - Plain text selection
 - `text-selection-markdown` - Markdown formatted (or falls back to plain text)
@@ -192,8 +193,8 @@ The background service worker:
 
 Compared to the previous complex context menu implementation:
 
-1. **Simpler**: 55 lines instead of 455 lines in background.js
-2. **Smaller bundle**: background.bundle.js is 775 bytes instead of 144.4kb
+1. **Simpler**: Context-menu handling remains a small part of `background.js`
+2. **Smaller bundle**: Selection extraction stays out of `background.bundle.js`
 3. **More reliable**: No issues with checkbox states or menu persistence
 4. **Better UX**: Users see visual confirmation of selection
 5. **Consistent UI**: All options available in one familiar popup interface
@@ -202,9 +203,8 @@ Compared to the previous complex context menu implementation:
 
 ## Known Limitations
 
-1. **Selection Display Only**: The popup shows selection info but doesn't force its use - templates must include `{{text-selection}}` tokens
-2. **No Direct "Clip Selection Only"**: To clip only selected text, users must customize their templates
-3. **Context Menu Opens Popup**: Doesn't clip directly from context menu (by design for simplicity)
+1. **Automatic Override, Not a Suggestion**: If a non-whitespace page selection is present when the popup opens, the "Text Selection" clip style radio is checked unconditionally, overriding the active profile's `defaultClipStyle`. This happens once on open for the initially active profile; there is no per-profile opt-out. After the popup is open, the user can choose a different clip style or switch profiles without the override being applied again.
+2. **No Direct "Clip Selection Only" From the Menu**: The context menu cannot clip immediately; it only opens the popup, where the (possibly auto-selected) clip style and template still govern what's clipped.
 
 ## Future Enhancements
 

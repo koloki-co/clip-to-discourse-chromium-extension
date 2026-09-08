@@ -41,7 +41,7 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 - [x] **R19 - Add a shortcut to clip with default settings without opening the popup**
 
 #### Enhanced Selection Clipping
-- [ ] **R20 - Clarify the automatic style used when a selection is detected** and align the specification, implementation, and tests.
+- [x] **R20 - Clarify the automatic style used when a selection is detected** and align the specification, implementation, and tests.
 - [ ] **R21 - Add a preset "Clip Selection" style with a selection-focused template**
 - [ ] **R22 - Support multiple selections or ranges**
 
