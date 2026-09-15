@@ -82,5 +82,5 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 - [ ] **R51 - Cache compiled templates if profiling shows a useful benefit**
 
 ### Security
-- [ ] **R52 - Review the content security policy for extension pages**
+- [x] **R52 - Review the content security policy for extension pages**
 - [ ] **R53 - Audit third-party dependencies and document material findings**
