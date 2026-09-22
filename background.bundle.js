@@ -47,7 +47,7 @@ function truncateTitle(title) {
   }
   return truncateAtCodePointBoundary(title, MAX_TITLE_LENGTH);
 }
-function buildPayload({ destination, title, categoryId, topicId, raw }) {
+function buildPayload({ destination, title, categoryId, topicId, raw, tags }) {
   const trimmedRaw = truncateRaw(raw);
   const trimmedTitle = truncateTitle(title);
   if (destination === DESTINATIONS.NEW_TOPIC) {
@@ -57,6 +57,9 @@ function buildPayload({ destination, title, categoryId, topicId, raw }) {
     };
     if (categoryId) {
       payload.category = Number(categoryId);
+    }
+    if (Array.isArray(tags) && tags.length > 0) {
+      payload.tags = tags;
     }
     return payload;
   }

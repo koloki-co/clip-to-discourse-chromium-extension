@@ -49,6 +49,29 @@ export function truncateTitle(title) {
 }
 
 /**
+ * Parse a comma-separated tags field into a deduplicated list of Discourse
+ * tag slugs, trimming whitespace and dropping empty entries. Non-string
+ * input returns an empty array.
+ * @param {string} value - Raw tags input, e.g. `"research, reading-list, research"`.
+ * @returns {string[]} Deduplicated, trimmed tag slugs in their original order.
+ */
+export function parseTags(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+  const seen = new Set();
+  const tags = [];
+  value.split(",").forEach((entry) => {
+    const tag = entry.trim();
+    if (tag && !seen.has(tag)) {
+      seen.add(tag);
+      tags.push(tag);
+    }
+  });
+  return tags;
+}
+
+/**
  * Shape a Discourse `/posts.json` payload for either a new topic or a reply
  * appended to an existing topic. `raw` and `title` are truncated via
  * {@link truncateRaw} and {@link truncateTitle} before shaping.
@@ -58,10 +81,11 @@ export function truncateTitle(title) {
  * @param {string|number} [options.categoryId] - Target category id, used only for `NEW_TOPIC`; omitted from the payload when falsy.
  * @param {string|number} [options.topicId] - Target topic id, used only for `APPEND_TOPIC`.
  * @param {string} options.raw - Post body markdown.
+ * @param {string[]} [options.tags] - Discourse tag slugs, used only for `NEW_TOPIC`; omitted from the payload when empty.
  * @returns {object} A payload shaped for Discourse's `/posts.json` endpoint.
  * @throws {Error} If `destination` is not a recognized {@link DESTINATIONS} value.
  */
-export function buildPayload({ destination, title, categoryId, topicId, raw }) {
+export function buildPayload({ destination, title, categoryId, topicId, raw, tags }) {
   const trimmedRaw = truncateRaw(raw);
   const trimmedTitle = truncateTitle(title);
 
@@ -72,6 +96,9 @@ export function buildPayload({ destination, title, categoryId, topicId, raw }) {
     };
     if (categoryId) {
       payload.category = Number(categoryId);
+    }
+    if (Array.isArray(tags) && tags.length > 0) {
+      payload.tags = tags;
     }
     return payload;
   }

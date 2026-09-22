@@ -2136,7 +2136,22 @@ function truncateTitle(title) {
   }
   return truncateAtCodePointBoundary(title, MAX_TITLE_LENGTH);
 }
-function buildPayload({ destination, title, categoryId, topicId, raw }) {
+function parseTags(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const tags = [];
+  value.split(",").forEach((entry) => {
+    const tag = entry.trim();
+    if (tag && !seen.has(tag)) {
+      seen.add(tag);
+      tags.push(tag);
+    }
+  });
+  return tags;
+}
+function buildPayload({ destination, title, categoryId, topicId, raw, tags }) {
   const trimmedRaw = truncateRaw(raw);
   const trimmedTitle = truncateTitle(title);
   if (destination === DESTINATIONS.NEW_TOPIC) {
@@ -2146,6 +2161,9 @@ function buildPayload({ destination, title, categoryId, topicId, raw }) {
     };
     if (categoryId) {
       payload.category = Number(categoryId);
+    }
+    if (Array.isArray(tags) && tags.length > 0) {
+      payload.tags = tags;
     }
     return payload;
   }
@@ -4224,6 +4242,8 @@ var categoryField = document.getElementById("category-field");
 var topicField = document.getElementById("topic-field");
 var categoryInput = document.getElementById("categoryId");
 var topicInput = document.getElementById("topicId");
+var tagsField = document.getElementById("tags-field");
+var tagsInput = document.getElementById("tags");
 var submitButton = form.querySelector("button[type=submit]");
 var profileSelect = document.getElementById("profileSelect");
 var popupExtensionVersion = document.getElementById("popupExtensionVersion");
@@ -4301,9 +4321,11 @@ function toggleDestinationFields(destination) {
   if (destination === DESTINATIONS.NEW_TOPIC) {
     categoryField.classList.remove("hidden");
     topicField.classList.add("hidden");
+    tagsField.classList.remove("hidden");
   } else {
     categoryField.classList.add("hidden");
     topicField.classList.remove("hidden");
+    tagsField.classList.add("hidden");
   }
 }
 function getSelectedValue(name) {
@@ -4403,6 +4425,7 @@ function applyProfileDefaults(profile) {
   }
   setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
+  tagsInput.value = "";
   toggleDestinationFields(defaultDestination);
 }
 async function handleSubmit(event) {
@@ -4479,12 +4502,14 @@ async function handleSubmit(event) {
       }
     });
     const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : void 0;
+    const tags = destination === DESTINATIONS.NEW_TOPIC ? parseTags(tagsInput.value) : [];
     const payload = buildPayload({
       destination,
       title: topicTitle,
       categoryId,
       topicId,
-      raw
+      raw,
+      tags
     });
     const response = await createPost({
       baseUrl: currentProfile.baseUrl,
