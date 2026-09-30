@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { buildPayload, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
+import { buildPayload, parseTags, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
 import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "../constants.js";
 
 function hasUnpairedSurrogate(value) {
@@ -48,6 +48,69 @@ describe("payload", () => {
       topic_id: 42,
       raw: "Reply"
     });
+  });
+
+  it("includes tags in a new topic payload", () => {
+    const payload = buildPayload({
+      destination: DESTINATIONS.NEW_TOPIC,
+      title: "Clip: Example",
+      categoryId: "12",
+      raw: "Hello",
+      tags: ["research", "reading-list"]
+    });
+
+    expect(payload.tags).toEqual(["research", "reading-list"]);
+  });
+
+  it("omits tags from a new topic payload when empty or absent", () => {
+    const withoutTags = buildPayload({
+      destination: DESTINATIONS.NEW_TOPIC,
+      title: "Clip: Example",
+      categoryId: "12",
+      raw: "Hello"
+    });
+    const withEmptyTags = buildPayload({
+      destination: DESTINATIONS.NEW_TOPIC,
+      title: "Clip: Example",
+      categoryId: "12",
+      raw: "Hello",
+      tags: []
+    });
+
+    expect(withoutTags.tags).toBeUndefined();
+    expect(withEmptyTags.tags).toBeUndefined();
+  });
+
+  it("ignores tags for a reply payload", () => {
+    const payload = buildPayload({
+      destination: DESTINATIONS.APPEND_TOPIC,
+      topicId: "42",
+      raw: "Reply",
+      tags: ["research"]
+    });
+
+    expect(payload.tags).toBeUndefined();
+  });
+});
+
+describe("parseTags", () => {
+  it("splits comma-separated tags and trims whitespace", () => {
+    expect(parseTags(" research ,  reading-list ,ai")).toEqual(["research", "reading-list", "ai"]);
+  });
+
+  it("drops empty entries from stray commas", () => {
+    expect(parseTags("research,,reading-list,")).toEqual(["research", "reading-list"]);
+  });
+
+  it("deduplicates tags while preserving first-seen order", () => {
+    expect(parseTags("research, reading-list, research")).toEqual(["research", "reading-list"]);
+  });
+
+  it("returns an empty array for blank or non-string input", () => {
+    expect(parseTags("")).toEqual([]);
+    expect(parseTags("   ")).toEqual([]);
+    expect(parseTags(undefined)).toEqual([]);
+    expect(parseTags(null)).toEqual([]);
   });
 });
 

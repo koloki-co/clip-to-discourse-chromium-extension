@@ -122,6 +122,108 @@ describe("popup submission edge cases", () => {
   });
 });
 
+describe("popup submits tags", () => {
+  let mounted;
+
+  beforeEach(async () => {
+    mounted = await mountPopup({
+      storage: {
+        profiles: [{
+          id: "profile-1",
+          name: "Site One",
+          baseUrl: "https://forum1.example.com",
+          authMethod: AUTH_METHODS.ADMIN_API_KEY,
+          apiUsername: "user",
+          apiKey: "key",
+          defaultClipStyle: CLIP_STYLES.TITLE_URL,
+          defaultDestination: DESTINATIONS.NEW_TOPIC,
+          defaultCategoryId: "",
+          defaultTopicId: "",
+          titleTemplate: "Clip: {{title}}"
+        }],
+        activeProfileId: "profile-1",
+        useFaviconForIcon: false
+      }
+    });
+  });
+
+  afterEach(() => {
+    unmountPopup(mounted);
+  });
+
+  it("sends parsed, deduplicated tags for a new topic", async () => {
+    const { window, fetchMock, pendingFetches } = mounted;
+    const document = window.document;
+    const categoryInput = document.getElementById("categoryId");
+    const tagsInput = document.getElementById("tags");
+    const form = document.getElementById("clip-form");
+
+    const option = document.createElement("option");
+    option.value = "5";
+    option.textContent = "General";
+    categoryInput.appendChild(option);
+    categoryInput.value = "5";
+    tagsInput.value = " research , reading-list ,research";
+
+    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => fetchMock.mock.calls.length === 1);
+    pendingFetches[0].resolve({
+      ok: true,
+      json: async () => ({ id: 1, topic_id: 42, topic_slug: "test-topic" })
+    });
+
+    const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sentBody.tags).toEqual(["research", "reading-list"]);
+  });
+
+  it("omits tags entirely when the field is left blank", async () => {
+    const { window, fetchMock, pendingFetches } = mounted;
+    const document = window.document;
+    const categoryInput = document.getElementById("categoryId");
+    const form = document.getElementById("clip-form");
+
+    const option = document.createElement("option");
+    option.value = "5";
+    option.textContent = "General";
+    categoryInput.appendChild(option);
+    categoryInput.value = "5";
+
+    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => fetchMock.mock.calls.length === 1);
+    pendingFetches[0].resolve({
+      ok: true,
+      json: async () => ({ id: 1, topic_id: 42, topic_slug: "test-topic" })
+    });
+
+    const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sentBody.tags).toBeUndefined();
+  });
+
+  it("does not send tags when appending to an existing topic", async () => {
+    const { window, fetchMock, pendingFetches } = mounted;
+    const document = window.document;
+    const tagsInput = document.getElementById("tags");
+    const topicInput = document.getElementById("topicId");
+    const form = document.getElementById("clip-form");
+
+    const appendRadio = document.querySelector("input[name='destination'][value='append_topic']");
+    appendRadio.checked = true;
+    appendRadio.dispatchEvent(new window.Event("change", { bubbles: true }));
+    topicInput.value = "42";
+    tagsInput.value = "research";
+
+    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => fetchMock.mock.calls.length === 1);
+    pendingFetches[0].resolve({
+      ok: true,
+      json: async () => ({ id: 1, topic_id: 42, topic_slug: "test-topic" })
+    });
+
+    const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sentBody.tags).toBeUndefined();
+  });
+});
+
 // Regression: init() disables the whole form while settings load, and
 // applyProfileDefaults used to skip disabled inputs, so the profile's
 // default clip style and destination were silently never applied.

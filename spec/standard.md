@@ -73,13 +73,12 @@ The popup must dynamically show/hide:
 - CategoryId field (new topic mode)
 - TopicId field (append mode)
 
-#### 4.1.3 Optional per-clip metadata (future, not MVP)
+#### 4.1.3 Optional per-clip metadata
 
-(Not required for first iteration, but popup layout should allow growth.)
+- Tags: an optional, comma-separated free-text field shown alongside the Category field for new-topic clips only (Discourse tags belong to topics, not individual posts, so the field is hidden when appending to an existing topic). Entries are trimmed and deduplicated client-side and sent as the payload's `tags` array; a blank field omits `tags` entirely. There is no per-profile default yet (tracked as R27) or autocomplete against the site's existing tags (tracked as R28). See [roadmap.md](roadmap.md).
 
-Examples:
+Still future, not MVP:
 
-- tags
 - note/comment from user
 - override title
 

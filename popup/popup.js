@@ -4,7 +4,7 @@
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
-import { buildPayload } from "../shared/payload.js";
+import { buildPayload, parseTags } from "../shared/payload.js";
 import { createPost, listCategories } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { buildExcerpt, htmlToMarkdown, htmlToMarkdownFullPage, normalizeText } from "../shared/extract.js";
@@ -17,6 +17,8 @@ const categoryField = document.getElementById("category-field");
 const topicField = document.getElementById("topic-field");
 const categoryInput = document.getElementById("categoryId");
 const topicInput = document.getElementById("topicId");
+const tagsField = document.getElementById("tags-field");
+const tagsInput = document.getElementById("tags");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
 const popupExtensionVersion = document.getElementById("popupExtensionVersion");
@@ -116,9 +118,11 @@ function toggleDestinationFields(destination) {
   if (destination === DESTINATIONS.NEW_TOPIC) {
     categoryField.classList.remove("hidden");
     topicField.classList.add("hidden");
+    tagsField.classList.remove("hidden");
   } else {
     categoryField.classList.add("hidden");
     topicField.classList.remove("hidden");
+    tagsField.classList.add("hidden");
   }
 }
 
@@ -240,6 +244,7 @@ function applyProfileDefaults(profile) {
 
   setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
+  tagsInput.value = "";
 
   toggleDestinationFields(defaultDestination);
 }
@@ -329,13 +334,15 @@ async function handleSubmit(event) {
     });
 
     const topicTitle = destination === DESTINATIONS.NEW_TOPIC ? buildTopicTitle({ title }) : undefined;
+    const tags = destination === DESTINATIONS.NEW_TOPIC ? parseTags(tagsInput.value) : [];
 
     const payload = buildPayload({
       destination,
       title: topicTitle,
       categoryId,
       topicId,
-      raw
+      raw,
+      tags
     });
 
     const response = await createPost({
