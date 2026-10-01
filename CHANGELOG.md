@@ -5,6 +5,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.21.3](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.21.2...v0.21.3) (2026-10-01)
+
+
+### Features
+
+* add configurable keyboard shortcut to open popup (R18) ([#30](https://github.com/koloki-co/clip-to-discourse-chromium-extension/issues/30)) ([051d6a9](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/051d6a904f2b1bde022e2e706481a0aadf3ae77e))
+* **background:** add keyboard shortcut to clip with default settings (R19) ([#36](https://github.com/koloki-co/clip-to-discourse-chromium-extension/issues/36)) ([eb72dfe](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/eb72dfea217e26d497915991138b11d1bbc87021))
+* **popup:** add a tag input field for new topics (R26) ([3613cb5](https://github.com/koloki-co/clip-to-discourse-chromium-extension/commit/3613cb5163150c43216f1432aa8214c11e0091d5))
+
 ### [0.21.2](https://github.com/koloki-co/clip-to-discourse-chromium-extension/compare/v0.21.1...v0.21.2) (2026-08-13)
 
 
