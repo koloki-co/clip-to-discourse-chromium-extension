@@ -244,7 +244,7 @@ function applyProfileDefaults(profile) {
 
   setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
-  tagsInput.value = "";
+  tagsInput.value = profile.defaultTags || "";
 
   toggleDestinationFields(defaultDestination);
 }

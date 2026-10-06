@@ -82,6 +82,7 @@ const fields = {
   defaultDestination: document.getElementById("defaultDestination"),
   defaultCategoryId: document.getElementById("defaultCategoryId"),
   defaultTopicId: document.getElementById("defaultTopicId"),
+  defaultTags: document.getElementById("defaultTags"),
   titleTemplate: document.getElementById("titleTemplate"),
   titleUrlTemplate: document.getElementById("titleUrlTemplate"),
   excerptTemplate: document.getElementById("excerptTemplate"),
@@ -375,6 +376,7 @@ function fillProfileForm(profile) {
   setDefaultCategoryOptions([], profile.defaultCategoryId || "");
   defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
+  fields.defaultTags.value = profile.defaultTags || "";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
@@ -482,6 +484,7 @@ async function handleSubmit(event) {
       defaultDestination: fields.defaultDestination.value,
       defaultCategoryId: fields.defaultCategoryId.value,
       defaultTopicId: fields.defaultTopicId.value,
+      defaultTags: fields.defaultTags.value,
       titleTemplate: fields.titleTemplate.value,
       titleUrlTemplate: fields.titleUrlTemplate.value,
       excerptTemplate: fields.excerptTemplate.value,

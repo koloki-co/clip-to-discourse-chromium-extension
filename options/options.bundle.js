@@ -49,6 +49,7 @@ var DEFAULT_PROFILE = {
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
   defaultTopicId: "",
+  defaultTags: "",
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
@@ -123,6 +124,7 @@ function normalizeProfile(profile) {
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
     defaultTopicId: normalizeString(profile.defaultTopicId),
+    defaultTags: normalizeString(profile.defaultTags),
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
@@ -806,6 +808,7 @@ var fields = {
   defaultDestination: document.getElementById("defaultDestination"),
   defaultCategoryId: document.getElementById("defaultCategoryId"),
   defaultTopicId: document.getElementById("defaultTopicId"),
+  defaultTags: document.getElementById("defaultTags"),
   titleTemplate: document.getElementById("titleTemplate"),
   titleUrlTemplate: document.getElementById("titleUrlTemplate"),
   excerptTemplate: document.getElementById("excerptTemplate"),
@@ -1047,6 +1050,7 @@ function fillProfileForm(profile) {
   setDefaultCategoryOptions([], profile.defaultCategoryId || "");
   defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
+  fields.defaultTags.value = profile.defaultTags || "";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
@@ -1139,6 +1143,7 @@ async function handleSubmit(event) {
       defaultDestination: fields.defaultDestination.value,
       defaultCategoryId: fields.defaultCategoryId.value,
       defaultTopicId: fields.defaultTopicId.value,
+      defaultTags: fields.defaultTags.value,
       titleTemplate: fields.titleTemplate.value,
       titleUrlTemplate: fields.titleUrlTemplate.value,
       excerptTemplate: fields.excerptTemplate.value,
