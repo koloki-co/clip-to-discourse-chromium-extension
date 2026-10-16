@@ -268,4 +268,31 @@ describe("popup applies profile defaults", () => {
     // The form must be usable once init() completes.
     expect(document.querySelector("button[type=submit]").disabled).toBe(false);
   });
+
+  it("pre-fills the tags field from the profile's default tags", async () => {
+    mounted = await mountPopup({
+      storage: {
+        profiles: [{
+          id: "profile-1",
+          name: "Site One",
+          baseUrl: "https://forum1.example.com",
+          authMethod: AUTH_METHODS.ADMIN_API_KEY,
+          apiUsername: "user",
+          apiKey: "key",
+          defaultClipStyle: CLIP_STYLES.TITLE_URL,
+          defaultDestination: DESTINATIONS.NEW_TOPIC,
+          defaultCategoryId: "",
+          defaultTopicId: "",
+          defaultTags: "research, reading-list",
+          titleTemplate: "Clip: {{title}}"
+        }],
+        activeProfileId: "profile-1",
+        useFaviconForIcon: false
+      }
+    });
+
+    const { document } = mounted.window;
+
+    expect(document.getElementById("tags").value).toBe("research, reading-list");
+  });
 });

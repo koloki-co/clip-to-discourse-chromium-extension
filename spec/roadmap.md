@@ -47,7 +47,7 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 
 #### Tagging Support
 - [x] **R26 - Add a tag input field to the popup**
-- [ ] **R27 - Store default tags per profile**
+- [x] **R27 - Store default tags per profile**
 - [ ] **R28 - Support tag autocomplete from the Discourse API**
 
 ### Platform Expansion

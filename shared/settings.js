@@ -9,7 +9,7 @@ import { normalizeTheme } from "./theme.js";
  * Default per-profile settings, used both as the normalization baseline for
  * every stored profile (see `normalizeProfile`) and as the canonical shape
  * of stored profile objects throughout the codebase.
- * @type {{id: string, name: string, baseUrl: string, authMethod: string, apiUsername: string, apiKey: string, userApiKey: string, userApiClientId: string, defaultClipStyle: string, defaultDestination: string, defaultCategoryId: string, defaultTopicId: string, titleTemplate: string, titleUrlTemplate: string, excerptTemplate: string, fullTextTemplate: string, textSelectionTemplate: string}}
+ * @type {{id: string, name: string, baseUrl: string, authMethod: string, apiUsername: string, apiKey: string, userApiKey: string, userApiClientId: string, defaultClipStyle: string, defaultDestination: string, defaultCategoryId: string, defaultTopicId: string, defaultTags: string, titleTemplate: string, titleUrlTemplate: string, excerptTemplate: string, fullTextTemplate: string, textSelectionTemplate: string}}
  */
 export const DEFAULT_PROFILE = {
   id: "",
@@ -24,6 +24,7 @@ export const DEFAULT_PROFILE = {
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
   defaultTopicId: "",
+  defaultTags: "",
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
@@ -122,6 +123,7 @@ function normalizeProfile(profile) {
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
     defaultTopicId: normalizeString(profile.defaultTopicId),
+    defaultTags: normalizeString(profile.defaultTags),
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,

@@ -296,7 +296,8 @@ describe("Chrome Storage Configuration", () => {
         authMethod: AUTH_METHODS.ADMIN_API_KEY,
         apiUsername: "clipper",
         apiKey: "secret-key",
-        defaultClipStyle: CLIP_STYLES.FULL_TEXT
+        defaultClipStyle: CLIP_STYLES.FULL_TEXT,
+        defaultTags: "research, reading-list"
       }];
       mockLocal.activeProfileId = "source";
 
@@ -307,6 +308,7 @@ describe("Chrome Storage Configuration", () => {
       expect(duplicate.apiUsername).toBe("clipper");
       expect(duplicate.apiKey).toBe("secret-key");
       expect(duplicate.defaultClipStyle).toBe(CLIP_STYLES.FULL_TEXT);
+      expect(duplicate.defaultTags).toBe("research, reading-list");
       expect(mockLocal.activeProfileId).toBe(duplicate.id);
       expect(mockLocal.profiles).toHaveLength(2);
     });
@@ -342,6 +344,13 @@ describe("Chrome Storage Configuration", () => {
       await expect(saveProfile("deleted-profile", { userApiKey: "orphan-key" }))
         .rejects.toThrow("Profile no longer exists.");
       expect(mockLocal.profiles.every((profile) => !profile.userApiKey)).toBe(true);
+    });
+
+    it("stores and trims default tags", async () => {
+      await saveProfile("profile-1", { defaultTags: "  research, reading-list  " });
+
+      const profile1 = mockLocal.profiles.find((profile) => profile.id === "profile-1");
+      expect(profile1.defaultTags).toBe("research, reading-list");
     });
   });
 
@@ -493,6 +502,10 @@ describe("Chrome Storage Configuration", () => {
 
     it("has default title template", () => {
       expect(DEFAULT_PROFILE.titleTemplate).toBe("Clip: {{title}}");
+    });
+
+    it("has empty default tags", () => {
+      expect(DEFAULT_PROFILE.defaultTags).toBe("");
     });
   });
 });

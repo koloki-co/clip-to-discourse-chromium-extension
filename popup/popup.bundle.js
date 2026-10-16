@@ -2327,6 +2327,7 @@ var DEFAULT_PROFILE = {
   defaultDestination: DESTINATIONS.NEW_TOPIC,
   defaultCategoryId: "",
   defaultTopicId: "",
+  defaultTags: "",
   titleTemplate: "Clip: {{title}}",
   titleUrlTemplate: DEFAULT_CLIP_TEMPLATES.titleUrl,
   excerptTemplate: DEFAULT_CLIP_TEMPLATES.excerpt,
@@ -2401,6 +2402,7 @@ function normalizeProfile(profile) {
     defaultDestination: profile.defaultDestination || DEFAULT_PROFILE.defaultDestination,
     defaultCategoryId: normalizeString(profile.defaultCategoryId),
     defaultTopicId: normalizeString(profile.defaultTopicId),
+    defaultTags: normalizeString(profile.defaultTags),
     titleTemplate: normalizeString(profile.titleTemplate) || DEFAULT_PROFILE.titleTemplate,
     titleUrlTemplate: normalizeString(profile.titleUrlTemplate) || DEFAULT_PROFILE.titleUrlTemplate,
     excerptTemplate: normalizeString(profile.excerptTemplate) || DEFAULT_PROFILE.excerptTemplate,
@@ -4425,7 +4427,7 @@ function applyProfileDefaults(profile) {
   }
   setCategoryOptions([], profile.defaultCategoryId || "");
   topicInput.value = profile.defaultTopicId || "";
-  tagsInput.value = "";
+  tagsInput.value = profile.defaultTags || "";
   toggleDestinationFields(defaultDestination);
 }
 async function handleSubmit(event) {
