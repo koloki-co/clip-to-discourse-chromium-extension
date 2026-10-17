@@ -61,11 +61,6 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 - [ ] **R42 - Document AMO signing and upload**
 - [ ] **R43 - Run full functional QA on Firefox**
 
-### Authentication
-
-#### User API Key Flow
-- [ ] **R44 - Run end-to-end QA of User API authorization on live Discourse instances** covering device authorization on a current release and redirect fallback on an older compatible release, including payload decryption, connection verification, persistence, reauthorization, expiry, denial, and revocation.
-
 ---
 
 ## Technical Debt And Maintenance
@@ -83,4 +78,5 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 
 ### Security
 - [x] **R52 - Review the content security policy for extension pages**
-- [ ] **R53 - Audit third-party dependencies and document material findings**
+- [x] **R53 - Audit third-party dependencies and document material findings**. See [SECURITY.md](../SECURITY.md) ("Dependency Audit") for findings; R74 tracks the one open action item it raised.
+- [ ] **R74 - Evaluate a replacement for `standard-version`**, which is upstream-deprecated (no release since 2023-04). Candidates: `release-please` or the `commit-and-tag-version` fork, per the maintainer's own recommendation.
