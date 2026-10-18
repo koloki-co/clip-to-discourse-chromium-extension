@@ -9,6 +9,7 @@ export default [
     ignores: [
       "assets/fonts/**",
       "**/*.bundle.js",
+      "chunks/**",
       "node_modules/**"
     ]
   },
