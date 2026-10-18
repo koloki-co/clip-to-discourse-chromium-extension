@@ -3,9 +3,9 @@
 
 # Clip To Discourse Roadmap
 
-This roadmap lists outstanding features and improvements for the extension. Completed work is recorded in [CHANGELOG.md](../CHANGELOG.md) and Git history.
+This roadmap lists outstanding features and improvements for the extension. Completed work is recorded in [CHANGELOG.md](../CHANGELOG.md) and Git history, and is removed from this file once shipped rather than left checked off.
 
-Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or reuse codes.
+Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or reuse codes. The next free code is R75.
 
 ---
 
@@ -13,18 +13,9 @@ Legend: [ ] not started. Every item has a stable `Rxx` code; do not renumber or 
 
 ### v1.0 Release Readiness
 
-Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R06, and R44 are included for grouping; new items start at R68.
+Gate items that must close before bumping to `1.0.0`.
 
-- [x] **R68 - Remove the unused `notifications` permission** from `manifest.json`. No code calls `chrome.notifications`; the permission and its privacy-justification entry are inaccurate and must not ship in a public 1.0 release.
-- [x] **R69 - Declare and document `minimum_chrome_version`** in `manifest.json`. The context-menu handler depends on `chrome.action.openPopup()`, generally available from Chrome 127. Either set `minimum_chrome_version` to `"127"` or implement and test a documented fallback for earlier versions.
-- [x] **R70 - Include project and third-party licence notices in the release archive**. The package allowlist in `scripts/package.js` omits `LICENSE.md` and the required notices for bundled Mozilla Readability (Apache-2.0), Turndown (MIT), and Turndown GFM (MIT). Add them before the next public package.
-- [x] **R71 - Bind Chrome Web Store publication to the exact reviewed release tag**. The Web Store workflow rebuilds from whichever ref is dispatched and does not validate the tag or download the GitHub release asset. Require an exact semver tag match so the reviewed v1 artifact is what reaches the store.
-- [x] **R72 - Run E2E tests against the packaged ZIP artifact**, not the loose source tree. The release workflow packages after E2E, so a missing allowlist entry could pass tests and produce a broken archive.
-- [x] **R73 - Align README privacy claims with actual data handling**. Current wording is too absolute. Accurately disclose local storage, `chrome.storage.sync` for non-sensitive preferences, favicon fetching, and user-directed Discourse transfers.
-- [x] **R04 - Create or update promotional assets** including screenshots at least 1280x800, optional 440x280 and 920x680 promo tiles, and an optional YouTube video. Existing screenshots are 0.18-era and predate profiles, User API, themes, and category loading.
-- [x] **R05 - Verify and update the store listing descriptions** to reflect current features and the preferred User API onboarding path.
-- [ ] **R06 - Complete the data disclosure form with current permissions** using `privacy-permission-justification.md` after R68 removes `notifications`.
-- [x] **R44 - Run end-to-end QA of User API authorization on live Discourse instances** covering device authorization on a current release and redirect fallback on an older compatible release, including payload decryption, connection verification, persistence, reauthorization, expiry, denial, and revocation.
+- [ ] **R06 - Complete the data disclosure form with current permissions** using `privacy-permission-justification.md` now that R68 has removed `notifications`.
 
 ### Security And Privacy
 
@@ -36,18 +27,11 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 
 ### User Experience
 
-#### Keyboard Shortcuts
-- [x] **R18 - Add a configurable keyboard shortcut to open the popup**
-- [x] **R19 - Add a shortcut to clip with default settings without opening the popup**
-
 #### Enhanced Selection Clipping
-- [x] **R20 - Clarify the automatic style used when a selection is detected** and align the specification, implementation, and tests.
 - [ ] **R21 - Add a preset "Clip Selection" style with a selection-focused template**
 - [ ] **R22 - Support multiple selections or ranges**
 
 #### Tagging Support
-- [x] **R26 - Add a tag input field to the popup**
-- [x] **R27 - Store default tags per profile**
 - [ ] **R28 - Support tag autocomplete from the Discourse API**
 
 ### Platform Expansion
@@ -68,7 +52,6 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 ### Code Quality
 - [ ] **R45 - Review and refactor payload building for better testability**
 - [ ] **R46 - Consolidate error handling patterns across modules**
-- [x] **R47 - Add JSDoc comments to public APIs where they clarify contracts**
 - [ ] **R48 - Evaluate a TypeScript migration and record the decision**
 
 ### Performance
@@ -77,6 +60,4 @@ Gate items that must close before bumping to `1.0.0`. Existing items R04, R05, R
 - [ ] **R51 - Cache compiled templates if profiling shows a useful benefit**
 
 ### Security
-- [x] **R52 - Review the content security policy for extension pages**
-- [x] **R53 - Audit third-party dependencies and document material findings**. See [SECURITY.md](../SECURITY.md) ("Dependency Audit") for findings; R74 tracks the one open action item it raised.
-- [ ] **R74 - Evaluate a replacement for `standard-version`**, which is upstream-deprecated (no release since 2023-04). Candidates: `release-please` or the `commit-and-tag-version` fork, per the maintainer's own recommendation.
+- [ ] **R74 - Evaluate a replacement for `standard-version`**, which is upstream-deprecated (no release since 2023-04). Candidates: `release-please` or the `commit-and-tag-version` fork, per the maintainer's own recommendation. See [SECURITY.md](../SECURITY.md) ("Dependency Audit").
