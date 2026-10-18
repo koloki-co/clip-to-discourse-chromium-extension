@@ -55,8 +55,6 @@ Gate items that must close before bumping to `1.0.0`.
 - [ ] **R48 - Evaluate a TypeScript migration and record the decision**
 
 ### Performance
-- [ ] **R49 - Measure and optimize popup bundle size**
-- [ ] **R50 - Evaluate lazy-loading Turndown and Readability**
 - [ ] **R51 - Cache compiled templates if profiling shows a useful benefit**
 
 ### Security

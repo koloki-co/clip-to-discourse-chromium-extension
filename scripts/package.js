@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Marcus Baw / Koloki Ltd
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,6 +11,15 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const archivePath = path.join(rootDir, "clip-to-discourse-extension.zip");
+
+// esbuild inlines every shared/*.js module into whichever bundle(s) import
+// it (directly or via chunks/, see scripts/bundle.js), so the raw shared/*.js
+// sources are never loaded at runtime and are deliberately not listed here.
+// chunks/ contents vary by build (hashed chunk names, and how many chunks
+// esbuild produces), so they're discovered rather than hardcoded.
+const chunkFiles = (await readdir(path.join(rootDir, "chunks")))
+  .map((file) => path.join("chunks", file));
+
 const runtimeFiles = [
   "manifest.json",
   "LICENSE.md",
@@ -22,17 +31,9 @@ const runtimeFiles = [
   "options/options.html",
   "options/options.css",
   "options/options.bundle.js",
-  "shared/constants.js",
-  "shared/discourse.js",
-  "shared/extract.js",
-  "shared/favicon.js",
-  "shared/markdown.js",
-  "shared/payload.js",
-  "shared/settings.js",
   "shared/theme.css",
-  "shared/theme.js",
-  "shared/user-api-crypto.js",
-  "assets"
+  "assets",
+  ...chunkFiles
 ];
 
 const stagingDir = await mkdtemp(path.join(tmpdir(), "clip-to-discourse-package-"));

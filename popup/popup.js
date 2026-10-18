@@ -7,7 +7,6 @@ import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from
 import { buildPayload, parseTags } from "../shared/payload.js";
 import { createPost, listCategories } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
-import { buildExcerpt, htmlToMarkdown, htmlToMarkdownFullPage, normalizeText } from "../shared/extract.js";
 import { applyTheme } from "../shared/theme.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
@@ -281,7 +280,10 @@ async function handleSubmit(event) {
     const url = pageInfo.url;
 
     // Only run the extraction pipeline the chosen clip style needs, so one
-    // pathological page cannot freeze or fail an unrelated style.
+    // pathological page cannot freeze or fail an unrelated style. Title+URL
+    // never needs it, so shared/extract.js (and its Turndown/Readability
+    // dependencies) are loaded lazily rather than bundled into every popup
+    // open (R50).
     let excerpt = "";
     let excerptPlain = "";
     let fullText = "";
@@ -291,6 +293,7 @@ async function handleSubmit(event) {
 
     if (clipStyle === CLIP_STYLES.EXCERPT) {
       try {
+        const { buildExcerpt, htmlToMarkdown } = await import("../shared/extract.js");
         excerptPlain = buildExcerpt(pageInfo.pageText);
         excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
       } catch {
@@ -298,6 +301,7 @@ async function handleSubmit(event) {
       }
     } else if (clipStyle === CLIP_STYLES.FULL_TEXT) {
       try {
+        const { htmlToMarkdownFullPage, normalizeText } = await import("../shared/extract.js");
         fullTextPlain = normalizeText(pageInfo.fullText);
         fullText = normalizeText(
           htmlToMarkdownFullPage(pageInfo.fullHtml, { baseUrl: url })
@@ -307,10 +311,14 @@ async function handleSubmit(event) {
       }
     } else if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
       try {
+        const { htmlToMarkdown, normalizeText } = await import("../shared/extract.js");
         selectionText = normalizeText(pageInfo.selectionText);
         selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
       } catch {
-        selectionText = normalizeText(pageInfo.selectionText);
+        // Falls back without shared/extract.js so a processing failure (or,
+        // now that it loads lazily, a chunk-load failure) cannot block the
+        // clip - the raw selection is still usable.
+        selectionText = (pageInfo.selectionText || "").trim();
         selectionMarkdown = selectionText;
       }
     }
