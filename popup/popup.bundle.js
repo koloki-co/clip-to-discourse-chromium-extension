@@ -244,7 +244,7 @@ async function handleSubmit(event) {
     let selectionMarkdown = "";
     if (clipStyle === CLIP_STYLES.EXCERPT) {
       try {
-        const { buildExcerpt, htmlToMarkdown } = await import("../chunks/extract-5ZF2PQK2.js");
+        const { buildExcerpt, htmlToMarkdown } = await import("../chunks/extract-RUPZHXGZ.js");
         excerptPlain = buildExcerpt(pageInfo.pageText);
         excerpt = buildExcerpt(htmlToMarkdown(pageInfo.pageHtml));
       } catch {
@@ -252,7 +252,7 @@ async function handleSubmit(event) {
       }
     } else if (clipStyle === CLIP_STYLES.FULL_TEXT) {
       try {
-        const { htmlToMarkdownFullPage, normalizeText } = await import("../chunks/extract-5ZF2PQK2.js");
+        const { htmlToMarkdownFullPage, normalizeText } = await import("../chunks/extract-RUPZHXGZ.js");
         fullTextPlain = normalizeText(pageInfo.fullText);
         fullText = normalizeText(
           htmlToMarkdownFullPage(pageInfo.fullHtml, { baseUrl: url })
@@ -262,7 +262,7 @@ async function handleSubmit(event) {
       }
     } else if (clipStyle === CLIP_STYLES.TEXT_SELECTION) {
       try {
-        const { htmlToMarkdown, normalizeText } = await import("../chunks/extract-5ZF2PQK2.js");
+        const { htmlToMarkdown, normalizeText } = await import("../chunks/extract-RUPZHXGZ.js");
         selectionText = normalizeText(pageInfo.selectionText);
         selectionMarkdown = normalizeText(htmlToMarkdown(pageInfo.selectionHtml)) || selectionText;
       } catch {

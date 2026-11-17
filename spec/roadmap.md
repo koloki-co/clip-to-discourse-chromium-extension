@@ -57,5 +57,3 @@ Gate items that must close before bumping to `1.0.0`.
 ### Performance
 - [ ] **R51 - Cache compiled templates if profiling shows a useful benefit**
 
-### Security
-- [ ] **R74 - Evaluate a replacement for `standard-version`**, which is upstream-deprecated (no release since 2023-04). Candidates: `release-please` or the `commit-and-tag-version` fork, per the maintainer's own recommendation. See [SECURITY.md](../SECURITY.md) ("Dependency Audit").

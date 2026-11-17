@@ -14,12 +14,12 @@ npm run release       # bump, changelog, commit, tag
 git push --follow-tags origin main
 ```
 
-`standard-version` bumps `package.json`, `package-lock.json`, and
+`commit-and-tag-version` bumps `package.json`, `package-lock.json`, and
 `manifest.json` together, so `npm run version:check` keeps passing.
 
-Note that the version is below `1.0.0`, so `standard-version` sets `preMajor`
-and a `feat` commit bumps the patch digit rather than the minor one. Pass
-`--release-as minor` explicitly if a release deserves a minor bump.
+Note that the version is below `1.0.0`, so `commit-and-tag-version` sets
+`preMajor` and a `feat` commit bumps the patch digit rather than the minor
+one. Pass `--release-as minor` explicitly if a release deserves a minor bump.
 
 ## What the tag push does
 
