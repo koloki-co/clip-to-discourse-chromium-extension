@@ -15,6 +15,7 @@ import {
   checkUserApiVersion,
   createUserApiDeviceRequest,
   listCategories,
+  listTags,
   pollUserApiDeviceRequest,
   revokeUserApiKey,
   testConnection
@@ -64,6 +65,8 @@ const userApiConnectionState = document.getElementById("userApiConnectionState")
 const userApiDeviceCodePanel = document.getElementById("userApiDeviceCodePanel");
 const userApiDeviceCode = document.getElementById("userApiDeviceCode");
 const defaultCategoryStatus = document.getElementById("defaultCategoryStatus");
+const defaultTagsDatalist = document.getElementById("default-tags-list");
+const defaultTagsStatus = document.getElementById("defaultTagsStatus");
 const httpWarning = document.getElementById("httpWarning");
 const allowHttpToggle = document.querySelector(".allow-http-toggle");
 
@@ -101,6 +104,8 @@ let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
 let categoriesLoadedForProfileId = "";
+let tagsLoadedForProfileId = "";
+let tagsLoading = false;
 
 const USER_API_SCOPES = "read,write";
 const USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
@@ -195,6 +200,49 @@ async function loadDefaultCategories() {
   } finally {
     fields.defaultCategoryId.disabled = false;
     categoriesLoading = false;
+  }
+}
+
+function setDefaultTagOptions(tags) {
+  defaultTagsDatalist.innerHTML = "";
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    defaultTagsDatalist.appendChild(option);
+  });
+}
+
+async function loadDefaultTags() {
+  const profile = activeProfileCredentials();
+  if (!profile.baseUrl || tagsLoadedForProfileId === activeProfileId) {
+    return;
+  }
+  if (tagsLoading) {
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
+    defaultTagsStatus.textContent = "Authorize this profile before loading tags.";
+    return;
+  }
+  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY && (!profile.apiUsername || !profile.apiKey)) {
+    defaultTagsStatus.textContent = "Enter the API username and key before loading tags.";
+    return;
+  }
+
+  tagsLoading = true;
+  defaultTagsStatus.textContent = "Loading tags...";
+  try {
+    await ensureHostPermission(profile.baseUrl);
+    const tags = await listTags(profile);
+    setDefaultTagOptions(tags);
+    tagsLoadedForProfileId = activeProfileId;
+    defaultTagsStatus.textContent = tags.length
+      ? `${tags.length} available tags loaded.`
+      : "No tags are available on this site.";
+  } catch (error) {
+    defaultTagsStatus.textContent = error.message || "Tags could not be loaded.";
+  } finally {
+    tagsLoading = false;
   }
 }
 
@@ -377,6 +425,9 @@ function fillProfileForm(profile) {
   defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.defaultTags.value = profile.defaultTags || "";
+  tagsLoadedForProfileId = "";
+  setDefaultTagOptions([]);
+  defaultTagsStatus.textContent = "Tags load when this field is opened.";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
@@ -1045,6 +1096,8 @@ checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
+fields.defaultTags.addEventListener("focus", loadDefaultTags);
+fields.defaultTags.addEventListener("pointerdown", loadDefaultTags);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);

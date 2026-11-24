@@ -11,11 +11,12 @@ import {
   getSettingsState,
   isProfileConnected,
   listCategories,
+  listTags,
   normalizeTitle,
   parseTags,
   setActiveProfile,
   updateActionIconForProfile
-} from "../chunks/chunk-I3GXIVOH.js";
+} from "../chunks/chunk-4ALOPV6U.js";
 import "../chunks/chunk-YLVDSGH3.js";
 
 // popup/popup.js
@@ -27,6 +28,8 @@ var categoryInput = document.getElementById("categoryId");
 var topicInput = document.getElementById("topicId");
 var tagsField = document.getElementById("tags-field");
 var tagsInput = document.getElementById("tags");
+var tagsDatalist = document.getElementById("tags-list");
+var tagsStatus = document.getElementById("tags-status");
 var submitButton = form.querySelector("button[type=submit]");
 var profileSelect = document.getElementById("profileSelect");
 var popupExtensionVersion = document.getElementById("popupExtensionVersion");
@@ -38,6 +41,7 @@ var activeProfileId = "";
 var useFaviconForIcon = false;
 var cachedPageInfo = null;
 var categoriesLoadedForProfileId = "";
+var tagsLoadedForProfileId = "";
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
     return;
@@ -98,6 +102,33 @@ async function loadCategories() {
     }
   } finally {
     categoryInput.disabled = false;
+  }
+}
+function setTagOptions(tags) {
+  tagsDatalist.innerHTML = "";
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    tagsDatalist.appendChild(option);
+  });
+}
+async function loadTags() {
+  if (!isProfileConnected(currentProfile) || tagsLoadedForProfileId === currentProfile.id) {
+    return;
+  }
+  const requestProfile = currentProfile;
+  tagsStatus.textContent = "Loading tags...";
+  try {
+    const tags = await listTags(requestProfile);
+    if (currentProfile?.id === requestProfile.id) {
+      setTagOptions(tags);
+      tagsLoadedForProfileId = requestProfile.id;
+      tagsStatus.textContent = tags.length ? `${tags.length} available tags loaded.` : "No tags are available on this site.";
+    }
+  } catch (error) {
+    if (currentProfile?.id === requestProfile.id) {
+      tagsStatus.textContent = error.message || "Tags could not be loaded.";
+    }
   }
 }
 function toggleDestinationFields(destination) {
@@ -346,6 +377,9 @@ async function loadSettings() {
   categoriesLoadedForProfileId = "";
   categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
+  tagsLoadedForProfileId = "";
+  tagsStatus.textContent = "";
+  setTagOptions([]);
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -390,6 +424,8 @@ async function init() {
   profileSelect.addEventListener("change", handleProfileChange);
   categoryInput.addEventListener("focus", loadCategories);
   categoryInput.addEventListener("pointerdown", loadCategories);
+  tagsInput.addEventListener("focus", loadTags);
+  tagsInput.addEventListener("pointerdown", loadTags);
   setFormEnabled(true);
   setStatus("");
 }

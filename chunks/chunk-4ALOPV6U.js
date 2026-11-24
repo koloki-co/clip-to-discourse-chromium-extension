@@ -670,6 +670,38 @@ async function listCategories({
     name: category.parent_category_id && namesById.has(category.parent_category_id) ? `${namesById.get(category.parent_category_id)} / ${category.name}` : category.name
   })).sort((left, right) => left.name.localeCompare(right.name));
 }
+async function listTags({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId
+}) {
+  const response = await fetch(`${baseUrl}/tags.json`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
+    }
+  });
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "tag loading"));
+  }
+  const data = await response.json();
+  if (!Array.isArray(data.tags)) {
+    throw new Error("Discourse returned an unexpected tag response. The site may need to be updated.");
+  }
+  const countByName = /* @__PURE__ */ new Map();
+  data.tags.forEach((tag) => {
+    const name = typeof tag.text === "string" && tag.text || tag.id;
+    if (typeof name === "string" && name && !countByName.has(name)) {
+      countByName.set(name, Number.isFinite(tag.count) ? tag.count : 0);
+    }
+  });
+  return Array.from(countByName.entries()).sort(([leftName, leftCount], [rightName, rightCount]) => rightCount - leftCount || leftName.localeCompare(rightName)).map(([name]) => name);
+}
 async function checkUserApiVersion({ baseUrl }) {
   let response;
   try {
@@ -941,6 +973,7 @@ export {
   createPost,
   testConnection,
   listCategories,
+  listTags,
   checkUserApiVersion,
   createUserApiDeviceRequest,
   pollUserApiDeviceRequest,

@@ -5,7 +5,7 @@ import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js"
 import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
 import { buildPayload, parseTags } from "../shared/payload.js";
-import { createPost, listCategories } from "../shared/discourse.js";
+import { createPost, listCategories, listTags } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { applyTheme } from "../shared/theme.js";
 
@@ -18,6 +18,8 @@ const categoryInput = document.getElementById("categoryId");
 const topicInput = document.getElementById("topicId");
 const tagsField = document.getElementById("tags-field");
 const tagsInput = document.getElementById("tags");
+const tagsDatalist = document.getElementById("tags-list");
+const tagsStatus = document.getElementById("tags-status");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
 const popupExtensionVersion = document.getElementById("popupExtensionVersion");
@@ -34,6 +36,7 @@ let useFaviconForIcon = false;
 // scripting injection on submit was duplicating work.
 let cachedPageInfo = null;
 let categoriesLoadedForProfileId = "";
+let tagsLoadedForProfileId = "";
 
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
@@ -109,6 +112,41 @@ async function loadCategories() {
     }
   } finally {
     categoryInput.disabled = false;
+  }
+}
+
+function setTagOptions(tags) {
+  tagsDatalist.innerHTML = "";
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    tagsDatalist.appendChild(option);
+  });
+}
+
+async function loadTags() {
+  if (!isProfileConnected(currentProfile) || tagsLoadedForProfileId === currentProfile.id) {
+    return;
+  }
+
+  // Capture the requesting profile so a response that arrives after a
+  // profile switch cannot populate the new profile's form with the old
+  // site's tags or mark them as loaded for the new profile.
+  const requestProfile = currentProfile;
+  tagsStatus.textContent = "Loading tags...";
+  try {
+    const tags = await listTags(requestProfile);
+    if (currentProfile?.id === requestProfile.id) {
+      setTagOptions(tags);
+      tagsLoadedForProfileId = requestProfile.id;
+      tagsStatus.textContent = tags.length
+        ? `${tags.length} available tags loaded.`
+        : "No tags are available on this site.";
+    }
+  } catch (error) {
+    if (currentProfile?.id === requestProfile.id) {
+      tagsStatus.textContent = error.message || "Tags could not be loaded.";
+    }
   }
 }
 
@@ -409,6 +447,9 @@ async function loadSettings() {
   categoriesLoadedForProfileId = "";
   categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
+  tagsLoadedForProfileId = "";
+  tagsStatus.textContent = "";
+  setTagOptions([]);
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -463,6 +504,8 @@ async function init() {
   profileSelect.addEventListener("change", handleProfileChange);
   categoryInput.addEventListener("focus", loadCategories);
   categoryInput.addEventListener("pointerdown", loadCategories);
+  tagsInput.addEventListener("focus", loadTags);
+  tagsInput.addEventListener("pointerdown", loadTags);
   setFormEnabled(true);
   setStatus("");
 }

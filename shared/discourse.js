@@ -231,6 +231,60 @@ export async function listCategories({
 }
 
 /**
+ * List tags available on a Discourse site via `GET /tags.json`, for tag
+ * autocomplete. Returned most-used first (then alphabetically), matching
+ * the order Discourse's own tag picker suggests tags in.
+ * @param {object} options
+ * @param {string} options.baseUrl - Discourse site base URL, no trailing slash.
+ * @param {string} [options.authMethod] - One of {@link AUTH_METHODS}; inferred from `userApiKey` when omitted.
+ * @param {string} [options.apiUsername] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.apiKey] - Required for `ADMIN_API_KEY` auth.
+ * @param {string} [options.userApiKey] - Required for `USER_API` auth.
+ * @param {string} [options.userApiClientId] - Optional client id sent alongside a User API key.
+ * @returns {Promise<string[]>} Tag names, most-used first.
+ * @throws {Error} With actionable guidance if credentials are missing, Discourse returns a non-2xx response, or the response shape is unrecognized.
+ */
+export async function listTags({
+  baseUrl,
+  authMethod,
+  apiUsername,
+  apiKey,
+  userApiKey,
+  userApiClientId
+}) {
+  const response = await fetch(`${baseUrl}/tags.json`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
+    }
+  });
+
+  if (!response.ok) {
+    const errorMessage = await extractErrorMessage(response);
+    throw new Error(actionableDiscourseError(response, errorMessage, "tag loading"));
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data.tags)) {
+    throw new Error("Discourse returned an unexpected tag response. The site may need to be updated.");
+  }
+
+  const countByName = new Map();
+  data.tags.forEach((tag) => {
+    const name = (typeof tag.text === "string" && tag.text) || tag.id;
+    if (typeof name === "string" && name && !countByName.has(name)) {
+      countByName.set(name, Number.isFinite(tag.count) ? tag.count : 0);
+    }
+  });
+
+  return Array.from(countByName.entries())
+    .sort(([leftName, leftCount], [rightName, rightCount]) =>
+      rightCount - leftCount || leftName.localeCompare(rightName))
+    .map(([name]) => name);
+}
+
+/**
  * Probe whether a Discourse site supports the User API key flow, via
  * `HEAD /user-api-key/new`.
  * @param {object} options
