@@ -212,11 +212,11 @@
             </label>
           </div>
           <label>
-            Default Tags
-            <input id="defaultTags" name="defaultTags" type="text" placeholder="e.g. research, reading-list" list="default-tags-list" />
+            <span id="default-tags-label">Default Tags</span>
+            <input id="defaultTags" name="defaultTags" type="text" placeholder="e.g. research, reading-list" list="default-tags-list" aria-labelledby="default-tags-label" aria-describedby="default-tags-hint defaultTagsStatus" />
             <datalist id="default-tags-list"></datalist>
-            <span class="hint">Comma-separated. Pre-fills the popup's Tags field for new topics; edit per clip as needed.</span>
-            <span id="defaultTagsStatus" class="hint" role="status">Tags load when this field is opened.</span>
+            <span id="default-tags-hint" class="hint">Comma-separated. Pre-fills the popup's Tags field for new topics; edit per clip as needed.</span>
+            <span id="defaultTagsStatus" class="hint" role="status"></span>
           </label>
           <h2 class="subsection-heading">Templates</h2>
           <p class="hint">Post body text is truncated at 50,000 characters before sending to Discourse.</p>

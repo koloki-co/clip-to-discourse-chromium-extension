@@ -1,15 +1,18 @@
 import {
+  attachTagAutocomplete
+} from "../chunks/chunk-KOVULRPE.js";
+import {
   AUTH_METHODS,
   CLIP_STYLES,
   DESTINATIONS,
   addProfile,
   applyTheme,
-  buildTagInputSuggestions,
   checkUserApiVersion,
   createUserApiDeviceRequest,
   deleteProfile,
   duplicateProfile,
   getSettingsState,
+  isProfileConnected,
   listCategories,
   listTags,
   pollUserApiDeviceRequest,
@@ -19,7 +22,7 @@ import {
   setActiveProfile,
   testConnection,
   updateActionIconForProfile
-} from "../chunks/chunk-DSTCMCFK.js";
+} from "../chunks/chunk-QXNHU4SB.js";
 import "../chunks/chunk-YLVDSGH3.js";
 
 // shared/user-api-crypto.js
@@ -145,8 +148,25 @@ var profiles = [];
 var activeProfileId = "";
 var useFaviconForIcon = false;
 var categoriesLoadedForProfileId = "";
-var tagsLoadedForProfileId = "";
-var availableDefaultTags = [];
+var resetDefaultTagSuggestions = attachTagAutocomplete({
+  input: fields.defaultTags,
+  datalist: defaultTagsDatalist,
+  status: defaultTagsStatus,
+  async getTags(signal) {
+    const profile = profiles.find(({ id }) => id === activeProfileId);
+    const { baseUrl, authMethod } = activeProfileCredentials();
+    if (!isProfileConnected(profile) || profile.baseUrl !== baseUrl || profile.authMethod !== authMethod) {
+      throw new Error("Save a connected profile to load tag suggestions, or enter tags manually.");
+    }
+    if (baseUrl.startsWith("http:") && !fields.allowHttp.checked) {
+      throw new Error("Enable Allow HTTP to load tags from this site, or enter tags manually.");
+    }
+    if (!await chrome.permissions.contains({ origins: [getOriginPattern(baseUrl)] })) {
+      throw new Error("Save the profile to grant browser access, or enter tags manually.");
+    }
+    return signal.aborted ? [] : listTags({ ...profile, signal });
+  }
+});
 var USER_API_SCOPES = "read,write";
 var USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
 function createUserApiClientId() {
@@ -231,46 +251,6 @@ async function loadDefaultCategories() {
     categoriesLoading = false;
   }
 }
-function refreshDefaultTagSuggestions() {
-  defaultTagsDatalist.innerHTML = "";
-  buildTagInputSuggestions(fields.defaultTags.value, availableDefaultTags).forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    defaultTagsDatalist.appendChild(option);
-  });
-}
-async function loadDefaultTags() {
-  const profile = activeProfileCredentials();
-  const requestProfileId = activeProfileId;
-  if (!profile.baseUrl || tagsLoadedForProfileId === requestProfileId) {
-    return;
-  }
-  if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
-    defaultTagsStatus.textContent = "Authorize this profile before loading tags.";
-    return;
-  }
-  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY && (!profile.apiUsername || !profile.apiKey)) {
-    defaultTagsStatus.textContent = "Enter the API username and key before loading tags.";
-    return;
-  }
-  defaultTagsStatus.textContent = "Loading tags...";
-  try {
-    await ensureHostPermission(profile.baseUrl);
-    const tags = await listTags(profile);
-    if (activeProfileId !== requestProfileId) {
-      return;
-    }
-    availableDefaultTags = tags;
-    refreshDefaultTagSuggestions();
-    tagsLoadedForProfileId = requestProfileId;
-    defaultTagsStatus.textContent = tags.length ? `${tags.length} available tags loaded.` : "No tags are available on this site.";
-  } catch (error) {
-    if (activeProfileId !== requestProfileId) {
-      return;
-    }
-    defaultTagsStatus.textContent = error.message || "Tags could not be loaded.";
-  }
-}
 function ensureUserApiClientId() {
   if (fields.userApiClientId.value.trim()) {
     return fields.userApiClientId.value.trim();
@@ -288,6 +268,7 @@ function getActiveAuthMethod() {
 function setAuthMethod(authMethod) {
   const nextAuthMethod = authMethod === AUTH_METHODS.USER_API ? AUTH_METHODS.USER_API : AUTH_METHODS.ADMIN_API_KEY;
   fields.authMethod.value = nextAuthMethod;
+  resetDefaultTagSuggestions();
   authTabButtons.forEach((button) => {
     const isActive = button.dataset.authMethod === nextAuthMethod;
     button.classList.toggle("active", isActive);
@@ -414,10 +395,6 @@ function fillProfileForm(profile) {
   defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.defaultTags.value = profile.defaultTags || "";
-  tagsLoadedForProfileId = "";
-  availableDefaultTags = [];
-  refreshDefaultTagSuggestions();
-  defaultTagsStatus.textContent = "Tags load when this field is opened.";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
@@ -1007,12 +984,11 @@ checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
-fields.defaultTags.addEventListener("focus", loadDefaultTags);
-fields.defaultTags.addEventListener("pointerdown", loadDefaultTags);
-fields.defaultTags.addEventListener("input", refreshDefaultTagSuggestions);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
+fields.baseUrl.addEventListener("input", resetDefaultTagSuggestions);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);
+  fields.allowHttp.addEventListener("change", resetDefaultTagSuggestions);
 }
 fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {

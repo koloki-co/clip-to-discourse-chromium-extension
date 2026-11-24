@@ -304,15 +304,17 @@ describe("integration", () => {
     expect(options.headers["User-Api-Key"]).toBe("user-key");
   });
 
-  it("lists tags most-used first, falling back to id when text is absent", async () => {
+  it("lists plain and grouped tags by usage and omits message-only tags", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
         tags: [
           { id: "bug", count: 2 },
           { text: "feature", count: 5 },
-          { text: "chore", count: 5 }
-        ]
+          null,
+          { id: 2, name: "private", count: 100, pm_only: true }
+        ],
+        extras: { tag_groups: [{ tags: [{ id: 3, name: "chore", count: 5 }] }] }
       })
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -328,6 +330,7 @@ describe("integration", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://forum.example.com/tags.json");
     expect(options.headers["User-Api-Key"]).toBe("user-key");
+    expect(options.redirect).toBe("error");
   });
 
   it("throws when the tag response shape is unexpected", async () => {

@@ -75,7 +75,7 @@ The popup must dynamically show/hide:
 
 #### 4.1.3 Optional per-clip metadata
 
-- Tags: an optional, comma-separated free-text field shown alongside the Category field for new-topic clips only (Discourse tags belong to topics, not individual posts, so the field is hidden when appending to an existing topic). The field is pre-filled from the active profile's default tags (see 4.2.2 Optional settings) and can be edited per clip without changing the profile. Entries are trimmed and deduplicated client-side and sent as the payload's `tags` array; a blank field omits `tags` entirely. There is no autocomplete against the site's existing tags yet (tracked as R28). See [roadmap.md](roadmap.md).
+- Tags: an optional, comma-separated field for new topics. The popup pre-fills it from the active profile and loads suggestions from that profile's Discourse site when the field is opened. Manual entry still works without suggestions. Per-clip edits do not change the profile. Entries are trimmed and deduplicated before sending; a blank field omits `tags`.
 
 Still future, not MVP:
 
@@ -109,7 +109,7 @@ or
 - Default clip style
 - Default destination mode
 - Default category / Topic ID
-- Default tags: comma-separated, pre-fills the popup's Tags field for new-topic clips
+- Default tags: comma-separated, pre-fills the popup's Tags field for new topics. Settings offers suggestions when the saved profile has browser access to its Discourse site. Opening the field does not request access.
 - Title template for new topics, e.g. Clip: {{title}} or Clip {{date}}: {{title}}
 
 #### 4.2.3 Multiple profiles

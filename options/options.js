@@ -3,6 +3,7 @@
 
 import {
   getSettingsState,
+  isProfileConnected,
   saveProfile,
   addProfile,
   duplicateProfile,
@@ -11,7 +12,6 @@ import {
   saveGlobalSettings
 } from "../shared/settings.js";
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
-import { buildTagInputSuggestions } from "../shared/payload.js";
 import {
   checkUserApiVersion,
   createUserApiDeviceRequest,
@@ -22,6 +22,7 @@ import {
   testConnection
 } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import { attachTagAutocomplete } from "../shared/tag-autocomplete.js";
 import {
   decryptUserApiPayload,
   generateUserApiKeyPair
@@ -105,11 +106,27 @@ let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
 let categoriesLoadedForProfileId = "";
-let tagsLoadedForProfileId = "";
-// A native datalist matches an option against the input's whole value, not
-// just the tag currently being typed, so the datalist is rebuilt on every
-// keystroke from the full known tag list via buildTagInputSuggestions.
-let availableDefaultTags = [];
+const resetDefaultTagSuggestions = attachTagAutocomplete({
+  input: fields.defaultTags,
+  datalist: defaultTagsDatalist,
+  status: defaultTagsStatus,
+  async getTags(signal) {
+    // Typing or tabbing around Settings must not request access or send
+    // stored credentials to an unsaved address.
+    const profile = profiles.find(({ id }) => id === activeProfileId);
+    const { baseUrl, authMethod } = activeProfileCredentials();
+    if (!isProfileConnected(profile) || profile.baseUrl !== baseUrl || profile.authMethod !== authMethod) {
+      throw new Error("Save a connected profile to load tag suggestions, or enter tags manually.");
+    }
+    if (baseUrl.startsWith("http:") && !fields.allowHttp.checked) {
+      throw new Error("Enable Allow HTTP to load tags from this site, or enter tags manually.");
+    }
+    if (!await chrome.permissions.contains({ origins: [getOriginPattern(baseUrl)] })) {
+      throw new Error("Save the profile to grant browser access, or enter tags manually.");
+    }
+    return signal.aborted ? [] : listTags({ ...profile, signal });
+  }
+});
 
 const USER_API_SCOPES = "read,write";
 const USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
@@ -207,54 +224,6 @@ async function loadDefaultCategories() {
   }
 }
 
-function refreshDefaultTagSuggestions() {
-  defaultTagsDatalist.innerHTML = "";
-  buildTagInputSuggestions(fields.defaultTags.value, availableDefaultTags).forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    defaultTagsDatalist.appendChild(option);
-  });
-}
-
-async function loadDefaultTags() {
-  const profile = activeProfileCredentials();
-  // Capture the requesting profile so a response that arrives after a
-  // profile switch cannot populate the new profile's form with the old
-  // site's tags or mark them as loaded for the new profile.
-  const requestProfileId = activeProfileId;
-  if (!profile.baseUrl || tagsLoadedForProfileId === requestProfileId) {
-    return;
-  }
-  if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
-    defaultTagsStatus.textContent = "Authorize this profile before loading tags.";
-    return;
-  }
-  if (profile.authMethod === AUTH_METHODS.ADMIN_API_KEY && (!profile.apiUsername || !profile.apiKey)) {
-    defaultTagsStatus.textContent = "Enter the API username and key before loading tags.";
-    return;
-  }
-
-  defaultTagsStatus.textContent = "Loading tags...";
-  try {
-    await ensureHostPermission(profile.baseUrl);
-    const tags = await listTags(profile);
-    if (activeProfileId !== requestProfileId) {
-      return;
-    }
-    availableDefaultTags = tags;
-    refreshDefaultTagSuggestions();
-    tagsLoadedForProfileId = requestProfileId;
-    defaultTagsStatus.textContent = tags.length
-      ? `${tags.length} available tags loaded.`
-      : "No tags are available on this site.";
-  } catch (error) {
-    if (activeProfileId !== requestProfileId) {
-      return;
-    }
-    defaultTagsStatus.textContent = error.message || "Tags could not be loaded.";
-  }
-}
-
 function ensureUserApiClientId() {
   if (fields.userApiClientId.value.trim()) {
     return fields.userApiClientId.value.trim();
@@ -280,6 +249,7 @@ function setAuthMethod(authMethod) {
     : AUTH_METHODS.ADMIN_API_KEY;
 
   fields.authMethod.value = nextAuthMethod;
+  resetDefaultTagSuggestions();
 
   authTabButtons.forEach((button) => {
     const isActive = button.dataset.authMethod === nextAuthMethod;
@@ -434,10 +404,6 @@ function fillProfileForm(profile) {
   defaultCategoryStatus.textContent = "Categories load when this field is opened.";
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.defaultTags.value = profile.defaultTags || "";
-  tagsLoadedForProfileId = "";
-  availableDefaultTags = [];
-  refreshDefaultTagSuggestions();
-  defaultTagsStatus.textContent = "Tags load when this field is opened.";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
   fields.excerptTemplate.value = profile.excerptTemplate || "";
@@ -1106,12 +1072,11 @@ checkUserApiSupportButton.addEventListener("click", handleCheckUserApiSupport);
 connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
-fields.defaultTags.addEventListener("focus", loadDefaultTags);
-fields.defaultTags.addEventListener("pointerdown", loadDefaultTags);
-fields.defaultTags.addEventListener("input", refreshDefaultTagSuggestions);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
+fields.baseUrl.addEventListener("input", resetDefaultTagSuggestions);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);
+  fields.allowHttp.addEventListener("change", resetDefaultTagSuggestions);
 }
 fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {

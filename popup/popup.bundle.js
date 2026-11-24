@@ -1,4 +1,7 @@
 import {
+  attachTagAutocomplete
+} from "../chunks/chunk-KOVULRPE.js";
+import {
   AUTH_METHODS,
   CLIP_STYLES,
   DESTINATIONS,
@@ -6,7 +9,6 @@ import {
   applyTitleTemplate,
   buildMarkdown,
   buildPayload,
-  buildTagInputSuggestions,
   createPost,
   fallbackTitle,
   getSettingsState,
@@ -17,7 +19,7 @@ import {
   parseTags,
   setActiveProfile,
   updateActionIconForProfile
-} from "../chunks/chunk-DSTCMCFK.js";
+} from "../chunks/chunk-QXNHU4SB.js";
 import "../chunks/chunk-YLVDSGH3.js";
 
 // popup/popup.js
@@ -42,7 +44,21 @@ var activeProfileId = "";
 var useFaviconForIcon = false;
 var cachedPageInfo = null;
 var categoriesLoadedForProfileId = "";
-var tagsLoadedForProfileId = "";
+var allowHttp = false;
+var resetTagSuggestions = attachTagAutocomplete({
+  input: tagsInput,
+  datalist: tagsDatalist,
+  status: tagsStatus,
+  getTags(signal) {
+    if (!isProfileConnected(currentProfile)) {
+      throw new Error("Connect a profile to load tag suggestions, or enter tags manually.");
+    }
+    if (currentProfile.baseUrl.startsWith("http:") && !allowHttp) {
+      throw new Error("Enable Allow HTTP in Settings to load tags from this site, or enter tags manually.");
+    }
+    return listTags({ ...currentProfile, signal });
+  }
+});
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
     return;
@@ -103,35 +119,6 @@ async function loadCategories() {
     }
   } finally {
     categoryInput.disabled = false;
-  }
-}
-var availableTags = [];
-function refreshTagSuggestions() {
-  tagsDatalist.innerHTML = "";
-  buildTagInputSuggestions(tagsInput.value, availableTags).forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    tagsDatalist.appendChild(option);
-  });
-}
-async function loadTags() {
-  if (!isProfileConnected(currentProfile) || tagsLoadedForProfileId === currentProfile.id) {
-    return;
-  }
-  const requestProfile = currentProfile;
-  tagsStatus.textContent = "Loading tags...";
-  try {
-    const tags = await listTags(requestProfile);
-    if (currentProfile?.id === requestProfile.id) {
-      availableTags = tags;
-      refreshTagSuggestions();
-      tagsLoadedForProfileId = requestProfile.id;
-      tagsStatus.textContent = tags.length ? `${tags.length} available tags loaded.` : "No tags are available on this site.";
-    }
-  } catch (error) {
-    if (currentProfile?.id === requestProfile.id) {
-      tagsStatus.textContent = error.message || "Tags could not be loaded.";
-    }
   }
 }
 function toggleDestinationFields(destination) {
@@ -377,13 +364,11 @@ async function loadSettings() {
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
+  allowHttp = state.allowHttp;
   categoriesLoadedForProfileId = "";
   categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
-  tagsLoadedForProfileId = "";
-  tagsStatus.textContent = "";
-  availableTags = [];
-  refreshTagSuggestions();
+  resetTagSuggestions();
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -428,9 +413,6 @@ async function init() {
   profileSelect.addEventListener("change", handleProfileChange);
   categoryInput.addEventListener("focus", loadCategories);
   categoryInput.addEventListener("pointerdown", loadCategories);
-  tagsInput.addEventListener("focus", loadTags);
-  tagsInput.addEventListener("pointerdown", loadTags);
-  tagsInput.addEventListener("input", refreshTagSuggestions);
   setFormEnabled(true);
   setStatus("");
 }

@@ -4,9 +4,10 @@
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
-import { buildPayload, buildTagInputSuggestions, parseTags } from "../shared/payload.js";
+import { buildPayload, parseTags } from "../shared/payload.js";
 import { createPost, listCategories, listTags } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import { attachTagAutocomplete } from "../shared/tag-autocomplete.js";
 import { applyTheme } from "../shared/theme.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
@@ -36,7 +37,22 @@ let useFaviconForIcon = false;
 // scripting injection on submit was duplicating work.
 let cachedPageInfo = null;
 let categoriesLoadedForProfileId = "";
-let tagsLoadedForProfileId = "";
+let allowHttp = false;
+
+const resetTagSuggestions = attachTagAutocomplete({
+  input: tagsInput,
+  datalist: tagsDatalist,
+  status: tagsStatus,
+  getTags(signal) {
+    if (!isProfileConnected(currentProfile)) {
+      throw new Error("Connect a profile to load tag suggestions, or enter tags manually.");
+    }
+    if (currentProfile.baseUrl.startsWith("http:") && !allowHttp) {
+      throw new Error("Enable Allow HTTP in Settings to load tags from this site, or enter tags manually.");
+    }
+    return listTags({ ...currentProfile, signal });
+  }
+});
 
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
@@ -112,47 +128,6 @@ async function loadCategories() {
     }
   } finally {
     categoryInput.disabled = false;
-  }
-}
-
-// A native datalist matches an option against the input's whole value, not
-// just the tag currently being typed, so the datalist is rebuilt on every
-// keystroke from the full known tag list via buildTagInputSuggestions.
-let availableTags = [];
-
-function refreshTagSuggestions() {
-  tagsDatalist.innerHTML = "";
-  buildTagInputSuggestions(tagsInput.value, availableTags).forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    tagsDatalist.appendChild(option);
-  });
-}
-
-async function loadTags() {
-  if (!isProfileConnected(currentProfile) || tagsLoadedForProfileId === currentProfile.id) {
-    return;
-  }
-
-  // Capture the requesting profile so a response that arrives after a
-  // profile switch cannot populate the new profile's form with the old
-  // site's tags or mark them as loaded for the new profile.
-  const requestProfile = currentProfile;
-  tagsStatus.textContent = "Loading tags...";
-  try {
-    const tags = await listTags(requestProfile);
-    if (currentProfile?.id === requestProfile.id) {
-      availableTags = tags;
-      refreshTagSuggestions();
-      tagsLoadedForProfileId = requestProfile.id;
-      tagsStatus.textContent = tags.length
-        ? `${tags.length} available tags loaded.`
-        : "No tags are available on this site.";
-    }
-  } catch (error) {
-    if (currentProfile?.id === requestProfile.id) {
-      tagsStatus.textContent = error.message || "Tags could not be loaded.";
-    }
   }
 }
 
@@ -450,13 +425,11 @@ async function loadSettings() {
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
+  allowHttp = state.allowHttp;
   categoriesLoadedForProfileId = "";
   categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
-  tagsLoadedForProfileId = "";
-  tagsStatus.textContent = "";
-  availableTags = [];
-  refreshTagSuggestions();
+  resetTagSuggestions();
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -511,9 +484,6 @@ async function init() {
   profileSelect.addEventListener("change", handleProfileChange);
   categoryInput.addEventListener("focus", loadCategories);
   categoryInput.addEventListener("pointerdown", loadCategories);
-  tagsInput.addEventListener("focus", loadTags);
-  tagsInput.addEventListener("pointerdown", loadTags);
-  tagsInput.addEventListener("input", refreshTagSuggestions);
   setFormEnabled(true);
   setStatus("");
 }

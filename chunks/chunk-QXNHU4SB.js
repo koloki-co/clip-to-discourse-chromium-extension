@@ -62,16 +62,6 @@ function parseTags(value) {
   });
   return tags;
 }
-function buildTagInputSuggestions(currentValue, availableTags) {
-  const value = typeof currentValue === "string" ? currentValue : "";
-  const lastCommaIndex = value.lastIndexOf(",");
-  const prefix = lastCommaIndex === -1 ? "" : `${value.slice(0, lastCommaIndex + 1)} `;
-  const precedingTags = lastCommaIndex === -1 ? [] : value.slice(0, lastCommaIndex).split(",");
-  const usedTags = new Set(
-    precedingTags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)
-  );
-  return availableTags.filter((tag) => !usedTags.has(tag.toLowerCase())).map((tag) => `${prefix}${tag}`);
-}
 function buildPayload({ destination, title, categoryId, topicId, raw, tags }) {
   const trimmedRaw = truncateRaw(raw);
   const trimmedTitle = truncateTitle(title);
@@ -686,10 +676,13 @@ async function listTags({
   apiUsername,
   apiKey,
   userApiKey,
-  userApiClientId
+  userApiClientId,
+  signal
 }) {
   const response = await fetch(`${baseUrl}/tags.json`, {
     method: "GET",
+    redirect: "error",
+    signal,
     headers: {
       "Accept": "application/json",
       ...buildAuthHeaders({ authMethod, apiUsername, apiKey, userApiKey, userApiClientId })
@@ -700,16 +693,26 @@ async function listTags({
     throw new Error(actionableDiscourseError(response, errorMessage, "tag loading"));
   }
   const data = await response.json();
-  if (!Array.isArray(data.tags)) {
+  if (!Array.isArray(data?.tags)) {
     throw new Error("Discourse returned an unexpected tag response. The site may need to be updated.");
   }
   const countByName = /* @__PURE__ */ new Map();
-  data.tags.forEach((tag) => {
-    const name = typeof tag.text === "string" && tag.text || tag.id;
-    if (typeof name === "string" && name && !countByName.has(name)) {
-      countByName.set(name, Number.isFinite(tag.count) ? tag.count : 0);
+  function addTags(tags) {
+    if (!Array.isArray(tags)) return;
+    for (const tag of tags) {
+      if (tag?.pm_only) continue;
+      const name = [tag?.name, tag?.text, tag?.id].find((value) => typeof value === "string" && value.trim())?.trim();
+      if (!name || name.includes(",")) continue;
+      const count = Number.isFinite(tag.count) ? tag.count : 0;
+      countByName.set(name, Math.max(countByName.get(name) ?? 0, count));
     }
-  });
+  }
+  addTags(data.tags);
+  for (const groups of [data.extras?.tag_groups, data.extras?.categories]) {
+    if (Array.isArray(groups)) {
+      for (const group of groups) addTags(group?.tags);
+    }
+  }
   return Array.from(countByName.entries()).sort(([leftName, leftCount], [rightName, rightCount]) => rightCount - leftCount || leftName.localeCompare(rightName)).map(([name]) => name);
 }
 async function checkUserApiVersion({ baseUrl }) {
@@ -966,7 +969,6 @@ export {
   DESTINATIONS,
   AUTH_METHODS,
   parseTags,
-  buildTagInputSuggestions,
   buildPayload,
   normalizeTitle,
   fallbackTitle,

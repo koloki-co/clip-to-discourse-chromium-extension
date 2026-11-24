@@ -72,32 +72,6 @@ export function parseTags(value) {
 }
 
 /**
- * Build `<datalist>` option values for a comma-separated tags input, so
- * completion covers the tag currently being typed rather than the whole
- * field. A native datalist matches an option's value against the input's
- * *entire* current value, not a token within it, so each option here is the
- * full field value with the in-progress last tag replaced by a candidate -
- * preceding, already-entered tags are preserved and excluded from the
- * candidate list.
- * @param {string} currentValue - The tags input's current (in-progress) value.
- * @param {string[]} availableTags - All known tag names for the site, in suggestion order.
- * @returns {string[]} Full-field-value datalist option strings.
- */
-export function buildTagInputSuggestions(currentValue, availableTags) {
-  const value = typeof currentValue === "string" ? currentValue : "";
-  const lastCommaIndex = value.lastIndexOf(",");
-  const prefix = lastCommaIndex === -1 ? "" : `${value.slice(0, lastCommaIndex + 1)} `;
-  const precedingTags = lastCommaIndex === -1 ? [] : value.slice(0, lastCommaIndex).split(",");
-  const usedTags = new Set(
-    precedingTags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)
-  );
-
-  return availableTags
-    .filter((tag) => !usedTags.has(tag.toLowerCase()))
-    .map((tag) => `${prefix}${tag}`);
-}
-
-/**
  * Shape a Discourse `/posts.json` payload for either a new topic or a reply
  * appended to an existing topic. `raw` and `title` are truncated via
  * {@link truncateRaw} and {@link truncateTitle} before shaping.

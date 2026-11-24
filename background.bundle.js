@@ -10,7 +10,7 @@ import {
   isProfileConnected,
   normalizeTitle,
   updateActionIconForProfile
-} from "./chunks/chunk-DSTCMCFK.js";
+} from "./chunks/chunk-QXNHU4SB.js";
 import "./chunks/chunk-YLVDSGH3.js";
 
 // shared/clip.js
