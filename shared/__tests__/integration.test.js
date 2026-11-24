@@ -9,6 +9,7 @@ import {
   createUserApiDeviceRequest,
   createPost,
   listCategories,
+  listTags,
   pollUserApiDeviceRequest,
   revokeUserApiKey,
   testConnection
@@ -301,6 +302,49 @@ describe("integration", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://forum.example.com/site.json");
     expect(options.headers["User-Api-Key"]).toBe("user-key");
+  });
+
+  it("lists plain and grouped tags by usage and omits message-only tags", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        tags: [
+          { id: "bug", count: 2 },
+          { text: "feature", count: 5 },
+          null,
+          { id: 2, name: "private", count: 100, pm_only: true }
+        ],
+        extras: { tag_groups: [{ tags: [{ id: 3, name: "chore", count: 5 }] }] }
+      })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tags = await listTags({
+      baseUrl: "https://forum.example.com",
+      authMethod: AUTH_METHODS.USER_API,
+      userApiKey: "user-key",
+      userApiClientId: "client-123"
+    });
+
+    expect(tags).toEqual(["chore", "feature", "bug"]);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://forum.example.com/tags.json");
+    expect(options.headers["User-Api-Key"]).toBe("user-key");
+    expect(options.redirect).toBe("error");
+  });
+
+  it("throws when the tag response shape is unexpected", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({})
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(listTags({
+      baseUrl: "https://forum.example.com",
+      apiUsername: "user",
+      apiKey: "key"
+    })).rejects.toThrow("unexpected tag response");
   });
 
   it("returns an empty username when the response shape is unexpected", async () => {

@@ -5,8 +5,9 @@ import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js"
 import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
 import { buildPayload, parseTags } from "../shared/payload.js";
-import { createPost, listCategories } from "../shared/discourse.js";
+import { createPost, listCategories, listTags } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import { attachTagAutocomplete } from "../shared/tag-autocomplete.js";
 import { applyTheme } from "../shared/theme.js";
 
 // Popup UI entry point: collect page data, build post payload, and send to Discourse.
@@ -18,6 +19,8 @@ const categoryInput = document.getElementById("categoryId");
 const topicInput = document.getElementById("topicId");
 const tagsField = document.getElementById("tags-field");
 const tagsInput = document.getElementById("tags");
+const tagsDatalist = document.getElementById("tags-list");
+const tagsStatus = document.getElementById("tags-status");
 const submitButton = form.querySelector("button[type=submit]");
 const profileSelect = document.getElementById("profileSelect");
 const popupExtensionVersion = document.getElementById("popupExtensionVersion");
@@ -34,6 +37,22 @@ let useFaviconForIcon = false;
 // scripting injection on submit was duplicating work.
 let cachedPageInfo = null;
 let categoriesLoadedForProfileId = "";
+let allowHttp = false;
+
+const resetTagSuggestions = attachTagAutocomplete({
+  input: tagsInput,
+  datalist: tagsDatalist,
+  status: tagsStatus,
+  getTags(signal) {
+    if (!isProfileConnected(currentProfile)) {
+      throw new Error("Connect a profile to load tag suggestions, or enter tags manually.");
+    }
+    if (currentProfile.baseUrl.startsWith("http:") && !allowHttp) {
+      throw new Error("Enable Allow HTTP in Settings to load tags from this site, or enter tags manually.");
+    }
+    return listTags({ ...currentProfile, signal });
+  }
+});
 
 function setExtensionVersion() {
   if (!popupExtensionVersion) {
@@ -406,9 +425,11 @@ async function loadSettings() {
   activeProfileId = state.activeProfileId;
   currentProfile = state.activeProfile;
   useFaviconForIcon = state.useFaviconForIcon;
+  allowHttp = state.allowHttp;
   categoriesLoadedForProfileId = "";
   categoryStatus.textContent = "";
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
+  resetTagSuggestions();
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);

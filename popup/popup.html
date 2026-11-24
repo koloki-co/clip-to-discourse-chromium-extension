@@ -90,7 +90,9 @@
           </div>
           <div id="tags-field" class="field">
             <label for="tags">Tags (optional)</label>
-            <input id="tags" name="tags" type="text" placeholder="e.g. research, reading-list" />
+            <input id="tags" name="tags" type="text" placeholder="e.g. research, reading-list" list="tags-list" aria-describedby="tags-status" />
+            <datalist id="tags-list"></datalist>
+            <span id="tags-status" class="field-status" role="status"></span>
           </div>
         </section>
 

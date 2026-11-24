@@ -3,6 +3,7 @@
 
 import {
   getSettingsState,
+  isProfileConnected,
   saveProfile,
   addProfile,
   duplicateProfile,
@@ -15,11 +16,13 @@ import {
   checkUserApiVersion,
   createUserApiDeviceRequest,
   listCategories,
+  listTags,
   pollUserApiDeviceRequest,
   revokeUserApiKey,
   testConnection
 } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
+import { attachTagAutocomplete } from "../shared/tag-autocomplete.js";
 import {
   decryptUserApiPayload,
   generateUserApiKeyPair
@@ -64,6 +67,8 @@ const userApiConnectionState = document.getElementById("userApiConnectionState")
 const userApiDeviceCodePanel = document.getElementById("userApiDeviceCodePanel");
 const userApiDeviceCode = document.getElementById("userApiDeviceCode");
 const defaultCategoryStatus = document.getElementById("defaultCategoryStatus");
+const defaultTagsDatalist = document.getElementById("default-tags-list");
+const defaultTagsStatus = document.getElementById("defaultTagsStatus");
 const httpWarning = document.getElementById("httpWarning");
 const allowHttpToggle = document.querySelector(".allow-http-toggle");
 
@@ -101,6 +106,27 @@ let profiles = [];
 let activeProfileId = "";
 let useFaviconForIcon = false;
 let categoriesLoadedForProfileId = "";
+const resetDefaultTagSuggestions = attachTagAutocomplete({
+  input: fields.defaultTags,
+  datalist: defaultTagsDatalist,
+  status: defaultTagsStatus,
+  async getTags(signal) {
+    // Typing or tabbing around Settings must not request access or send
+    // stored credentials to an unsaved address.
+    const profile = profiles.find(({ id }) => id === activeProfileId);
+    const { baseUrl, authMethod } = activeProfileCredentials();
+    if (!isProfileConnected(profile) || profile.baseUrl !== baseUrl || profile.authMethod !== authMethod) {
+      throw new Error("Save a connected profile to load tag suggestions, or enter tags manually.");
+    }
+    if (baseUrl.startsWith("http:") && !fields.allowHttp.checked) {
+      throw new Error("Enable Allow HTTP to load tags from this site, or enter tags manually.");
+    }
+    if (!await chrome.permissions.contains({ origins: [getOriginPattern(baseUrl)] })) {
+      throw new Error("Save the profile to grant browser access, or enter tags manually.");
+    }
+    return signal.aborted ? [] : listTags({ ...profile, signal });
+  }
+});
 
 const USER_API_SCOPES = "read,write";
 const USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
@@ -223,6 +249,7 @@ function setAuthMethod(authMethod) {
     : AUTH_METHODS.ADMIN_API_KEY;
 
   fields.authMethod.value = nextAuthMethod;
+  resetDefaultTagSuggestions();
 
   authTabButtons.forEach((button) => {
     const isActive = button.dataset.authMethod === nextAuthMethod;
@@ -1046,8 +1073,10 @@ connectUserApiButton.addEventListener("click", handleConnectUserApi);
 revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
+fields.baseUrl.addEventListener("input", resetDefaultTagSuggestions);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);
+  fields.allowHttp.addEventListener("change", resetDefaultTagSuggestions);
 }
 fields.theme.addEventListener("change", handleThemeChange);
 authTabButtons.forEach((button) => {

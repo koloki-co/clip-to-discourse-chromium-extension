@@ -138,6 +138,27 @@ test("loads visible categories and tests the configured connection", async ({
   expect(sessionRequest.headers["api-username"]).toBe("e2e-user-a");
 });
 
+test("suggests default tags only for the saved connection", async ({ extension, mockDiscourse, page }) => {
+  const profile = connectedAdminProfile({ baseUrl: mockDiscourse.baseUrl });
+  await extension.setStorage({ profiles: [profile], activeProfileId: profile.id, allowHttp: true });
+  await page.goto(extension.optionsUrl);
+
+  const baseUrl = page.locator("#baseUrl");
+  await expect(baseUrl).toHaveValue(profile.baseUrl);
+  const tags = page.getByLabel("Default Tags", { exact: true });
+  await tags.focus();
+  await expect(page.locator("#defaultTagsStatus")).toHaveText("2 available tags loaded.");
+  await expect(page.locator("#default-tags-list option")).toHaveCount(2);
+
+  await baseUrl.fill(`${profile.baseUrl}/unsaved`);
+  await tags.focus();
+  await expect(page.locator("#defaultTagsStatus")).toContainText("Save a connected profile");
+  await expect(page.locator("#default-tags-list option")).toHaveCount(0);
+  await tags.fill("manual-tag");
+  await expect(tags).toHaveValue("manual-tag");
+  expect(mockDiscourse.requests.filter(({ path }) => path.endsWith("/tags.json"))).toHaveLength(1);
+});
+
 test("shows an actionable error when Discourse rejects the connection test", async ({
   extension,
   mockDiscourse,

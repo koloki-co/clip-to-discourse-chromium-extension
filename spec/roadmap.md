@@ -31,9 +31,6 @@ Gate items that must close before bumping to `1.0.0`.
 - [ ] **R21 - Add a preset "Clip Selection" style with a selection-focused template**
 - [ ] **R22 - Support multiple selections or ranges**
 
-#### Tagging Support
-- [ ] **R28 - Support tag autocomplete from the Discourse API**
-
 ### Platform Expansion
 
 #### Firefox Support
@@ -56,4 +53,3 @@ Gate items that must close before bumping to `1.0.0`.
 
 ### Performance
 - [ ] **R51 - Cache compiled templates if profiling shows a useful benefit**
-

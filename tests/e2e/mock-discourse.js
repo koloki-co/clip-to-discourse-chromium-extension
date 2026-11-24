@@ -81,6 +81,13 @@ export async function startMockDiscourse() {
       response.writeHead(connectionResponse.status).end(JSON.stringify(connectionResponse.body));
       return;
     }
+    if (request.method === "GET" && url.pathname === "/tags.json") {
+      response.end(JSON.stringify({
+        tags: [{ id: 1, name: "research", count: 4 }],
+        extras: { tag_groups: [{ tags: [{ id: 2, name: "reading-list", count: 2 }] }] }
+      }));
+      return;
+    }
     if (request.method === "POST" && url.pathname === "/posts.json") {
       response.end(JSON.stringify({
         id: 9001,

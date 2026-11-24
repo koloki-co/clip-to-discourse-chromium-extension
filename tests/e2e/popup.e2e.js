@@ -46,6 +46,30 @@ test("detects selected text and posts it to the chosen category", async ({
   expect(postRequest.body.title).toBe("Clip: Playwright Fixture Article");
 });
 
+test("offers tag completions for the last comma-separated tag", async ({ extension, fixtureSite, mockDiscourse, page }) => {
+  const profile = connectedAdminProfile({
+    baseUrl: mockDiscourse.baseUrl,
+    overrides: { defaultCategoryId: "1", defaultTags: "research" }
+  });
+  await extension.setStorage({ profiles: [profile], activeProfileId: profile.id, allowHttp: true });
+  await page.goto(fixtureSite.url);
+  const popup = await extension.triggerAction(page);
+  const tags = popup.getByLabel("Tags (optional)");
+  await tags.click();
+  await expect(popup.locator("#tags-status")).toHaveText("2 available tags loaded.");
+  await tags.fill("research,rea");
+  const option = popup.locator("#tags-list option");
+  await expect(option).toHaveCount(1);
+  await expect(option).toHaveAttribute("value", "research,reading-list");
+  await tags.fill(await option.getAttribute("value"));
+  await popup.getByRole("button", { name: "Clip" }).click();
+  await expect(popup.getByRole("status").last()).toContainText("Clipped successfully");
+
+  expect(mockDiscourse.requests.filter(({ path }) => path === "/tags.json")).toHaveLength(1);
+  expect(mockDiscourse.requests.find(({ path }) => path === "/posts.json").body.tags)
+    .toEqual(["research", "reading-list"]);
+});
+
 test("posts every clip style to the configured Discourse endpoint", async ({
   extension,
   fixtureSite,
