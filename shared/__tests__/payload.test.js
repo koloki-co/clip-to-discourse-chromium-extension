@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { buildPayload, parseTags, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
+import { buildPayload, buildTagInputSuggestions, parseTags, truncateRaw, truncateTitle, TRUNCATION_NOTICE } from "../payload.js";
 import { DESTINATIONS, MAX_PAYLOAD_LENGTH, MAX_TITLE_LENGTH } from "../constants.js";
 
 function hasUnpairedSurrogate(value) {
@@ -111,6 +111,33 @@ describe("parseTags", () => {
     expect(parseTags("   ")).toEqual([]);
     expect(parseTags(undefined)).toEqual([]);
     expect(parseTags(null)).toEqual([]);
+  });
+});
+
+describe("buildTagInputSuggestions", () => {
+  it("suggests whole-field completions for the first tag", () => {
+    expect(buildTagInputSuggestions("", ["research", "reading-list"]))
+      .toEqual(["research", "reading-list"]);
+  });
+
+  it("preserves already-typed tags as a prefix on later-tag completions", () => {
+    expect(buildTagInputSuggestions("research, rea", ["research", "reading-list", "chore"]))
+      .toEqual(["research, reading-list", "research, chore"]);
+  });
+
+  it("excludes tags already present earlier in the field", () => {
+    expect(buildTagInputSuggestions("research, ", ["research", "reading-list"]))
+      .toEqual(["research, reading-list"]);
+  });
+
+  it("matches already-used tags case-insensitively", () => {
+    expect(buildTagInputSuggestions("Research, ", ["research", "reading-list"]))
+      .toEqual(["Research, reading-list"]);
+  });
+
+  it("treats non-string input as an empty field", () => {
+    expect(buildTagInputSuggestions(undefined, ["research"])).toEqual(["research"]);
+    expect(buildTagInputSuggestions(null, ["research"])).toEqual(["research"]);
   });
 });
 

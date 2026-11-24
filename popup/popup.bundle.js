@@ -6,6 +6,7 @@ import {
   applyTitleTemplate,
   buildMarkdown,
   buildPayload,
+  buildTagInputSuggestions,
   createPost,
   fallbackTitle,
   getSettingsState,
@@ -16,7 +17,7 @@ import {
   parseTags,
   setActiveProfile,
   updateActionIconForProfile
-} from "../chunks/chunk-4ALOPV6U.js";
+} from "../chunks/chunk-DSTCMCFK.js";
 import "../chunks/chunk-YLVDSGH3.js";
 
 // popup/popup.js
@@ -104,11 +105,12 @@ async function loadCategories() {
     categoryInput.disabled = false;
   }
 }
-function setTagOptions(tags) {
+var availableTags = [];
+function refreshTagSuggestions() {
   tagsDatalist.innerHTML = "";
-  tags.forEach((tag) => {
+  buildTagInputSuggestions(tagsInput.value, availableTags).forEach((value) => {
     const option = document.createElement("option");
-    option.value = tag;
+    option.value = value;
     tagsDatalist.appendChild(option);
   });
 }
@@ -121,7 +123,8 @@ async function loadTags() {
   try {
     const tags = await listTags(requestProfile);
     if (currentProfile?.id === requestProfile.id) {
-      setTagOptions(tags);
+      availableTags = tags;
+      refreshTagSuggestions();
       tagsLoadedForProfileId = requestProfile.id;
       tagsStatus.textContent = tags.length ? `${tags.length} available tags loaded.` : "No tags are available on this site.";
     }
@@ -379,7 +382,8 @@ async function loadSettings() {
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
   tagsLoadedForProfileId = "";
   tagsStatus.textContent = "";
-  setTagOptions([]);
+  availableTags = [];
+  refreshTagSuggestions();
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -426,6 +430,7 @@ async function init() {
   categoryInput.addEventListener("pointerdown", loadCategories);
   tagsInput.addEventListener("focus", loadTags);
   tagsInput.addEventListener("pointerdown", loadTags);
+  tagsInput.addEventListener("input", refreshTagSuggestions);
   setFormEnabled(true);
   setStatus("");
 }

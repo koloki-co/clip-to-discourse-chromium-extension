@@ -62,6 +62,16 @@ function parseTags(value) {
   });
   return tags;
 }
+function buildTagInputSuggestions(currentValue, availableTags) {
+  const value = typeof currentValue === "string" ? currentValue : "";
+  const lastCommaIndex = value.lastIndexOf(",");
+  const prefix = lastCommaIndex === -1 ? "" : `${value.slice(0, lastCommaIndex + 1)} `;
+  const precedingTags = lastCommaIndex === -1 ? [] : value.slice(0, lastCommaIndex).split(",");
+  const usedTags = new Set(
+    precedingTags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+  );
+  return availableTags.filter((tag) => !usedTags.has(tag.toLowerCase())).map((tag) => `${prefix}${tag}`);
+}
 function buildPayload({ destination, title, categoryId, topicId, raw, tags }) {
   const trimmedRaw = truncateRaw(raw);
   const trimmedTitle = truncateTitle(title);
@@ -956,6 +966,7 @@ export {
   DESTINATIONS,
   AUTH_METHODS,
   parseTags,
+  buildTagInputSuggestions,
   buildPayload,
   normalizeTitle,
   fallbackTitle,

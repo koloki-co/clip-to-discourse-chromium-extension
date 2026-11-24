@@ -4,7 +4,7 @@
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
 import { getSettingsState, isProfileConnected, setActiveProfile } from "../shared/settings.js";
 import { buildMarkdown, applyTitleTemplate, normalizeTitle, fallbackTitle } from "../shared/markdown.js";
-import { buildPayload, parseTags } from "../shared/payload.js";
+import { buildPayload, buildTagInputSuggestions, parseTags } from "../shared/payload.js";
 import { createPost, listCategories, listTags } from "../shared/discourse.js";
 import { updateActionIconForProfile } from "../shared/favicon.js";
 import { applyTheme } from "../shared/theme.js";
@@ -115,11 +115,16 @@ async function loadCategories() {
   }
 }
 
-function setTagOptions(tags) {
+// A native datalist matches an option against the input's whole value, not
+// just the tag currently being typed, so the datalist is rebuilt on every
+// keystroke from the full known tag list via buildTagInputSuggestions.
+let availableTags = [];
+
+function refreshTagSuggestions() {
   tagsDatalist.innerHTML = "";
-  tags.forEach((tag) => {
+  buildTagInputSuggestions(tagsInput.value, availableTags).forEach((value) => {
     const option = document.createElement("option");
-    option.value = tag;
+    option.value = value;
     tagsDatalist.appendChild(option);
   });
 }
@@ -137,7 +142,8 @@ async function loadTags() {
   try {
     const tags = await listTags(requestProfile);
     if (currentProfile?.id === requestProfile.id) {
-      setTagOptions(tags);
+      availableTags = tags;
+      refreshTagSuggestions();
       tagsLoadedForProfileId = requestProfile.id;
       tagsStatus.textContent = tags.length
         ? `${tags.length} available tags loaded.`
@@ -449,7 +455,8 @@ async function loadSettings() {
   setCategoryOptions([], currentProfile.defaultCategoryId || "");
   tagsLoadedForProfileId = "";
   tagsStatus.textContent = "";
-  setTagOptions([]);
+  availableTags = [];
+  refreshTagSuggestions();
   renderProfiles();
   applyProfileDefaults(currentProfile);
   const connected = isProfileConnected(currentProfile);
@@ -506,6 +513,7 @@ async function init() {
   categoryInput.addEventListener("pointerdown", loadCategories);
   tagsInput.addEventListener("focus", loadTags);
   tagsInput.addEventListener("pointerdown", loadTags);
+  tagsInput.addEventListener("input", refreshTagSuggestions);
   setFormEnabled(true);
   setStatus("");
 }

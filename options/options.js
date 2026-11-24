@@ -11,6 +11,7 @@ import {
   saveGlobalSettings
 } from "../shared/settings.js";
 import { AUTH_METHODS, CLIP_STYLES, DESTINATIONS } from "../shared/constants.js";
+import { buildTagInputSuggestions } from "../shared/payload.js";
 import {
   checkUserApiVersion,
   createUserApiDeviceRequest,
@@ -105,7 +106,10 @@ let activeProfileId = "";
 let useFaviconForIcon = false;
 let categoriesLoadedForProfileId = "";
 let tagsLoadedForProfileId = "";
-let tagsLoading = false;
+// A native datalist matches an option against the input's whole value, not
+// just the tag currently being typed, so the datalist is rebuilt on every
+// keystroke from the full known tag list via buildTagInputSuggestions.
+let availableDefaultTags = [];
 
 const USER_API_SCOPES = "read,write";
 const USER_API_APPLICATION_NAME = "Clip To Discourse Chromium Extension";
@@ -203,21 +207,22 @@ async function loadDefaultCategories() {
   }
 }
 
-function setDefaultTagOptions(tags) {
+function refreshDefaultTagSuggestions() {
   defaultTagsDatalist.innerHTML = "";
-  tags.forEach((tag) => {
+  buildTagInputSuggestions(fields.defaultTags.value, availableDefaultTags).forEach((value) => {
     const option = document.createElement("option");
-    option.value = tag;
+    option.value = value;
     defaultTagsDatalist.appendChild(option);
   });
 }
 
 async function loadDefaultTags() {
   const profile = activeProfileCredentials();
-  if (!profile.baseUrl || tagsLoadedForProfileId === activeProfileId) {
-    return;
-  }
-  if (tagsLoading) {
+  // Capture the requesting profile so a response that arrives after a
+  // profile switch cannot populate the new profile's form with the old
+  // site's tags or mark them as loaded for the new profile.
+  const requestProfileId = activeProfileId;
+  if (!profile.baseUrl || tagsLoadedForProfileId === requestProfileId) {
     return;
   }
   if (profile.authMethod === AUTH_METHODS.USER_API && !profile.userApiKey) {
@@ -229,20 +234,24 @@ async function loadDefaultTags() {
     return;
   }
 
-  tagsLoading = true;
   defaultTagsStatus.textContent = "Loading tags...";
   try {
     await ensureHostPermission(profile.baseUrl);
     const tags = await listTags(profile);
-    setDefaultTagOptions(tags);
-    tagsLoadedForProfileId = activeProfileId;
+    if (activeProfileId !== requestProfileId) {
+      return;
+    }
+    availableDefaultTags = tags;
+    refreshDefaultTagSuggestions();
+    tagsLoadedForProfileId = requestProfileId;
     defaultTagsStatus.textContent = tags.length
       ? `${tags.length} available tags loaded.`
       : "No tags are available on this site.";
   } catch (error) {
+    if (activeProfileId !== requestProfileId) {
+      return;
+    }
     defaultTagsStatus.textContent = error.message || "Tags could not be loaded.";
-  } finally {
-    tagsLoading = false;
   }
 }
 
@@ -426,7 +435,8 @@ function fillProfileForm(profile) {
   fields.defaultTopicId.value = profile.defaultTopicId || "";
   fields.defaultTags.value = profile.defaultTags || "";
   tagsLoadedForProfileId = "";
-  setDefaultTagOptions([]);
+  availableDefaultTags = [];
+  refreshDefaultTagSuggestions();
   defaultTagsStatus.textContent = "Tags load when this field is opened.";
   fields.titleTemplate.value = profile.titleTemplate || "{{title}}";
   fields.titleUrlTemplate.value = profile.titleUrlTemplate || "";
@@ -1098,6 +1108,7 @@ revokeUserApiButton.addEventListener("click", handleRevokeUserApi);
 fields.defaultCategoryId.addEventListener("pointerdown", loadDefaultCategories);
 fields.defaultTags.addEventListener("focus", loadDefaultTags);
 fields.defaultTags.addEventListener("pointerdown", loadDefaultTags);
+fields.defaultTags.addEventListener("input", refreshDefaultTagSuggestions);
 fields.baseUrl.addEventListener("input", refreshHttpWarning);
 if (fields.allowHttp) {
   fields.allowHttp.addEventListener("change", updateHttpWarningVisibility);
